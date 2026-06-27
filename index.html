@@ -809,9 +809,18 @@ function renderExport(m){
     </div>
     ${S.gallery.length?`<div class="bar"><button class="btn pink" onclick="dlGalleryAll()">⬇ Tải ${S.gallery.length} ảnh Studio</button></div>`:''}
   </div>
+  <div class="card" style="border-color:var(--gold)">
+    <h2>🚀 Xây kênh viral (Viral Dojo)</h2>
+    <p class="lead" style="margin-bottom:8px">Gửi thẳng Brand Kit + nhân vật sang <b>Viral Dojo</b> để dựng kênh — tạo 1 dự án mới đã điền sẵn, không cần tải/nạp file.</p>
+    <div class="bar" style="margin-top:0">
+      <button class="btn gold" onclick="sendToDojo()" ${S.outputs.brandkit?'':'disabled'}>🚀 Xây kênh viral →</button>
+      <span class="hint">Cần hoàn tất giai đoạn 5 (Brand Kit). Liền mạch khi mở cùng link github.io; khác origin sẽ rơi về tải file + mở Dojo.</span>
+    </div>
+    <div class="err" id="dojoErr"></div>
+  </div>
   <div class="bar"><button class="btn" onclick="dlAll()">⬇⬇ Tải tất cả (file text)</button>
    <button class="btn ghost" onclick="go('studio')">← Studio ảnh</button></div>
-  <div class="note">Ở app viral → "Hồ sơ Sản phẩm chuẩn" → Nạp <b>05-brand-kit.json</b>. Thả 01–04 + persona + scorecard + index.html + ảnh Studio vào <b>Brand Vault</b>.</div>`;
+  <div class="note">Thủ công: ở Dojo → "Hồ sơ Sản phẩm chuẩn" → Nạp <b>05-brand-kit.json</b>. Thả 01–04 + persona + scorecard + index.html + ảnh Studio vào <b>Brand Vault</b>.</div>`;
 }
 function dlBrandKit(){dl("05-brand-kit.json",JSON.stringify(S.outputs.brandkit,null,2),"application/json");}
 function dlMd(id,name){dl(name+".md",mdFor(id),"text/markdown");}
@@ -821,6 +830,63 @@ function dlAll(){let i=0;const q=(fn)=>setTimeout(fn,180*(++i));
   if(S.outputs.brandkit)q(()=>dlBrandKit());if(S.persona&&S.persona.name)q(()=>exportPersona());if(intakeOK())q(()=>downloadIntake());
   ["brand|01-brand-strategy","comms|02-comms-strategy","product|03-product-strategy","insight|04-customer-insight"].forEach(x=>{const[id,nm]=x.split("|");if(S.outputs[id])q(()=>dlMd(id,nm));});
   q(()=>dlScorecard());if(S.outputs.comms)q(()=>dlCC());toast("Đang tải bộ file...");}
+
+/* ---------- NỐI VIRAL DOJO (cùng origin → chung localStorage 'dojo') ---------- */
+const DOJO_URL_REL="../viral-dojo/app.html?start=1";
+const DOJO_URL_ABS="https://haideman2025.github.io/viral-dojo/app.html?start=1";
+function dojoPlanLimit(){
+  const L={free:1,trial:2,life:10,vip:50};let plan='free';
+  try{const ses=JSON.parse(localStorage.getItem('dojo_session')||'null');if(ses&&ses.code)plan=(ses.plan&&L[ses.plan]!=null)?ses.plan:'life';}catch(e){}
+  return L[plan]||1;
+}
+function buildDojoBrandKit(){
+  const bk=JSON.parse(JSON.stringify(S.outputs.brandkit||{}));
+  if(!bk.brand)bk.brand={ten:'',slogan:'',tone:'',khach:'',nen:'',khong:''};
+  if(!Array.isArray(bk.products))bk.products=[];
+  if(!bk.compliance)bk.compliance={cam:'',disclaimer:''};
+  if(!bk.personas){const p=S.persona||{};bk.personas=[p.name,p.occupation,p.voiceTone,p.pov].filter(Boolean).join(' — ');}
+  return bk;
+}
+function dojoOnboard(){return {nganh:S.intake.nganh||'',kenh:S.intake.ten||S.persona.name||'',khach:S.intake.thi_truong||''};}
+function sendToDojo(){
+  saveOut('brandkit',true);
+  const bk=S.outputs&&S.outputs.brandkit;
+  const er=document.getElementById('dojoErr');if(er)er.style.display='none';
+  if(!bk||!bk.brand){toast('Cần hoàn tất Brand Kit (giai đoạn 5) trước');go('brandkit');return;}
+  const brandKit=buildDojoBrandKit(),onboard=dojoOnboard();
+  const seamless=/(^|\.)github\.io$/i.test(location.hostname||'');
+  if(!seamless){
+    dlBrandKit();
+    if(er){er.style.display='block';er.style.borderColor='var(--gold)';er.style.color='var(--gold)';er.textContent='Khác origin nên không truyền trực tiếp được — đã tải 05-brand-kit.json. Mở Dojo rồi "Hồ sơ Sản phẩm chuẩn → Nạp file".';}
+    window.open(DOJO_URL_ABS,'_blank');return;
+  }
+  let raw;try{raw=JSON.parse(localStorage.getItem('dojo')||'null');}catch(e){raw=null;}
+  // chuẩn hoá về workspace v2 (giữ dữ liệu cũ nếu là bản legacy 1 dự án)
+  if(!(raw&&raw.v===2&&raw.projects&&typeof raw.projects==='object')){
+    const legacyDna=(raw&&raw.dna&&typeof raw.dna==='object')?raw.dna:null;
+    const keys=(raw&&raw.keys)||{};const np={v:2,activeId:'',keys:keys,projects:{}};
+    if(legacyDna){const lid='proj_'+Math.random().toString(36).slice(2,8);
+      np.projects[lid]={name:(legacyDna.onboard&&(legacyDna.onboard.kenh||legacyDna.onboard.nganh))||'Dự án 1',createdAt:_today10(),updatedAt:_today10(),dna:legacyDna};np.activeId=lid;}
+    raw=np;
+  }
+  const today=_today10(),name=(S.intake.ten||S.persona.name||'Muse Brand').slice(0,60);
+  const count=Object.keys(raw.projects).length,limit=dojoPlanLimit();
+  let targetId;
+  if(count>0&&count>=limit){
+    if(!confirm('Gói Dojo đang ở giới hạn '+limit+' dự án. Ghi Brand Kit + nhân vật vào DỰ ÁN ĐANG MỞ (đè brandKit cũ của dự án đó)?\n\nOK = ghi đè · Cancel = huỷ')) return;
+    targetId=(raw.activeId&&raw.projects[raw.activeId])?raw.activeId:Object.keys(raw.projects)[0];
+    const p=raw.projects[targetId];p.dna=p.dna||{onboard:{},m1:{},scores:{}};
+    p.dna.brandKit=brandKit;p.dna.onboard=Object.assign({},onboard,p.dna.onboard||{});p.updatedAt=today;
+  }else{
+    targetId='proj_'+Math.random().toString(36).slice(2,8);
+    raw.projects[targetId]={name:name,createdAt:today,updatedAt:today,dna:{onboard:onboard,m1:{},scores:{},brandKit:brandKit}};
+  }
+  raw.v=2;raw.activeId=targetId;raw.keys=raw.keys||{};
+  try{localStorage.setItem('dojo',JSON.stringify(raw));}catch(e){if(er){er.style.display='block';er.textContent='Không ghi được sang Dojo: '+e.message;}return;}
+  toast('Đã gửi sang Viral Dojo →');
+  setTimeout(()=>{location.href=DOJO_URL_REL;},450);
+}
+function _today10(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
 /* ---------- AGE GATE ---------- */
 function maybeAgeGate(){if(S.ageOk)return;
