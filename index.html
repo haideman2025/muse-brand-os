@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Muse Brand OS — Tạo cuộc sống mới · Gemini</title>
+<style>
+  :root{--bg:#0F1923;--panel:#16222e;--panel2:#1b2a38;--line:#27384a;--teal:#00D4AA;--coral:#E85B5B;--blue:#4A9EFF;--gold:#F2C14E;--txt:#E8EEF3;--mut:#8DA1B3;--ok:#2ec27e;--bad:#E85B5B}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);line-height:1.55}
+  .app{display:grid;grid-template-columns:268px 1fr;min-height:100vh}
+  aside{background:#0c151d;border-right:1px solid var(--line);padding:20px 16px;position:sticky;top:0;height:100vh;overflow:auto}
+  .logo{font-weight:800;font-size:17px;color:var(--teal);letter-spacing:.4px}
+  .logo small{display:block;color:var(--mut);font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+  .steps{margin-top:20px;display:flex;flex-direction:column;gap:3px}
+  .grp{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#5b7187;text-transform:uppercase;margin:14px 4px 4px}
+  .step{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--mut);border:1px solid transparent}
+  .step:hover{background:#10212c}
+  .step.active{background:#10262b;border-color:var(--teal);color:var(--txt)}
+  .step .num{width:22px;height:22px;border-radius:50%;background:#1d2c3a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+  .step.done .num{background:var(--ok);color:#04210f}
+  .step.lock{opacity:.45;cursor:not-allowed}
+  .step .badge{margin-left:auto;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px}
+  .b-ok{background:#10331f;color:var(--ok)}.b-rev{background:#33300f;color:var(--gold)}.b-bad{background:#3a1d1f;color:var(--coral)}
+  .ovr{margin-top:18px;padding:12px;border:1px dashed var(--line);border-radius:8px;font-size:12px;color:var(--mut)}
+  .ovr .big{font-size:26px;font-weight:800;color:var(--teal)}
+  main{padding:30px 34px 80px;max-width:940px}
+  h1{font-size:24px;margin-bottom:4px}
+  h2{font-size:19px;margin:4px 0 6px}
+  .lead{color:var(--mut);font-size:14px;margin-bottom:20px}
+  label{display:block;font-size:12.5px;color:var(--mut);font-weight:600;margin:12px 0 5px}
+  label .req{color:var(--coral)}
+  input,select,textarea{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--teal)}
+  textarea{min-height:92px;resize:vertical;line-height:1.5}
+  textarea.big{min-height:340px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:#06241f;border:none;border-radius:8px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px}
+  .btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .btn.blue{background:var(--blue);color:#04203f}.btn.gold{background:var(--gold);color:#2a2400}.btn.coral{background:var(--coral);color:#2a0c0c}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
+  .hint{font-size:12px;color:var(--mut);margin-top:6px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-top:16px}
+  .note{font-size:12.5px;color:var(--mut);padding:12px 14px;border:1px dashed var(--line);border-radius:8px;margin-top:14px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#1d2c3a;color:var(--mut);margin:2px 4px 2px 0}
+  .score-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+  .score-tbl th,.score-tbl td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  .score-tbl th{background:var(--panel2);color:var(--teal);font-size:11px;text-transform:uppercase}
+  .scorehead{display:flex;align-items:center;gap:12px;margin-top:14px}
+  .scorehead .total{font-size:30px;font-weight:800}
+  .status-line{font-size:12px;color:var(--mut);margin-top:8px}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#06241f;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--teal);color:#06241f;padding:11px 20px;border-radius:30px;font-weight:700;font-size:13px;opacity:0;transition:.3s;z-index:200}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .err{background:#2a1416;border:1px solid var(--coral);color:#ffb3b3;padding:10px 12px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
+  .overlay{position:fixed;inset:0;background:rgba(7,12,17,.9);display:flex;align-items:center;justify-content:center;z-index:120;padding:20px}
+  .ovbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;max-width:600px;width:100%;max-height:90vh;overflow:auto}
+  .piperow{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;margin-top:8px;font-size:13.5px}
+  .piperow .pnum{width:22px;height:22px;border-radius:50%;background:#1d2c3a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+  .piperow .pt{flex:1}.piperow .ps{font-size:12px;color:var(--mut);text-align:right;min-width:130px}
+  .piperow[data-state=done]{border-color:var(--ok)}.piperow[data-state=running]{border-color:var(--blue)}.piperow[data-state=error]{border-color:var(--coral)}
+  .portrait{width:100%;max-width:300px;border-radius:12px;border:1px solid var(--line);display:block;margin-top:10px}
+  .pf-grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start}
+  .kv{font-size:13px;margin:7px 0}.kv b{color:var(--teal);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}
+  .sb-card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:13px;margin-top:10px}
+  .sb-card .d{color:var(--gold);font-weight:800;font-size:12px}
+  .sb-card .h{font-weight:700;margin:4px 0 6px}
+  .sb-card code{display:block;background:#0e1822;border:1px dashed var(--line);border-radius:6px;padding:8px;font-size:12px;color:#9fd;margin-top:6px;white-space:pre-wrap;cursor:pointer}
+  @media(max-width:820px){.app{grid-template-columns:1fr}aside{position:static;height:auto}main{padding:20px}.row,.row3{grid-template-columns:1fr}.pf-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="logo">Muse Brand OS<small>Tạo cuộc sống mới · Gemini</small></div>
+    <div class="steps" id="steps"></div>
+    <div class="ovr">Overall<br><span class="big" id="ovrScore">—</span><div id="ovrNote">Hoàn thành các giai đoạn để xem điểm tổng.</div></div>
+    <div class="hint" style="margin-top:14px">Key &amp; dữ liệu lưu cục bộ trên máy bạn. Chỉ gọi tới Google Gemini.</div>
+  </aside>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast">✓</div>
+
+<script>
+/* =========================================================
+   MUSE BRAND OS — single-file client app (Gemini)
+   Persona → Brand strategy → 5 artifacts → export
+   ========================================================= */
+const LS="muse_state_v1";
+let S=JSON.parse(localStorage.getItem(LS)||"null")||{
+  apiKey:"", modelText:"gemini-2.5-flash", modelImg:"gemini-2.5-flash-image", lang:"vi",
+  ageOk:false, idea:"",
+  persona:{}, intake:{}, outputs:{}, scores:{}, storyboard:null, stage:"setup"
+};
+function save(){localStorage.setItem(LS,JSON.stringify(S));}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500);}
+function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function dl(name,content,type){const b=new Blob([content],{type:type||'text/plain;charset=utf-8'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);}
+
+/* ---------- IndexedDB cho ảnh chân dung (tách khỏi localStorage) ---------- */
+const IDB={db:null,
+  open(){return new Promise((res,rej)=>{if(IDB.db)return res(IDB.db);const r=indexedDB.open("muse_media",1);
+    r.onupgradeneeded=()=>{r.result.createObjectStore("portraits");};
+    r.onsuccess=()=>{IDB.db=r.result;res(IDB.db);};r.onerror=()=>rej(r.error);});},
+  async put(k,v){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readwrite");t.objectStore("portraits").put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});},
+  async get(k){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readonly");const rq=t.objectStore("portraits").get(k);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>rej(rq.error);});}
+};
+
+/* ---------- PERSONA FIELDS ---------- */
+const PERSONA_FIELDS=[
+ {k:"name",label:"Tên nhân vật",req:true},
+ {k:"age",label:"Tuổi",type:"number"},
+ {k:"gender",label:"Giới tính",type:"select",opts:["Nữ","Nam","Khác"]},
+ {k:"ethnicityLook",label:"Ngoại hình tổng quát (an toàn)",type:"textarea",ph:"VD: phụ nữ Á Đông, tóc dài nâu, gương mặt ấm áp, ăn mặc tối giản"},
+ {k:"vibe",label:"Thần thái / visual style",ph:"ấm áp, tri thức, đời thường"},
+ {k:"mbti",label:"MBTI (tuỳ chọn)"},
+ {k:"personality",label:"Tính cách",type:"textarea"},
+ {k:"occupation",label:"Nghề / định vị chuyên môn",ph:"VD: từng là tư vấn tâm lý"},
+ {k:"niche",label:"Niche / chủ đề kênh",req:true,ph:"hẹn hò, tâm lý, sức khoẻ nam giới..."},
+ {k:"pov",label:"Góc nhìn đặc trưng (POV)",type:"textarea",ph:'VD: "phụ nữ thật sự để ý gì ở đàn ông"'},
+ {k:"voiceTone",label:"Chất giọng nói/viết",ph:"thủ thỉ, thẳng thắn, hài duyên..."},
+ {k:"backstory",label:"Câu chuyện nền",type:"textarea"},
+ {k:"signaturePhrases",label:"Câu cửa miệng (cách nhau dấu phẩy)"},
+ {k:"visualStyle",label:"Phong cách hình ảnh kênh",type:"textarea",ph:"tông màu, bối cảnh, ánh sáng quay video"}
+];
+
+/* ---------- INTAKE FIELDS (mục tiêu KD + chiến lược) ---------- */
+const INTAKE_FIELDS=[
+ {k:"loai",label:"Loại thương hiệu",type:"select",opts:["doanh nghiệp","sản phẩm","cá nhân"],req:true},
+ {k:"ten",label:"Tên thương hiệu / kênh",req:true},
+ {k:"mota",label:"Mô tả 1 dòng",req:true},
+ {k:"website",label:"Website (nếu có)"},
+ {k:"muc_tieu",label:"Mục tiêu kinh doanh (định lượng + mốc thời gian)",type:"textarea",req:true,ph:"VD: 300 lead/tháng trong 3 tháng; 50K follow"},
+ {k:"nganh",label:"Ngành / danh mục",req:true},
+ {k:"mo_hinh",label:"Mô hình",type:"select",opts:["B2B","B2C","DTC","SaaS","Marketplace","Personal"],req:true},
+ {k:"thi_truong",label:"Thị trường: địa lý + khách hàng",type:"textarea",req:true},
+ {k:"kenh",label:"Kênh viral mũi nhọn",req:true,ph:"TikTok/Reels/Shorts, YouTube, FB"},
+ {k:"san_pham",label:"Sản phẩm/dịch vụ chính (≤5, cách nhau dấu phẩy)",type:"textarea"},
+ {k:"doi_thu",label:"Top 3 đối thủ",ph:"A, B, C"},
+ {k:"ngan_sach",label:"Ngân sách/tháng (khoảng)"},
+ {k:"pod_seed",label:"Năng lực/tài sản đối thủ KHÔNG có (POD)",type:"textarea"},
+ {k:"noi_dau",label:"Nỗi đau lớn nhất bạn giải",type:"textarea",req:true},
+ {k:"founder",label:"Câu chuyện founder (tuỳ chọn)",type:"textarea"}
+];
+
+/* ---------- PHASES (schema + rubric — nguồn sự thật từ brief) ---------- */
+const PHASES=[
+ {id:"brand",n:1,title:"Chiến lược thương hiệu",gate:80,
+  desc:"Positioning, POP/POD, SWOT→TOWS, Brand DNA.",
+  schema:`{"tom_tat":"","swot":{"S":[],"W":[],"O":[],"T":[]},"tows":{"SO":"","ST":"","WO":"","WT":""},"pop":[],"pod":[{"diem":"","kho_sao_chep_vi":""}],"positioning_statement":"","brand_dna":{"archetype":"","mission":"","promise":"","tinh_cach":[{"trait":"","the_hien":"","khong_bao_gio":""}],"gia_tri_cot_loi":[]}}`,
+  rubric:[["Positioning đúng công thức & sắc",25],["POD khác biệt + lý do khó sao chép",20],["SWOT→TOWS ra hướng hành động",15],["Brand DNA nhất quán",15],["POP tách bạch (không quảng cáo)",10],["Bám mục tiêu KD từ intake",15]]},
+ {id:"comms",n:2,title:"Chiến lược truyền thông",gate:80,
+  desc:"Pillars 50/30/20, funnel, hook bank, calendar 30 ngày.",
+  schema:`{"cam_giac_loi":"","pillars":[{"ma":"A","ten":"","vai_tro":"Awareness","ty_le":50,"noi_dung":""},{"ma":"B","ten":"","vai_tro":"Consideration","ty_le":30,"noi_dung":""},{"ma":"C","ten":"","vai_tro":"Conversion","ty_le":20,"noi_dung":""}],"funnel":{"TOFU":"","MOFU":"","BOFU":""},"kenh":[{"ten":"","vai_tro":"","dinh_dang":""}],"hook_bank":[{"pillar":"A","co_che":"pain","hook":""}],"calendar_30":[{"ngay":1,"pillar":"A","chu_de":"","format":""}],"visual_dna":{"phong_cach":"","mau":[],"font":"","signature_ket":""}}`,
+  note:"Yêu cầu ≥18 hook đa cơ chế (pain/diag/reframe/before-after/authority) & đủ 30 ngày calendar. Hook viết bằng GIỌNG persona.",
+  rubric:[["Hook bank đa cơ chế, chặn lướt 3s",25],["Pillars + tỷ lệ 50/30/20 hợp lý",20],["Liên kết Insight→Hook",15],["Funnel TOFU/MOFU/BOFU đủ",15],["Calendar 30 ngày cân pillar",15],["Visual DNA nhận diện",10]]},
+ {id:"product",n:3,title:"Chiến lược sản phẩm",gate:75,
+  desc:"Offer ladder, USP, pricing, Blue Ocean.",
+  schema:`{"offer_ladder":[{"bac":"lead magnet","ten":"","muc_tieu":""}],"products":[{"id":"SP1","ten":"","nhom":"","gia":"","loiich":"","usp":"","khach":"","cam":""}],"monetization":"","blue_ocean":{"eliminate":[],"reduce":[],"raise":[],"create":[]}}`,
+  note:"Không bịa giá: thiếu thì để 'Liên hệ' và ghi (cần xác nhận).",
+  rubric:[["Offer ladder logic (free→premium)",20],["USP từng sản phẩm sắc",20],["Khớp products với Brand Kit",15],["Pricing thực tế (không bịa)",15],["Blue Ocean 4 actions giá trị",15],["Monetization rõ",15]]},
+ {id:"insight",n:4,title:"Dữ liệu khách hàng / Insight",gate:80,
+  desc:"Persona, JTBD, core insight (T+M+Tr), VoC.",
+  schema:`{"personas":[{"ten":"","boi_canh":"","tension":"","motivation":"","trigger":"","jtbd":"","hanh_vi_quyet_dinh":""}],"core_insight":{"tension":"","motivation":"","trigger":"","cau_chot":""},"voc":[{"nguon":"","trich_dan":"","y_nghia":""}],"pain_desire_map":{"pains":[],"desires":[]}}`,
+  rubric:[["Core insight = T+M+Tr sắc",30],["Persona đủ chiều",20],["VoC/bằng chứng thật",20],["JTBD statement chuẩn",15],["Pain/Desire map rõ",15]]},
+ {id:"brandkit",n:5,title:"Hồ sơ thương hiệu chuẩn (Brand Kit)",gate:90,
+  desc:"File import app — đúng schema tuyệt đối.",
+  schema:`{"brand":{"ten":"","slogan":"","tone":"","khach":"","nen":"","khong":""},"products":[{"id":"SP1","ten":"","nhom":"","gia":"","loiich":"","usp":"","khach":"","cam":""}],"personas":"","compliance":{"cam":"","disclaimer":""}}`,
+  note:"GIỮ NGUYÊN tên field. products phải khớp Chiến lược sản phẩm. compliance.cam gộp mọi products[].cam.",
+  rubric:[["Đúng schema (không field lạ)",30],["JSON valid (parse được)",15],["Compliance đầy đủ (cấm+disclaimer)",20],["tone/nen/khong dùng được ngay",20],["products khớp #3",15]]}
+];
+
+const STEP_LIST=[
+ {id:"setup",title:"① Thiết lập Gemini",grp:"BẮT ĐẦU"},
+ {id:"idea",title:"② Tạo cuộc sống mới",grp:""},
+ {id:"persona",title:"③ Hồ sơ nhân vật",grp:"NHÂN VẬT"},
+ {id:"profile",title:"④ Chân dung & hồ sơ"},
+ {id:"intake",title:"⑤ Mục tiêu KD & chiến lược",grp:"THƯƠNG HIỆU"},
+ ...PHASES.map(p=>({id:p.id,title:p.n+". "+p.title,grp:p.id==="brand"?"PIPELINE 5 GIAI ĐOẠN":""})),
+ {id:"storyboard",title:"Storyboard 30 ngày",grp:"XUẤT BẢN"},
+ {id:"export",title:"Xuất toàn bộ file"}
+];
+
+/* ---------- GEMINI REST ---------- */
+async function geminiText(prompt,jsonMode){
+  if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.modelText)}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
+  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7}};
+  if(jsonMode) body.generationConfig.responseMimeType="application/json";
+  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok){let t=await r.text();throw new Error("Gemini "+r.status+": "+t.slice(0,300));}
+  const d=await r.json();
+  const txt=d?.candidates?.[0]?.content?.parts?.map(p=>p.text).filter(Boolean).join("")||"";
+  if(!txt) throw new Error("Gemini trả về rỗng (có thể bị chặn an toàn).");
+  return txt;
+}
+async function geminiImage(prompt){
+  if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.modelImg)}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
+  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:["IMAGE"]}};
+  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok){let t=await r.text();throw new Error("Gemini image "+r.status+": "+t.slice(0,300));}
+  const d=await r.json();
+  const parts=d?.candidates?.[0]?.content?.parts||[];
+  for(const p of parts){if(p.inlineData&&p.inlineData.data){return "data:"+(p.inlineData.mimeType||"image/png")+";base64,"+p.inlineData.data;}}
+  throw new Error("Không nhận được ảnh (model ảnh có thể không khả dụng với key này — đổi tên model ở Thiết lập).");
+}
+function parseJSON(t){t=t.trim().replace(/^```json/i,"").replace(/^```/,"").replace(/```$/,"").trim();return JSON.parse(t);}
+
+/* ---------- CONTEXT BUILDERS ---------- */
+function personaContext(){
+  const p=S.persona;if(!p||!p.name)return "";
+  let s="NHÂN VẬT / PERSONA (trục nhân cách — mọi nội dung phải nhất quán giọng & góc nhìn này):\n";
+  PERSONA_FIELDS.forEach(f=>{if(p[f.k])s+=`- ${f.label}: ${p[f.k]}\n`;});
+  return s+"\n";
+}
+function intakeContext(){
+  const i=S.intake;let s="THÔNG TIN THƯƠNG HIỆU (intake):\n";
+  INTAKE_FIELDS.forEach(f=>{if(i[f.k])s+=`- ${f.label}: ${i[f.k]}\n`;});
+  return s;
+}
+function priorContext(uptoId){
+  let s="";for(const p of PHASES){if(p.id===uptoId)break;if(S.outputs[p.id])s+=`\n[${p.title}]\n`+JSON.stringify(S.outputs[p.id])+"\n";}
+  return s?("\nKẾT QUẢ CÁC GIAI ĐOẠN TRƯỚC (dùng để nhất quán):\n"+s):"";
+}
+const COMPLY="TUÂN THỦ BẮT BUỘC: KHÔNG claim y khoa ('chữa bệnh/cam kết/100%/tuyệt đối'); ngành nhạy cảm (sức khoẻ/sinh lý) → kể chuyện tinh tế, sản phẩm xuất hiện tự nhiên, KHÔNG quảng cáo thẳng, nuôi kênh organic, chuyển đổi qua inbox; thêm disclaimer 'Hiệu quả tuỳ cơ địa, không thay thế tư vấn y tế'. KHÔNG nội dung tình dục hoá nhân vật — tập trung lifestyle, tâm lý, giá trị.";
+
+/* ---------- PROMPTS ---------- */
+function ideaPrompt(idea){
+  return `Bạn là Brand & Character Strategist. Từ Ý TƯỞNG thô của người dùng, dựng ĐỒNG THỜI: (1) một PERSONA (nhân vật KOC/UGC) và (2) một BrandIntake (mục tiêu KD + chiến lược). Tiếng Việt, cụ thể, thực chiến. KHÔNG để trống field — thiếu thì suy luận hợp lý.
+${COMPLY}
+Ý TƯỞNG: "${idea}"
+Ràng buộc giá trị:
+- persona.gender ∈ {Nữ,Nam,Khác}; age là số.
+- intake.loai ∈ {doanh nghiệp,sản phẩm,cá nhân} (nhân vật UGC/KOC = "cá nhân"); intake.mo_hinh ∈ {B2B,B2C,DTC,SaaS,Marketplace,Personal}.
+- intake.muc_tieu định lượng + mốc thời gian; intake.kenh chọn nền tảng phù hợp.
+- persona.pov = góc nhìn đặc trưng bán được; persona.voiceTone = chất giọng riêng.
+Trả về DUY NHẤT JSON đúng cấu trúc (không markdown, không giải thích):
+{"persona":{"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":""},"intake":{"loai":"","ten":"","mota":"","website":"","muc_tieu":"","nganh":"","mo_hinh":"","thi_truong":"","kenh":"","san_pham":"","doi_thu":"","ngan_sach":"","pod_seed":"","noi_dau":"","founder":""}}`;
+}
+function completePersonaPrompt(){
+  return `Bạn là Character Designer. Hoàn thiện hồ sơ PERSONA dưới đây: ĐIỀN các field còn trống và làm sắc các field sơ sài, GIỮ NGUYÊN field người dùng đã viết kỹ. Tiếng Việt, nhất quán, tinh tế (nhân vật marketing chuyên nghiệp, KHÔNG NSFW).
+${COMPLY}
+PERSONA HIỆN TẠI:
+${JSON.stringify(S.persona)}
+Trả DUY NHẤT JSON đúng các key: {"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":""}`;
+}
+function portraitPrompt(){
+  const p=S.persona;
+  return `Professional, tasteful editorial portrait photo of a content creator. ${p.gender||''} ${p.age?('around '+p.age+' years old'):''}. Appearance: ${p.ethnicityLook||'natural, approachable'}. Vibe: ${p.vibe||'warm, intelligent'}. Visual style: ${p.visualStyle||'soft natural light, minimal background'}. Niche: ${p.niche||''}. Realistic, high quality, safe-for-work, lifestyle social-media creator headshot, looking at camera, modern aesthetic. No text, no watermark.`;
+}
+function intakeFromPersonaPrompt(){
+  return `Bạn là Brand Strategist. Từ PERSONA dưới đây, SUY RA một BrandIntake (mục tiêu KD + chiến lược) hợp lý để xây kênh viral quanh nhân vật này. Tiếng Việt, định lượng, thực chiến. Điền đầy đủ.
+${COMPLY}
+${personaContext()}
+Ràng buộc: loai ∈ {doanh nghiệp,sản phẩm,cá nhân}; mo_hinh ∈ {B2B,B2C,DTC,SaaS,Marketplace,Personal}; muc_tieu có số + mốc.
+Trả DUY NHẤT JSON: {"loai":"","ten":"","mota":"","website":"","muc_tieu":"","nganh":"","mo_hinh":"","thi_truong":"","kenh":"","san_pham":"","doi_thu":"","ngan_sach":"","pod_seed":"","noi_dau":"","founder":""}`;
+}
+function genPrompt(p){
+  return `Bạn là AI Brand Architect. Ngôn ngữ: tiếng Việt. Tư duy hệ thống, sắc bén, thực chiến, KHÔNG sáo rỗng.
+${personaContext()}${intakeContext()}${priorContext(p.id)}
+NHIỆM VỤ: Tạo artifact "${p.title}". ${p.note||""}
+Công thức bắt buộc: INSIGHT=TENSION+MOTIVATION+TRIGGER; Positioning=[đối tượng]+[khác biệt]+[lý do tin] vs đối thủ; Lotus nội dung 50/30/20. Mọi hook/nội dung viết bằng GIỌNG của persona ở trên.
+${COMPLY}
+Trả về DUY NHẤT một JSON hợp lệ theo schema sau (đúng tên field, không thêm field lạ, không markdown, không giải thích):
+${p.schema}`;
+}
+function scorePrompt(p){
+  const rb=p.rubric.map((r,idx)=>`${idx+1}. ${r[0]} (tối đa ${r[1]}đ)`).join("\n");
+  return `Bạn là giám khảo nghiêm khắc. Chấm artifact "${p.title}" theo rubric (tổng 100đ). Gate = ${p.gate}.
+ARTIFACT:
+${JSON.stringify(S.outputs[p.id])}
+RUBRIC:
+${rb}
+Chấm điểm thật cho từng yếu tố (diem ≤ tối đa) + 1 câu lý do ngắn. Tính tong. ket_luan: "SHIP" nếu tong>=${p.gate}, "REVISE" nếu trong [${p.gate-15},${p.gate-1}], else "REDO".
+Trả DUY NHẤT JSON: {"factors":[{"ten":"","trong_so":0,"diem":0,"ly_do":""}],"tong":0,"ket_luan":""}`;
+}
+function storyboardPrompt(days){
+  const comms=S.outputs.comms||{};
+  return `Bạn là Content Director. Tạo STORYBOARD ${days} ngày cho kênh của persona dưới đây. Mỗi ngày: 1 cảnh quay ngắn, hook viết BẰNG GIỌNG persona, gắn pillar A/B/C theo tỷ lệ 50/30/20, kèm imagePrompt (mô tả ảnh tiếng Anh để sinh sau) + caption đăng bài + videoPrompt ngắn.
+${personaContext()}
+PILLARS & CALENDAR tham chiếu: ${JSON.stringify({pillars:comms.pillars,calendar:comms.calendar_30})}
+${COMPLY}
+Trả DUY NHẤT JSON mảng đúng ${days} phần tử: [{"day":1,"pillar":"A","hook":"","scene":"","imagePrompt":"","caption":"","videoPrompt":""}]`;
+}
+
+/* ---------- NAV / RENDER ---------- */
+function go(id){S.stage=id;save();render();window.scrollTo(0,0);}
+function intakeOK(){return INTAKE_FIELDS.filter(f=>f.req).every(f=>S.intake[f.k]&&String(S.intake[f.k]).trim());}
+function personaOK(){return !!(S.persona&&S.persona.name&&S.persona.niche);}
+
+function renderSteps(){
+  const el=document.getElementById('steps');el.innerHTML='';
+  STEP_LIST.forEach((st,i)=>{
+    if(st.grp){const g=document.createElement('div');g.className='grp';g.textContent=st.grp;el.appendChild(g);}
+    let done=false;
+    if(st.id==='setup')done=!!S.apiKey;
+    else if(st.id==='idea')done=!!(S.persona&&S.persona.name)||!!S.idea;
+    else if(st.id==='persona'||st.id==='profile')done=personaOK();
+    else if(st.id==='intake')done=intakeOK();
+    else if(st.id==='storyboard')done=!!(S.storyboard&&S.storyboard.length);
+    else if(st.id==='export')done=false;
+    else done=!!S.outputs[st.id];
+    const sc=S.scores[st.id];
+    let badge='';if(sc){const c=sc.ket_luan==='SHIP'?'b-ok':sc.ket_luan==='REVISE'?'b-rev':'b-bad';badge=`<span class="badge ${c}">${sc.tong}</span>`;}
+    const d=document.createElement('div');d.className='step'+(S.stage===st.id?' active':'')+(done?' done':'');
+    d.innerHTML=`<span class="num">${done?'✓':(i+1)}</span><span>${st.title}</span>${badge}`;
+    d.onclick=()=>go(st.id);el.appendChild(d);
+  });
+  const ph=PHASES.filter(p=>S.scores[p.id]);
+  const os=document.getElementById('ovrScore'),on=document.getElementById('ovrNote');
+  if(ph.length){const ov=Math.round(ph.reduce((a,p)=>a+S.scores[p.id].tong,0)/ph.length);
+    os.textContent=ov;on.textContent=(ov>=82?"Sẵn sàng xây kênh viral ✓":"Cần cải thiện để ≥82.")+` (${ph.length}/5 giai đoạn)`;
+  }else{os.textContent="—";on.textContent="Hoàn thành các giai đoạn để xem điểm tổng.";}
+}
+function render(){
+  renderSteps();
+  const m=document.getElementById('main');const id=S.stage;
+  if(id==='setup')return renderSetup(m);
+  if(id==='idea')return renderIdea(m);
+  if(id==='persona')return renderPersona(m);
+  if(id==='profile')return renderProfile(m);
+  if(id==='intake')return renderIntake(m);
+  if(id==='storyboard')return renderStoryboard(m);
+  if(id==='export')return renderExport(m);
+  renderPhase(m,PHASES.find(p=>p.id===id));
+}
+
+/* ---------- SETUP ---------- */
+function renderSetup(m){
+  m.innerHTML=`<h1>① Thiết lập Gemini API</h1>
+  <p class="lead">App gọi thẳng Google Gemini từ trình duyệt của bạn. Key chỉ lưu cục bộ trên máy.</p>
+  <div class="card">
+    <label>Gemini API Key <span class="req">*</span></label>
+    <input id="ak" type="password" value="${esc(S.apiKey)}" placeholder="AIza...">
+    <div class="hint">Lấy miễn phí tại <b>aistudio.google.com/app/apikey</b> → Create API key.</div>
+    <div class="row3" style="margin-top:8px">
+      <div><label>Model text</label><input id="mt" value="${esc(S.modelText)}" placeholder="gemini-2.5-flash"></div>
+      <div><label>Model ảnh</label><input id="mi" value="${esc(S.modelImg)}" placeholder="gemini-2.5-flash-image"></div>
+      <div><label>Ngôn ngữ</label><input id="lang" value="${esc(S.lang)}"></div>
+    </div>
+    <div class="bar">
+      <button class="btn" onclick="saveSetup()">Lưu</button>
+      <button class="btn ghost" id="testBtn" onclick="testKey()">Kiểm tra kết nối</button>
+      <span id="testRes" class="status-line"></span>
+    </div>
+    <div class="err" id="setupErr"></div>
+  </div>
+  <div class="note">Gợi ý: text <b>gemini-2.5-flash</b> (nhanh) hoặc <b>gemini-2.5-pro</b> (chất hơn). Ảnh <b>gemini-2.5-flash-image</b>. Nếu báo lỗi model → đổi tên cho khớp tài khoản.</div>
+  <div class="bar"><button class="btn blue" onclick="go('idea')" ${S.apiKey?'':'disabled'}>Tiếp: Tạo cuộc sống mới →</button></div>`;
+}
+function saveSetup(){S.apiKey=document.getElementById('ak').value.trim();S.modelText=document.getElementById('mt').value.trim()||"gemini-2.5-flash";S.modelImg=document.getElementById('mi').value.trim()||"gemini-2.5-flash-image";S.lang=document.getElementById('lang').value.trim()||"vi";save();toast("Đã lưu");renderSteps();}
+async function testKey(){saveSetup();const r=document.getElementById('testRes');r.textContent="Đang kiểm tra...";try{await geminiText("Trả lời đúng 1 từ: OK",false);r.innerHTML='<span style="color:var(--ok)">✓ Kết nối OK</span>';}catch(e){document.getElementById('setupErr').style.display='block';document.getElementById('setupErr').textContent=e.message;r.textContent="";}}
+
+/* ---------- IDEA (Tạo cuộc sống mới) ---------- */
+function renderIdea(m){
+  m.innerHTML=`<h1>② Tạo cuộc sống mới</h1>
+  <p class="lead">Gõ 1 ý tưởng thô về nhân vật + hướng kinh doanh — AI dựng nháp Persona &amp; Mục tiêu/Chiến lược cùng lúc. Bạn xem &amp; sửa sau.</p>
+  <div class="card" style="border-color:var(--teal)">
+    <label>💡 Ý tưởng của bạn</label>
+    <textarea id="ideaBox" style="min-height:140px" placeholder="VD: nhân vật nữ UGC về hẹn hò, tâm lý, chuyện thầm kín cho đàn ông văn minh; bán aff sản phẩm sinh lý nam + bột vệ sinh; kể chuyện tinh tế, không quảng cáo thẳng">${esc(S.idea||'')}</textarea>
+    <div class="bar"><button class="btn" id="aiDraft" onclick="aiDraft()">⚡ AI dựng nháp Persona + Intake</button>
+      <button class="btn ghost" onclick="go('persona')">Bỏ qua, điền tay →</button></div>
+    <div class="err" id="ideaErr"></div>
+  </div>
+  <div class="note">Nhân vật là <b>trục nhân cách</b> xuyên suốt: giọng nói, góc nhìn, nỗi đau khách — mọi hook/nội dung sau này viết bằng giọng nhân vật.</div>`;
+  const ib=document.getElementById('ideaBox');ib.addEventListener('input',()=>{S.idea=ib.value;});
+}
+async function aiDraft(){
+  const box=document.getElementById('ideaBox'),er=document.getElementById('ideaErr');
+  const idea=box.value.trim();er.style.display='none';
+  if(!idea){er.style.display='block';er.textContent='Hãy nhập ý tưởng trước.';return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  S.idea=idea;save();
+  const b=document.getElementById('aiDraft');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang dựng nháp...';
+  try{
+    const o=parseJSON(await geminiText(ideaPrompt(idea),true));
+    if(o.persona)S.persona=Object.assign({},S.persona,normPersona(o.persona));
+    if(o.intake)INTAKE_FIELDS.forEach(f=>{if(o.intake[f.k]!=null)S.intake[f.k]=String(o.intake[f.k]);});
+    save();toast('AI đã dựng nháp — kiểm tra nhân vật');go('persona');
+  }catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='⚡ AI dựng nháp Persona + Intake';}
+}
+function normPersona(o){const p={};PERSONA_FIELDS.forEach(f=>{if(o[f.k]!=null)p[f.k]=Array.isArray(o[f.k])?o[f.k].join(", "):String(o[f.k]);});return p;}
+
+/* ---------- PERSONA FORM ---------- */
+function renderPersona(m){
+  let html=`<h1>③ Hồ sơ nhân vật</h1>
+  <p class="lead">Chỉnh thông tin nhân vật. Có thể để AI hoàn thiện các field còn trống.</p>
+  <div class="bar">
+    <button class="btn" id="aiPersona" onclick="aiCompletePersona()" ${personaOK()?'':''}>✨ AI hoàn thiện persona</button>
+    <span class="hint">Điền field trống, làm sắc field sơ sài, giữ phần bạn đã viết.</span>
+  </div>
+  <div class="err" id="pErr"></div>
+  <div class="card">`;
+  PERSONA_FIELDS.forEach(f=>{
+    const v=esc(S.persona[f.k]||"");
+    html+=`<label>${f.label} ${f.req?'<span class="req">*</span>':''}</label>`;
+    if(f.type==='textarea')html+=`<textarea data-pk="${f.k}" placeholder="${esc(f.ph||'')}">${v}</textarea>`;
+    else if(f.type==='select')html+=`<select data-pk="${f.k}"><option value="">—</option>${f.opts.map(o=>`<option ${S.persona[f.k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
+    else html+=`<input data-pk="${f.k}" type="${f.type||'text'}" value="${v}" placeholder="${esc(f.ph||'')}">`;
+  });
+  html+=`</div><div class="bar">
+    <button class="btn ghost" onclick="savePersona()">Lưu nhân vật</button>
+    <button class="btn blue" onclick="savePersona();go('profile')">Tiếp: Chân dung →</button>
+  </div>`;
+  m.innerHTML=html;
+  m.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{S.persona[el.dataset.pk]=el.value;}));
+}
+function savePersona(){document.querySelectorAll('#main [data-pk]').forEach(el=>S.persona[el.dataset.pk]=el.value);save();toast("Đã lưu nhân vật");renderSteps();}
+async function aiCompletePersona(){
+  savePersona();if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('pErr');er.style.display='none';
+  const b=document.getElementById('aiPersona');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang hoàn thiện...';
+  try{const o=parseJSON(await geminiText(completePersonaPrompt(),true));S.persona=Object.assign({},S.persona,normPersona(o));save();render();toast('Đã hoàn thiện persona');}
+  catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='✨ AI hoàn thiện persona';}
+}
+
+/* ---------- PROFILE + PORTRAIT ---------- */
+async function renderProfile(m){
+  const p=S.persona;
+  m.innerHTML=`<h1>④ Chân dung &amp; hồ sơ</h1>
+  <p class="lead">Sinh ảnh chân dung nhân vật và xem hồ sơ gọn.</p>
+  ${!personaOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy điền Tên &amp; Niche của nhân vật ở bước ③ trước.</div>':''}
+  <div class="card"><div class="pf-grid">
+    <div>
+      <div id="portWrap"><div class="note" style="text-align:center">Chưa có ảnh chân dung.</div></div>
+      <div class="bar">
+        <button class="btn" id="genPort" onclick="genPortrait()" ${personaOK()?'':'disabled'}>📸 Tạo ảnh chân dung</button>
+      </div>
+      <div class="err" id="portErr"></div>
+      <div class="hint">Ảnh lưu trong IndexedDB trên máy bạn (không kèm trong file JSON).</div>
+    </div>
+    <div id="pfInfo"></div>
+  </div></div>
+  <div class="bar">
+    <button class="btn ghost" onclick="exportPersona()">⬇ Xuất persona.json</button>
+    <button class="btn blue" onclick="go('intake')">Tiếp: Mục tiêu KD &amp; chiến lược →</button>
+  </div>`;
+  // info
+  const info=document.getElementById('pfInfo');
+  info.innerHTML=PERSONA_FIELDS.filter(f=>p[f.k]).map(f=>`<div class="kv"><b>${esc(f.label)}</b>${esc(p[f.k])}</div>`).join('')||'<div class="hint">Chưa có dữ liệu nhân vật.</div>';
+  // portrait
+  try{const img=await IDB.get("portrait");if(img){document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="portrait">`;}}catch(e){}
+}
+async function genPortrait(){
+  if(!personaOK()){toast("Thiếu thông tin nhân vật");return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('portErr');er.style.display='none';
+  const b=document.getElementById('genPort');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang vẽ...';
+  try{const img=await geminiImage(portraitPrompt());await IDB.put("portrait",img);S.persona.hasPortrait=true;save();
+    document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="portrait">`;toast("Đã tạo chân dung");}
+  catch(e){er.style.display='block';er.textContent=e.message;}
+  finally{if(b){b.disabled=false;b.innerHTML='📸 Tạo ảnh chân dung';}}
+}
+function exportPersona(){savePersona();dl("persona.json",JSON.stringify({persona:S.persona},null,2),"application/json");}
+
+/* ---------- INTAKE (brand goals + strategy) ---------- */
+function renderIntake(m){
+  let html=`<h1>⑤ Mục tiêu KD &amp; chiến lược thương hiệu</h1>
+  <p class="lead">Phần input quan trọng nhất. Có thể để AI gợi ý từ nhân vật, hoặc điền mẫu / điền tay.</p>
+  <div class="bar">
+    <button class="btn" id="aiIntake" onclick="aiIntakeFromPersona()">✨ AI gợi ý từ persona</button>
+    <button class="btn ghost" onclick="saveIntake();downloadIntake()">⬇ Tải intake</button>
+  </div>
+  <div class="err" id="iErr"></div>
+  <div class="card">`;
+  INTAKE_FIELDS.forEach(f=>{
+    const v=esc(S.intake[f.k]||"");
+    html+=`<label>${f.label} ${f.req?'<span class="req">*</span>':''}</label>`;
+    if(f.type==='textarea')html+=`<textarea data-k="${f.k}" placeholder="${esc(f.ph||'')}">${v}</textarea>`;
+    else if(f.type==='select')html+=`<select data-k="${f.k}">${f.opts.map(o=>`<option ${S.intake[f.k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
+    else html+=`<input data-k="${f.k}" value="${v}" placeholder="${esc(f.ph||'')}">`;
+  });
+  html+=`</div><div class="bar">
+    <button class="btn ghost" onclick="saveIntake()">Lưu Intake</button>
+    <button class="btn blue" onclick="startAutoPipeline()">⚡ Chạy pipeline AI tự động →</button>
+    <button class="btn ghost" onclick="saveIntake();go('brand')">Hoặc làm thủ công từng bước</button>
+  </div>
+  <div class="note">Mục tiêu KD càng định lượng (số + mốc) → điểm &amp; chất lượng output càng cao. "Pipeline tự động" chạy hết 5 giai đoạn + tự chấm điểm.</div>`;
+  m.innerHTML=html;
+  m.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{S.intake[el.dataset.k]=el.value;}));
+}
+function saveIntake(){document.querySelectorAll('#main [data-k]').forEach(el=>S.intake[el.dataset.k]=el.value);save();toast("Đã lưu Intake");renderSteps();}
+function downloadIntake(){dl("00-intake.json",JSON.stringify({intake:S.intake},null,2),"application/json");}
+async function aiIntakeFromPersona(){
+  saveIntake();if(!personaOK()){toast("Cần nhân vật trước (bước ③)");go('persona');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('iErr');er.style.display='none';
+  const b=document.getElementById('aiIntake');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang gợi ý...';
+  try{const o=parseJSON(await geminiText(intakeFromPersonaPrompt(),true));INTAKE_FIELDS.forEach(f=>{if(o[f.k]!=null)S.intake[f.k]=String(o[f.k]);});save();render();toast('AI đã gợi ý intake');}
+  catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='✨ AI gợi ý từ persona';}
+}
+
+/* ---------- PHASE (generate + score, sửa tay) ---------- */
+function renderPhase(m,p){
+  const out=S.outputs[p.id];const sc=S.scores[p.id];
+  m.innerHTML=`<h1>${p.n}. ${p.title}</h1><p class="lead">${p.desc}</p>
+  ${!intakeOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy hoàn tất Intake (mục bắt buộc) trước khi chạy.</div>':''}
+  <div class="bar">
+    <button class="btn" id="genBtn" onclick="runGen('${p.id}')" ${intakeOK()?'':'disabled'}><span id="genTxt">${out?'Tạo lại bằng AI':'Tạo bằng AI'}</span></button>
+    <button class="btn gold" onclick="runScore('${p.id}')" ${out?'':'disabled'}>Tự chấm điểm</button>
+    ${p.note?`<span class="hint">${p.note}</span>`:''}
+  </div>
+  <div class="err" id="phErr"></div>
+  <label style="margin-top:16px">Kết quả (JSON — bạn có thể sửa tay)</label>
+  <textarea class="big" id="outBox" placeholder="Bấm 'Tạo bằng AI' để sinh nội dung...">${out?esc(JSON.stringify(out,null,2)):''}</textarea>
+  <div class="bar"><button class="btn ghost" onclick="saveOut('${p.id}')">Lưu chỉnh sửa</button>
+   <span class="hint">Sửa xong nhớ Lưu để các bước sau &amp; chấm điểm dùng bản mới.</span></div>
+  <div id="scoreBox"></div>
+  <div class="bar" style="margin-top:22px">
+    ${p.n>1?`<button class="btn ghost" onclick="go('${PHASES[p.n-2].id}')">← Quay lại</button>`:`<button class="btn ghost" onclick="go('intake')">← Intake</button>`}
+    ${p.n<5?`<button class="btn blue" onclick="go('${PHASES[p.n].id}')">Tiếp →</button>`:`<button class="btn blue" onclick="go('storyboard')">Tới Storyboard →</button>`}
+  </div>`;
+  if(sc)renderScore(sc,p);
+}
+function renderScore(sc,p){
+  const c=sc.ket_luan==='SHIP'?'var(--ok)':sc.ket_luan==='REVISE'?'var(--gold)':'var(--coral)';
+  let h=`<div class="card"><div class="scorehead"><span class="total" style="color:${c}">${sc.tong}</span><span class="hint">/100 · Gate ${p.gate} · <b style="color:${c}">${sc.ket_luan}</b></span></div>
+  <table class="score-tbl"><tr><th>Yếu tố</th><th>Điểm</th><th>Lý do</th></tr>`;
+  (sc.factors||[]).forEach(f=>h+=`<tr><td>${esc(f.ten)}</td><td>${esc(f.diem)}/${esc(f.trong_so)}</td><td>${esc(f.ly_do)}</td></tr>`);
+  h+=`</table>${sc.ket_luan!=='SHIP'?'<div class="note">Điểm dưới chuẩn → sửa yếu tố thấp rồi "Tạo lại" hoặc sửa tay, sau đó chấm lại.</div>':''}</div>`;
+  document.getElementById('scoreBox').innerHTML=h;
+}
+function busy(btnId,txtId,on,label){const b=document.getElementById(btnId);if(!b)return;b.disabled=on;if(txtId){document.getElementById(txtId).innerHTML=on?'<span class="spinner"></span> '+label:label;}}
+async function runGen(id){
+  const p=PHASES.find(x=>x.id===id);const err=document.getElementById('phErr');err.style.display='none';
+  busy('genBtn','genTxt',true,'Đang tạo...');
+  try{const j=parseJSON(await geminiText(genPrompt(p),true));S.outputs[id]=j;delete S.scores[id];save();render();toast("Đã tạo "+p.title);}
+  catch(e){err.style.display='block';err.textContent=e.message;busy('genBtn','genTxt',false,'Tạo bằng AI');}
+}
+async function runScore(id){
+  const p=PHASES.find(x=>x.id===id);saveOut(id,true);const err=document.getElementById('phErr');err.style.display='none';
+  if(!S.outputs[id]){err.style.display='block';err.textContent="Chưa có nội dung để chấm.";return;}
+  toast("Đang chấm điểm...");
+  try{const j=parseJSON(await geminiText(scorePrompt(p),true));S.scores[id]=j;save();renderSteps();renderScore(j,p);}
+  catch(e){err.style.display='block';err.textContent=e.message;}
+}
+function saveOut(id,silent){const box=document.getElementById('outBox');if(!box)return;try{S.outputs[id]=JSON.parse(box.value);delete S.scores[id];save();if(!silent){toast("Đã lưu");renderSteps();}}catch(e){if(!silent){const err=document.getElementById('phErr');err.style.display='block';err.textContent="JSON không hợp lệ: "+e.message;}}}
+
+/* ---------- AUTO PIPELINE ---------- */
+let __abort=false;
+async function startAutoPipeline(){
+  saveIntake();
+  if(!intakeOK()){toast("Thiếu thông tin bắt buộc (*)");go('intake');return;}
+  if(!S.apiKey){toast("Chưa có API key");go('setup');return;}
+  __abort=false;openPipe();
+  for(const p of PHASES){
+    if(__abort)break;
+    try{
+      setPipe(p.id,'running','Đang tạo nội dung...');
+      S.outputs[p.id]=parseJSON(await geminiText(genPrompt(p),true));delete S.scores[p.id];save();renderSteps();
+      setPipe(p.id,'running','Đang chấm điểm...');
+      S.scores[p.id]=parseJSON(await geminiText(scorePrompt(p),true));save();renderSteps();
+      const sc=S.scores[p.id];setPipe(p.id,'done',sc.tong+'/100 · '+sc.ket_luan,sc.ket_luan);
+    }catch(e){setPipe(p.id,'error',(e.message||'lỗi').slice(0,90));__abort=true;}
+  }
+  finishPipe();
+}
+function openPipe(){
+  let ex=document.getElementById('pipeOverlay');if(ex)ex.remove();
+  const d=document.createElement('div');d.id='pipeOverlay';d.className='overlay';
+  d.innerHTML=`<div class="ovbox"><h2>⚡ Pipeline AI tự động</h2>
+    <p class="lead">AI chạy 5 giai đoạn và tự chấm điểm. Mỗi bước ~10-30 giây.</p>
+    <div id="pipeRows"></div>
+    <div class="bar" id="pipeFoot" style="margin-top:14px"><button class="btn ghost" onclick="abortPipe()">Dừng sau bước hiện tại</button></div></div>`;
+  document.body.appendChild(d);
+  const rows=d.querySelector('#pipeRows');
+  PHASES.forEach(p=>rows.insertAdjacentHTML('beforeend',
+    `<div class="piperow" id="pipe-${p.id}"><span class="pnum">${p.n}</span><span class="pt">${p.title}</span><span class="ps" id="ps-${p.id}">chờ…</span></div>`));
+}
+function setPipe(id,state,msg,verdict){
+  const r=document.getElementById('pipe-'+id),ps=document.getElementById('ps-'+id);if(!r)return;
+  r.dataset.state=state;
+  const col=state==='done'?(verdict==='SHIP'?'var(--ok)':verdict==='REVISE'?'var(--gold)':'var(--coral)'):state==='error'?'var(--coral)':'var(--blue)';
+  ps.innerHTML=(state==='running'?'<span class="spinner"></span> ':'')+'<span style="color:'+col+'">'+esc(msg)+'</span>';
+}
+function abortPipe(){__abort=true;toast("Sẽ dừng sau bước hiện tại...");}
+function finishPipe(){
+  const f=document.getElementById('pipeFoot');if(!f)return;const sc=scorecardObj();
+  const done=PHASES.filter(p=>S.outputs[p.id]).length;
+  f.innerHTML=`<button class="btn" onclick="closePipe();go('storyboard')">Tạo Storyboard →</button>
+    <button class="btn ghost" onclick="closePipe();go('export')">Tới Xuất file</button>
+    <button class="btn ghost" onclick="closePipe()">Đóng</button>
+    <span class="hint">Hoàn thành ${done}/5 · Overall ${sc.overall||'—'}/100</span>`;
+}
+function closePipe(){const d=document.getElementById('pipeOverlay');if(d)d.remove();render();}
+
+/* ---------- STORYBOARD ---------- */
+function renderStoryboard(m){
+  const sb=S.storyboard;
+  m.innerHTML=`<h1>Storyboard 30 ngày</h1>
+  <p class="lead">Hook theo giọng persona + imagePrompt + caption (chỉ text — bạn tự đổ ảnh sau).</p>
+  <div class="bar">
+    <button class="btn" id="sbBtn" onclick="genStoryboard()" ${personaOK()?'':'disabled'}><span id="sbTxt">${sb?'Tạo lại 30 ngày':'Tạo storyboard 30 ngày'}</span></button>
+    ${sb?'<button class="btn ghost" onclick="dlStoryboard()">⬇ storyboard.json</button>':''}
+    ${!S.outputs.comms?'<span class="hint">Nên chạy giai đoạn 2 (Truyền thông) trước để bám pillars/calendar.</span>':''}
+  </div>
+  <div class="err" id="sbErr"></div>
+  <div id="sbList"></div>
+  <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('brandkit')">← Quay lại</button>
+   <button class="btn blue" onclick="go('export')">Tới Xuất file →</button></div>`;
+  if(sb&&sb.length)document.getElementById('sbList').innerHTML=sb.map(s=>`<div class="sb-card"><div class="d">NGÀY ${esc(s.day)} · Trụ ${esc(s.pillar)}</div><div class="h">${esc(s.hook)}</div><div class="hint">${esc(s.scene||'')}</div><code title="bấm để copy" onclick="navigator.clipboard.writeText(this.textContent);toast('Đã copy imagePrompt')">${esc(s.imagePrompt||'')}</code><div class="hint" style="margin-top:6px"><b>Caption:</b> ${esc(s.caption||'')}</div></div>`).join('');
+}
+async function genStoryboard(){
+  if(!personaOK()){toast("Cần nhân vật trước");go('persona');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('sbErr');er.style.display='none';
+  busy('sbBtn','sbTxt',true,'Đang dựng 30 ngày...');
+  try{let j=parseJSON(await geminiText(storyboardPrompt(30),true));if(!Array.isArray(j)&&j.storyboard)j=j.storyboard;S.storyboard=j;save();render();toast("Đã tạo storyboard");}
+  catch(e){er.style.display='block';er.textContent=e.message;busy('sbBtn','sbTxt',false,'Tạo storyboard 30 ngày');}
+}
+function dlStoryboard(){dl("storyboard.json",JSON.stringify(S.storyboard,null,2),"application/json");}
+
+/* ---------- EXPORT ---------- */
+function slug(){return (S.intake.ten||S.persona.name||"brand").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"d").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")||"brand";}
+function mdFor(id){const o=S.outputs[id];if(!o)return "";return "# "+(PHASES.find(p=>p.id===id)?.title||id)+"\n\n```json\n"+JSON.stringify(o,null,2)+"\n```\n";}
+function scorecardObj(){
+  const gd=PHASES.filter(p=>S.scores[p.id]).map(p=>({ma:String(p.n),ten:p.title,gate:p.gate,...S.scores[p.id]}));
+  const ov=gd.length?Math.round(gd.reduce((a,x)=>a+x.tong,0)/gd.length):0;
+  return {giai_doan:gd,overall:ov,san_sang_xay_kenh:ov>=82};
+}
+function buildCommandCenter(){
+  const comms=S.outputs.comms||{},brand=S.outputs.brandkit?.brand||{},strat=S.outputs.brand||{},p=S.persona||{};
+  const DATA={brand:brand.ten||S.intake.ten||p.name||"Brand",tagline:brand.slogan||S.intake.mota||"",positioning:strat.positioning_statement||"",
+    persona:{name:p.name||"",niche:p.niche||"",pov:p.pov||"",voice:p.voiceTone||"",vibe:p.vibe||""},
+    hooks:(comms.hook_bank||[]).map(h=>({p:h.pillar,t:h.co_che,x:h.hook})),
+    pillars:(comms.pillars||[]).map(x=>({ma:x.ma,ten:x.ten,vai_tro:x.vai_tro,noi_dung:x.noi_dung,ty_le:x.ty_le})),
+    calendar:(comms.calendar_30||[]).map(c=>({d:c.ngay,p:c.pillar,t:c.chu_de,f:c.format}))};
+  return CC_TEMPLATE.replace(/__BRAND__/g,esc(DATA.brand)).replace("__DATA__",JSON.stringify(DATA));
+}
+function renderExport(m){
+  const ready=PHASES.every(p=>S.outputs[p.id]);
+  const sc=scorecardObj();
+  m.innerHTML=`<h1>Xuất toàn bộ file</h1>
+  <p class="lead">Tải bộ dữ liệu chuẩn. Quan trọng nhất: <b>05-brand-kit.json</b> nạp ở "Hồ sơ Sản phẩm chuẩn" của tool viral; còn lại thả vào Brand Vault.</p>
+  ${ready?'':'<div class="note" style="border-color:var(--gold);color:var(--gold)">⚠ Chưa đủ 5 giai đoạn. Vẫn tải được phần đã có.</div>'}
+  <div class="card"><div class="scorehead"><span class="total" style="color:var(--teal)">${sc.overall||'—'}</span><span class="hint">/100 Overall · ${sc.san_sang_xay_kenh?'<b style="color:var(--ok)">Sẵn sàng xây kênh ✓</b>':'Nên đạt ≥82'}</span></div></div>
+  <div class="card"><h2>Tải từng file</h2>
+    <div class="bar">
+      <button class="btn gold" onclick="dlBrandKit()" ${S.outputs.brandkit?'':'disabled'}>⬇ 05-brand-kit.json (import app)</button>
+      <button class="btn ghost" onclick="dlMd('brand','01-brand-strategy')" ${S.outputs.brand?'':'disabled'}>01 brand-strategy.md</button>
+      <button class="btn ghost" onclick="dlMd('comms','02-comms-strategy')" ${S.outputs.comms?'':'disabled'}>02 comms.md</button>
+      <button class="btn ghost" onclick="dlMd('product','03-product-strategy')" ${S.outputs.product?'':'disabled'}>03 product.md</button>
+      <button class="btn ghost" onclick="dlMd('insight','04-customer-insight')" ${S.outputs.insight?'':'disabled'}>04 insight.md</button>
+      <button class="btn ghost" onclick="exportPersona()">persona.json</button>
+      <button class="btn ghost" onclick="dlStoryboard()" ${S.storyboard?'':'disabled'}>storyboard.json</button>
+      <button class="btn ghost" onclick="dlScorecard()">06 scorecard.json</button>
+      <button class="btn blue" onclick="dlCC()" ${S.outputs.comms?'':'disabled'}>⬇ index.html (Command Center)</button>
+    </div>
+  </div>
+  <div class="bar"><button class="btn" onclick="dlAll()">⬇⬇ Tải tất cả</button>
+   <button class="btn ghost" onclick="go('storyboard')">← Quay lại</button></div>
+  <div class="note">Sau khi tải: ở app viral → "Hồ sơ Sản phẩm chuẩn" → Nạp file → chọn <b>05-brand-kit.json</b>. Thả 01–04 + persona + storyboard + scorecard + index.html vào <b>Brand Vault</b>.</div>`;
+}
+function dlBrandKit(){dl("05-brand-kit.json",JSON.stringify(S.outputs.brandkit,null,2),"application/json");}
+function dlMd(id,name){dl(name+".md",mdFor(id),"text/markdown");}
+function dlScorecard(){dl("06-scorecard.json",JSON.stringify(scorecardObj(),null,2),"application/json");}
+function dlCC(){dl("index.html",buildCommandCenter(),"text/html");}
+function dlAll(){
+  let i=0;const q=(fn)=>setTimeout(fn,180*(++i));
+  if(S.outputs.brandkit)q(()=>dlBrandKit());
+  if(S.persona&&S.persona.name)q(()=>exportPersona());
+  if(intakeOK())q(()=>downloadIntake());
+  ["brand|01-brand-strategy","comms|02-comms-strategy","product|03-product-strategy","insight|04-customer-insight"].forEach(x=>{const[id,nm]=x.split("|");if(S.outputs[id])q(()=>dlMd(id,nm));});
+  if(S.storyboard)q(()=>dlStoryboard());
+  q(()=>dlScorecard());
+  if(S.outputs.comms)q(()=>dlCC());
+  toast("Đang tải bộ file...");
+}
+
+/* ---------- AGE GATE ---------- */
+function maybeAgeGate(){
+  if(S.ageOk)return;
+  const d=document.createElement('div');d.className='overlay';d.id='ageGate';
+  d.innerHTML=`<div class="ovbox" style="max-width:440px;text-align:center">
+    <h2>Nội dung 18+</h2>
+    <p class="lead" style="margin-top:8px">App hỗ trợ xây kênh cho nhiều ngành, gồm sức khoẻ người trưởng thành. Nội dung sinh ra luôn an toàn nền tảng (không khiêu dâm, không claim y khoa). Bạn đủ 18 tuổi?</p>
+    <div class="bar" style="justify-content:center">
+      <button class="btn" onclick="S.ageOk=true;save();document.getElementById('ageGate').remove();">Tôi đủ 18 tuổi — Tiếp tục</button>
+    </div></div>`;
+  document.body.appendChild(d);
+}
+
+/* ---------- Command Center template ---------- */
+const CC_TEMPLATE=`<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__BRAND__ — Command Center</title>
+<style>:root{--bg:#0F1923;--panel:#16222e;--line:#27384a;--teal:#00D4AA;--coral:#E85B5B;--blue:#4A9EFF;--gold:#F2C14E;--txt:#E8EEF3;--mut:#8DA1B3}*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt)}.wrap{max-width:1040px;margin:0 auto;padding:22px 16px 70px}h1{font-size:24px;margin:6px 0}.sub{color:var(--mut);font-size:14px}.posit{margin-top:12px;padding:12px 14px;border-left:3px solid var(--teal);background:#0e2a26;font-size:14px}.persona{margin-top:10px;padding:10px 14px;border-left:3px solid var(--gold);background:#231f10;font-size:13px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0;position:sticky;top:0;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line)}.tab{padding:8px 14px;border:1px solid var(--line);border-radius:30px;color:var(--mut);font-size:13px;cursor:pointer;font-weight:600}.tab.active{background:var(--teal);color:#06241f}section{display:none}section.show{display:block}.copyline{background:#1b2a38;border:1px dashed var(--line);border-radius:5px;padding:10px 12px;font-size:14px;cursor:pointer;margin:7px 0}.copyline:hover{border-color:var(--teal)}.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-right:6px;background:#10303a;color:#7fd6ff}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid var(--line);padding:8px}th{background:#1b2a38;color:var(--teal)}.cal{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}.day{background:#16222e;border:1px solid var(--line);border-radius:6px;padding:10px;font-size:12px;cursor:pointer}.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--teal);color:#06241f;padding:10px 18px;border-radius:30px;font-weight:700;opacity:0;transition:.3s}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}</style></head>
+<body><div class="wrap"><div style="color:var(--teal);font-size:11px;letter-spacing:3px;font-weight:700">__BRAND__ · COMMAND CENTER</div><h1 id="h1"></h1><p class="sub" id="sub"></p><div class="posit" id="posit"></div><div class="persona" id="per"></div>
+<div class="tabs"><div class="tab active" data-t="h">Hook Bank</div><div class="tab" data-t="c">Calendar 30 ngày</div><div class="tab" data-t="p">Pillars</div></div>
+<section id="h" class="show"><div id="hooks"></div></section><section id="c"><div class="cal" id="cal"></div></section><section id="p"><div id="pil"></div></section>
+</div><div class="toast" id="t">Đã copy ✓</div>
+<script>const D=__DATA__;document.getElementById('h1').textContent=D.brand;document.getElementById('sub').textContent=D.tagline||'';document.getElementById('posit').innerHTML='<b style="color:var(--teal)">Định vị:</b> '+(D.positioning||'');
+document.getElementById('per').innerHTML='<b style="color:var(--gold)">Nhân vật:</b> '+(D.persona.name||'')+' · '+(D.persona.niche||'')+' · giọng: '+(D.persona.voice||'')+' · POV: '+(D.persona.pov||'');
+var L={pain:'NỖI ĐAU',diag:'CHẨN ĐOÁN',reframe:'REFRAME','before-after':'TRƯỚC/SAU',authority:'AUTHORITY'};
+document.getElementById('hooks').innerHTML=(D.hooks||[]).map(function(h){return '<div class="copyline" data-c="'+(h.x||'').replace(/"/g,'&quot;')+'"><span class="tag">'+(L[h.t]||h.t||'')+' · '+(h.p||'')+'</span>'+(h.x||'')+'</div>';}).join('');
+document.getElementById('cal').innerHTML=(D.calendar||[]).map(function(c){var b='Ngày '+c.d+' · Trụ '+c.p+' · '+c.t+' · '+(c.f||'');return '<div class="day" data-c="'+b.replace(/"/g,'&quot;')+'"><b style="color:var(--gold)">NGÀY '+c.d+'</b><br>'+(c.t||'')+'</div>';}).join('');
+document.getElementById('pil').innerHTML='<table><tr><th>Trụ</th><th>Vai trò</th><th>%</th><th>Nội dung</th></tr>'+(D.pillars||[]).map(function(p){return '<tr><td><b>'+p.ma+' '+(p.ten||'')+'</b></td><td>'+(p.vai_tro||'')+'</td><td>'+(p.ty_le||'')+'%</td><td>'+(p.noi_dung||'')+'</td></tr>';}).join('')+'</table>';
+document.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});document.querySelectorAll('section').forEach(function(s){s.classList.remove('show')});t.classList.add('active');document.getElementById(t.dataset.t).classList.add('show');};});
+var tt=document.getElementById('t');document.addEventListener('click',function(e){var el=e.target.closest('[data-c]');if(!el)return;navigator.clipboard.writeText(el.getAttribute('data-c'));tt.classList.add('show');setTimeout(function(){tt.classList.remove('show')},1200);});
+<\/script></body></html>`;
+
+maybeAgeGate();
+render();
+</script>
+</body>
+</html>
