@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Muse Brand OS — Tạo cuộc sống mới · Gemini</title>
+<title>Muse Brand OS — Digital Twin Studio · Gemini</title>
 <style>
-  :root{--bg:#0F1923;--panel:#16222e;--panel2:#1b2a38;--line:#27384a;--teal:#00D4AA;--coral:#E85B5B;--blue:#4A9EFF;--gold:#F2C14E;--txt:#E8EEF3;--mut:#8DA1B3;--ok:#2ec27e;--bad:#E85B5B}
+  :root{--bg:#0F1923;--panel:#16222e;--panel2:#1b2a38;--line:#27384a;--teal:#00D4AA;--coral:#E85B5B;--blue:#4A9EFF;--gold:#F2C14E;--pink:#E85BAE;--txt:#E8EEF3;--mut:#8DA1B3;--ok:#2ec27e;--bad:#E85B5B}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);line-height:1.55}
   .app{display:grid;grid-template-columns:268px 1fr;min-height:100vh}
@@ -19,12 +19,11 @@
   .step.active{background:#10262b;border-color:var(--teal);color:var(--txt)}
   .step .num{width:22px;height:22px;border-radius:50%;background:#1d2c3a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
   .step.done .num{background:var(--ok);color:#04210f}
-  .step.lock{opacity:.45;cursor:not-allowed}
   .step .badge{margin-left:auto;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px}
   .b-ok{background:#10331f;color:var(--ok)}.b-rev{background:#33300f;color:var(--gold)}.b-bad{background:#3a1d1f;color:var(--coral)}
   .ovr{margin-top:18px;padding:12px;border:1px dashed var(--line);border-radius:8px;font-size:12px;color:var(--mut)}
   .ovr .big{font-size:26px;font-weight:800;color:var(--teal)}
-  main{padding:30px 34px 80px;max-width:940px}
+  main{padding:30px 34px 80px;max-width:980px}
   h1{font-size:24px;margin-bottom:4px}
   h2{font-size:19px;margin:4px 0 6px}
   .lead{color:var(--mut);font-size:14px;margin-bottom:20px}
@@ -39,7 +38,8 @@
   .btn{display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:#06241f;border:none;border-radius:8px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px}
   .btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.5;cursor:not-allowed}
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
-  .btn.blue{background:var(--blue);color:#04203f}.btn.gold{background:var(--gold);color:#2a2400}.btn.coral{background:var(--coral);color:#2a0c0c}
+  .btn.blue{background:var(--blue);color:#04203f}.btn.gold{background:var(--gold);color:#2a2400}.btn.coral{background:var(--coral);color:#2a0c0c}.btn.pink{background:var(--pink);color:#2a0c1f}
+  .btn.sm{padding:7px 12px;font-size:12.5px;margin-top:0}
   .bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
   .hint{font-size:12px;color:var(--mut);margin-top:6px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-top:16px}
@@ -57,7 +57,7 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .err{background:#2a1416;border:1px solid var(--coral);color:#ffb3b3;padding:10px 12px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
   .overlay{position:fixed;inset:0;background:rgba(7,12,17,.9);display:flex;align-items:center;justify-content:center;z-index:120;padding:20px}
-  .ovbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;max-width:600px;width:100%;max-height:90vh;overflow:auto}
+  .ovbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;max-width:620px;width:100%;max-height:90vh;overflow:auto}
   .piperow{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;margin-top:8px;font-size:13.5px}
   .piperow .pnum{width:22px;height:22px;border-radius:50%;background:#1d2c3a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
   .piperow .pt{flex:1}.piperow .ps{font-size:12px;color:var(--mut);text-align:right;min-width:130px}
@@ -65,20 +65,32 @@
   .portrait{width:100%;max-width:300px;border-radius:12px;border:1px solid var(--line);display:block;margin-top:10px}
   .pf-grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start}
   .kv{font-size:13px;margin:7px 0}.kv b{color:var(--teal);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}
-  .sb-card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:13px;margin-top:10px}
-  .sb-card .d{color:var(--gold);font-weight:800;font-size:12px}
-  .sb-card .h{font-weight:700;margin:4px 0 6px}
-  .sb-card code{display:block;background:#0e1822;border:1px dashed var(--line);border-radius:6px;padding:8px;font-size:12px;color:#9fd;margin-top:6px;white-space:pre-wrap;cursor:pointer}
+  /* studio */
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 4px}
+  .tab{padding:8px 15px;border:1px solid var(--line);border-radius:30px;color:var(--mut);font-size:13px;cursor:pointer;font-weight:700;background:transparent}
+  .tab.active{background:var(--teal);color:#06241f;border-color:var(--teal)}
+  .uploadbox{border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;cursor:pointer;color:var(--mut);font-size:13px}
+  .uploadbox:hover{border-color:var(--teal);color:var(--txt)}
+  .imgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:14px}
+  .imgcard{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0e1822}
+  .imgcard img{width:100%;display:block;aspect-ratio:3/4;object-fit:cover}
+  .imgcard .ov{position:absolute;inset:auto 0 0 0;display:flex;gap:4px;padding:6px;background:linear-gradient(transparent,rgba(0,0,0,.7))}
+  .imgcard .ov button{flex:1;font-size:11px;padding:5px;border:none;border-radius:6px;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;font-weight:700}
+  .imgcard .ov button:hover{background:var(--teal);color:#06241f}
+  .idea-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin-top:8px;font-size:13px}
+  .idea-item .t{flex:1}.idea-item .nm{font-weight:700}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;border:1px solid var(--line);border-radius:20px;margin:3px 5px 0 0;cursor:pointer;color:var(--txt)}
+  .chip:hover{border-color:var(--teal)}.chip.on{background:#10262b;border-color:var(--teal)}
   @media(max-width:820px){.app{grid-template-columns:1fr}aside{position:static;height:auto}main{padding:20px}.row,.row3{grid-template-columns:1fr}.pf-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="app">
   <aside>
-    <div class="logo">Muse Brand OS<small>Tạo cuộc sống mới · Gemini</small></div>
+    <div class="logo">Muse Brand OS<small>Digital Twin · Gemini</small></div>
     <div class="steps" id="steps"></div>
     <div class="ovr">Overall<br><span class="big" id="ovrScore">—</span><div id="ovrNote">Hoàn thành các giai đoạn để xem điểm tổng.</div></div>
-    <div class="hint" style="margin-top:14px">Key &amp; dữ liệu lưu cục bộ trên máy bạn. Chỉ gọi tới Google Gemini.</div>
+    <div class="hint" style="margin-top:14px">Key &amp; dữ liệu lưu cục bộ; ảnh lưu IndexedDB. Chỉ gọi tới Google Gemini.</div>
   </aside>
   <main id="main"></main>
 </div>
@@ -87,29 +99,37 @@
 <script>
 /* =========================================================
    MUSE BRAND OS — single-file client app (Gemini)
-   Persona → Brand strategy → 5 artifacts → export
+   Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
 let S=JSON.parse(localStorage.getItem(LS)||"null")||{
   apiKey:"", modelText:"gemini-2.5-flash", modelImg:"gemini-2.5-flash-image", lang:"vi",
   ageOk:false, idea:"",
-  persona:{}, intake:{}, outputs:{}, scores:{}, storyboard:null, stage:"setup"
+  persona:{}, intake:{}, outputs:{}, scores:{},
+  gallery:[], wardrobe:[], _studioTab:"twin", stage:"setup"
 };
+if(!S.gallery)S.gallery=[]; if(!S.wardrobe)S.wardrobe=[]; if(!S._studioTab)S._studioTab="twin";
 function save(){localStorage.setItem(LS,JSON.stringify(S));}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500);}
 function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
 function dl(name,content,type){const b=new Blob([content],{type:type||'text/plain;charset=utf-8'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);}
+function dlDataUrl(name,dataUrl){const a=document.createElement('a');a.href=dataUrl;a.download=name;a.click();}
 
-/* ---------- IndexedDB cho ảnh chân dung (tách khỏi localStorage) ---------- */
+/* ---------- IndexedDB: KV store cho mọi ảnh (key: portrait, ref, g:<id>, w:<id>) ---------- */
 const IDB={db:null,
   open(){return new Promise((res,rej)=>{if(IDB.db)return res(IDB.db);const r=indexedDB.open("muse_media",1);
     r.onupgradeneeded=()=>{r.result.createObjectStore("portraits");};
     r.onsuccess=()=>{IDB.db=r.result;res(IDB.db);};r.onerror=()=>rej(r.error);});},
   async put(k,v){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readwrite");t.objectStore("portraits").put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});},
-  async get(k){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readonly");const rq=t.objectStore("portraits").get(k);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>rej(rq.error);});}
+  async get(k){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readonly");const rq=t.objectStore("portraits").get(k);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>rej(rq.error);});},
+  async del(k){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readwrite");t.objectStore("portraits").delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
 };
+let __refCache;
+async function getRef(){if(__refCache!==undefined)return __refCache;try{__refCache=await IDB.get("ref");}catch(e){__refCache=null;}return __refCache;}
+async function setRef(dataUrl){__refCache=dataUrl;await IDB.put("ref",dataUrl);S.persona.hasRef=!!dataUrl;save();}
 
-/* ---------- PERSONA FIELDS ---------- */
+/* ---------- PERSONA / INTAKE FIELDS ---------- */
 const PERSONA_FIELDS=[
  {k:"name",label:"Tên nhân vật",req:true},
  {k:"age",label:"Tuổi",type:"number"},
@@ -126,8 +146,6 @@ const PERSONA_FIELDS=[
  {k:"signaturePhrases",label:"Câu cửa miệng (cách nhau dấu phẩy)"},
  {k:"visualStyle",label:"Phong cách hình ảnh kênh",type:"textarea",ph:"tông màu, bối cảnh, ánh sáng quay video"}
 ];
-
-/* ---------- INTAKE FIELDS (mục tiêu KD + chiến lược) ---------- */
 const INTAKE_FIELDS=[
  {k:"loai",label:"Loại thương hiệu",type:"select",opts:["doanh nghiệp","sản phẩm","cá nhân"],req:true},
  {k:"ten",label:"Tên thương hiệu / kênh",req:true},
@@ -146,28 +164,23 @@ const INTAKE_FIELDS=[
  {k:"founder",label:"Câu chuyện founder (tuỳ chọn)",type:"textarea"}
 ];
 
-/* ---------- PHASES (schema + rubric — nguồn sự thật từ brief) ---------- */
+/* ---------- PHASES (schema + rubric) ---------- */
 const PHASES=[
- {id:"brand",n:1,title:"Chiến lược thương hiệu",gate:80,
-  desc:"Positioning, POP/POD, SWOT→TOWS, Brand DNA.",
+ {id:"brand",n:1,title:"Chiến lược thương hiệu",gate:80,desc:"Positioning, POP/POD, SWOT→TOWS, Brand DNA.",
   schema:`{"tom_tat":"","swot":{"S":[],"W":[],"O":[],"T":[]},"tows":{"SO":"","ST":"","WO":"","WT":""},"pop":[],"pod":[{"diem":"","kho_sao_chep_vi":""}],"positioning_statement":"","brand_dna":{"archetype":"","mission":"","promise":"","tinh_cach":[{"trait":"","the_hien":"","khong_bao_gio":""}],"gia_tri_cot_loi":[]}}`,
   rubric:[["Positioning đúng công thức & sắc",25],["POD khác biệt + lý do khó sao chép",20],["SWOT→TOWS ra hướng hành động",15],["Brand DNA nhất quán",15],["POP tách bạch (không quảng cáo)",10],["Bám mục tiêu KD từ intake",15]]},
- {id:"comms",n:2,title:"Chiến lược truyền thông",gate:80,
-  desc:"Pillars 50/30/20, funnel, hook bank, calendar 30 ngày.",
+ {id:"comms",n:2,title:"Chiến lược truyền thông",gate:80,desc:"Pillars 50/30/20, funnel, hook bank, calendar 30 ngày.",
   schema:`{"cam_giac_loi":"","pillars":[{"ma":"A","ten":"","vai_tro":"Awareness","ty_le":50,"noi_dung":""},{"ma":"B","ten":"","vai_tro":"Consideration","ty_le":30,"noi_dung":""},{"ma":"C","ten":"","vai_tro":"Conversion","ty_le":20,"noi_dung":""}],"funnel":{"TOFU":"","MOFU":"","BOFU":""},"kenh":[{"ten":"","vai_tro":"","dinh_dang":""}],"hook_bank":[{"pillar":"A","co_che":"pain","hook":""}],"calendar_30":[{"ngay":1,"pillar":"A","chu_de":"","format":""}],"visual_dna":{"phong_cach":"","mau":[],"font":"","signature_ket":""}}`,
   note:"Yêu cầu ≥18 hook đa cơ chế (pain/diag/reframe/before-after/authority) & đủ 30 ngày calendar. Hook viết bằng GIỌNG persona.",
   rubric:[["Hook bank đa cơ chế, chặn lướt 3s",25],["Pillars + tỷ lệ 50/30/20 hợp lý",20],["Liên kết Insight→Hook",15],["Funnel TOFU/MOFU/BOFU đủ",15],["Calendar 30 ngày cân pillar",15],["Visual DNA nhận diện",10]]},
- {id:"product",n:3,title:"Chiến lược sản phẩm",gate:75,
-  desc:"Offer ladder, USP, pricing, Blue Ocean.",
+ {id:"product",n:3,title:"Chiến lược sản phẩm",gate:75,desc:"Offer ladder, USP, pricing, Blue Ocean.",
   schema:`{"offer_ladder":[{"bac":"lead magnet","ten":"","muc_tieu":""}],"products":[{"id":"SP1","ten":"","nhom":"","gia":"","loiich":"","usp":"","khach":"","cam":""}],"monetization":"","blue_ocean":{"eliminate":[],"reduce":[],"raise":[],"create":[]}}`,
   note:"Không bịa giá: thiếu thì để 'Liên hệ' và ghi (cần xác nhận).",
   rubric:[["Offer ladder logic (free→premium)",20],["USP từng sản phẩm sắc",20],["Khớp products với Brand Kit",15],["Pricing thực tế (không bịa)",15],["Blue Ocean 4 actions giá trị",15],["Monetization rõ",15]]},
- {id:"insight",n:4,title:"Dữ liệu khách hàng / Insight",gate:80,
-  desc:"Persona, JTBD, core insight (T+M+Tr), VoC.",
+ {id:"insight",n:4,title:"Dữ liệu khách hàng / Insight",gate:80,desc:"Persona, JTBD, core insight (T+M+Tr), VoC.",
   schema:`{"personas":[{"ten":"","boi_canh":"","tension":"","motivation":"","trigger":"","jtbd":"","hanh_vi_quyet_dinh":""}],"core_insight":{"tension":"","motivation":"","trigger":"","cau_chot":""},"voc":[{"nguon":"","trich_dan":"","y_nghia":""}],"pain_desire_map":{"pains":[],"desires":[]}}`,
   rubric:[["Core insight = T+M+Tr sắc",30],["Persona đủ chiều",20],["VoC/bằng chứng thật",20],["JTBD statement chuẩn",15],["Pain/Desire map rõ",15]]},
- {id:"brandkit",n:5,title:"Hồ sơ thương hiệu chuẩn (Brand Kit)",gate:90,
-  desc:"File import app — đúng schema tuyệt đối.",
+ {id:"brandkit",n:5,title:"Hồ sơ thương hiệu chuẩn (Brand Kit)",gate:90,desc:"File import app — đúng schema tuyệt đối.",
   schema:`{"brand":{"ten":"","slogan":"","tone":"","khach":"","nen":"","khong":""},"products":[{"id":"SP1","ten":"","nhom":"","gia":"","loiich":"","usp":"","khach":"","cam":""}],"personas":"","compliance":{"cam":"","disclaimer":""}}`,
   note:"GIỮ NGUYÊN tên field. products phải khớp Chiến lược sản phẩm. compliance.cam gộp mọi products[].cam.",
   rubric:[["Đúng schema (không field lạ)",30],["JSON valid (parse được)",15],["Compliance đầy đủ (cấm+disclaimer)",20],["tone/nen/khong dùng được ngay",20],["products khớp #3",15]]}
@@ -175,123 +188,141 @@ const PHASES=[
 
 const STEP_LIST=[
  {id:"setup",title:"① Thiết lập Gemini",grp:"BẮT ĐẦU"},
- {id:"idea",title:"② Tạo cuộc sống mới",grp:""},
+ {id:"idea",title:"② Tạo cuộc sống mới"},
  {id:"persona",title:"③ Hồ sơ nhân vật",grp:"NHÂN VẬT"},
- {id:"profile",title:"④ Chân dung & hồ sơ"},
- {id:"intake",title:"⑤ Mục tiêu KD & chiến lược",grp:"THƯƠNG HIỆU"},
+ {id:"profile",title:"④ Chân dung & Digital Twin"},
+ {id:"studio",title:"⑤ Studio ảnh",grp:"STUDIO"},
+ {id:"intake",title:"⑥ Mục tiêu KD & chiến lược",grp:"THƯƠNG HIỆU"},
  ...PHASES.map(p=>({id:p.id,title:p.n+". "+p.title,grp:p.id==="brand"?"PIPELINE 5 GIAI ĐOẠN":""})),
- {id:"storyboard",title:"Storyboard 30 ngày",grp:"XUẤT BẢN"},
- {id:"export",title:"Xuất toàn bộ file"}
+ {id:"export",title:"Xuất toàn bộ file",grp:"XUẤT BẢN"}
 ];
 
 /* ---------- GEMINI REST ---------- */
+function imgUrl(){return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.modelImg)}:generateContent?key=${encodeURIComponent(S.apiKey)}`;}
+function txtUrl(){return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.modelText)}:generateContent?key=${encodeURIComponent(S.apiKey)}`;}
 async function geminiText(prompt,jsonMode){
   if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.modelText)}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
   const body={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7}};
   if(jsonMode) body.generationConfig.responseMimeType="application/json";
-  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const r=await fetch(txtUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   if(!r.ok){let t=await r.text();throw new Error("Gemini "+r.status+": "+t.slice(0,300));}
   const d=await r.json();
   const txt=d?.candidates?.[0]?.content?.parts?.map(p=>p.text).filter(Boolean).join("")||"";
   if(!txt) throw new Error("Gemini trả về rỗng (có thể bị chặn an toàn).");
   return txt;
 }
-async function geminiImage(prompt){
+async function geminiVision(prompt,imgDataUrl,jsonMode){
   if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.modelImg)}:generateContent?key=${encodeURIComponent(S.apiKey)}`;
-  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:["IMAGE"]}};
-  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const clean=imgDataUrl.replace(/^data:image\/\w+;base64,/,'');
+  const body={contents:[{parts:[{text:prompt},{inlineData:{mimeType:"image/jpeg",data:clean}}]}],generationConfig:{}};
+  if(jsonMode) body.generationConfig.responseMimeType="application/json";
+  const r=await fetch(txtUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok){let t=await r.text();throw new Error("Gemini "+r.status+": "+t.slice(0,300));}
+  const d=await r.json();
+  return d?.candidates?.[0]?.content?.parts?.map(p=>p.text).filter(Boolean).join("")||"";
+}
+// opts: {ref:dataUrl|null|undefined}. undefined => dùng ref nhân vật nếu có.
+async function geminiImage(prompt,opts){
+  opts=opts||{};
+  if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
+  const parts=[{text:prompt}];
+  let ref = ('ref' in opts) ? opts.ref : await getRef();
+  if(ref){const clean=ref.replace(/^data:image\/\w+;base64,/,'');parts.push({inlineData:{mimeType:"image/jpeg",data:clean}});}
+  const body={contents:[{parts:parts}],generationConfig:{responseModalities:["IMAGE"]}};
+  const r=await fetch(imgUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   if(!r.ok){let t=await r.text();throw new Error("Gemini image "+r.status+": "+t.slice(0,300));}
   const d=await r.json();
-  const parts=d?.candidates?.[0]?.content?.parts||[];
-  for(const p of parts){if(p.inlineData&&p.inlineData.data){return "data:"+(p.inlineData.mimeType||"image/png")+";base64,"+p.inlineData.data;}}
-  throw new Error("Không nhận được ảnh (model ảnh có thể không khả dụng với key này — đổi tên model ở Thiết lập).");
+  for(const p of (d?.candidates?.[0]?.content?.parts||[])){if(p.inlineData&&p.inlineData.data)return "data:"+(p.inlineData.mimeType||"image/png")+";base64,"+p.inlineData.data;}
+  throw new Error("Không nhận được ảnh (model ảnh có thể không khả dụng với key — đổi tên model ở Thiết lập).");
 }
 function parseJSON(t){t=t.trim().replace(/^```json/i,"").replace(/^```/,"").replace(/```$/,"").trim();return JSON.parse(t);}
+function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(file);});}
 
-/* ---------- CONTEXT BUILDERS ---------- */
+/* ---------- VISUAL BASE (anchor nhận diện) ---------- */
+function visualBase(){
+  const p=S.persona;
+  const base=`RAW photo, professional photograph, cinematic lighting, hyper-realistic, extremely detailed, 8k, sharp focus, vertical 3:4 portrait. Avoid 3d render, anime, cartoon, illustration.`;
+  if(p.publicDescription) return `${base} A photograph of (${p.publicDescription}).`;
+  let d=`The subject is a ${p.age||'young'}-year-old ${p.gender==='Nam'?'man':'woman'}.`;
+  if(p.ethnicityLook)d+=` Appearance: ${p.ethnicityLook}.`;
+  if(p.vibe)d+=` Vibe: ${p.vibe}.`;
+  if(p.visualStyle)d+=` Visual style: ${p.visualStyle}.`;
+  return `${base} ${d}`;
+}
+function shotPrompt(o){
+  o=o||{};
+  let f=`${o.angle||'full body shot, eye-level'}, ${visualBase()}`;
+  if(o.makeup)f+=`, makeup: ${o.makeup}`;
+  if(o.outfit)f+=`, wearing: ${o.outfit}`;
+  if(o.background)f+=`, background: ${o.background}`;
+  if(o.pose)f+=`, pose: ${o.pose}`;
+  f+=`. If a reference image is provided, keep the exact same face identity. Safe-for-work, tasteful, professional content-creator photo. No text, no watermark.`;
+  return f;
+}
+
+/* ---------- CONTEXT + PROMPTS (brand) ---------- */
 function personaContext(){
   const p=S.persona;if(!p||!p.name)return "";
   let s="NHÂN VẬT / PERSONA (trục nhân cách — mọi nội dung phải nhất quán giọng & góc nhìn này):\n";
   PERSONA_FIELDS.forEach(f=>{if(p[f.k])s+=`- ${f.label}: ${p[f.k]}\n`;});
   return s+"\n";
 }
-function intakeContext(){
-  const i=S.intake;let s="THÔNG TIN THƯƠNG HIỆU (intake):\n";
-  INTAKE_FIELDS.forEach(f=>{if(i[f.k])s+=`- ${f.label}: ${i[f.k]}\n`;});
-  return s;
-}
-function priorContext(uptoId){
-  let s="";for(const p of PHASES){if(p.id===uptoId)break;if(S.outputs[p.id])s+=`\n[${p.title}]\n`+JSON.stringify(S.outputs[p.id])+"\n";}
-  return s?("\nKẾT QUẢ CÁC GIAI ĐOẠN TRƯỚC (dùng để nhất quán):\n"+s):"";
-}
-const COMPLY="TUÂN THỦ BẮT BUỘC: KHÔNG claim y khoa ('chữa bệnh/cam kết/100%/tuyệt đối'); ngành nhạy cảm (sức khoẻ/sinh lý) → kể chuyện tinh tế, sản phẩm xuất hiện tự nhiên, KHÔNG quảng cáo thẳng, nuôi kênh organic, chuyển đổi qua inbox; thêm disclaimer 'Hiệu quả tuỳ cơ địa, không thay thế tư vấn y tế'. KHÔNG nội dung tình dục hoá nhân vật — tập trung lifestyle, tâm lý, giá trị.";
-
-/* ---------- PROMPTS ---------- */
+function intakeContext(){const i=S.intake;let s="THÔNG TIN THƯƠNG HIỆU (intake):\n";INTAKE_FIELDS.forEach(f=>{if(i[f.k])s+=`- ${f.label}: ${i[f.k]}\n`;});return s;}
+function priorContext(uptoId){let s="";for(const p of PHASES){if(p.id===uptoId)break;if(S.outputs[p.id])s+=`\n[${p.title}]\n`+JSON.stringify(S.outputs[p.id])+"\n";}return s?("\nKẾT QUẢ CÁC GIAI ĐOẠN TRƯỚC (dùng để nhất quán):\n"+s):"";}
+const COMPLY="TUÂN THỦ BẮT BUỘC: KHÔNG claim y khoa ('chữa bệnh/cam kết/100%/tuyệt đối'); ngành nhạy cảm → kể chuyện tinh tế, sản phẩm xuất hiện tự nhiên, KHÔNG quảng cáo thẳng, nuôi organic, chuyển đổi qua inbox; thêm disclaimer 'Hiệu quả tuỳ cơ địa, không thay thế tư vấn y tế'. KHÔNG nội dung tình dục hoá nhân vật — tập trung lifestyle, tâm lý, giá trị.";
 function ideaPrompt(idea){
-  return `Bạn là Brand & Character Strategist. Từ Ý TƯỞNG thô của người dùng, dựng ĐỒNG THỜI: (1) một PERSONA (nhân vật KOC/UGC) và (2) một BrandIntake (mục tiêu KD + chiến lược). Tiếng Việt, cụ thể, thực chiến. KHÔNG để trống field — thiếu thì suy luận hợp lý.
+  return `Bạn là Brand & Character Strategist. Từ Ý TƯỞNG thô, dựng ĐỒNG THỜI: (1) PERSONA (nhân vật KOC/UGC) và (2) BrandIntake (mục tiêu KD + chiến lược). Tiếng Việt, cụ thể, thực chiến. KHÔNG để trống field.
 ${COMPLY}
 Ý TƯỞNG: "${idea}"
-Ràng buộc giá trị:
-- persona.gender ∈ {Nữ,Nam,Khác}; age là số.
-- intake.loai ∈ {doanh nghiệp,sản phẩm,cá nhân} (nhân vật UGC/KOC = "cá nhân"); intake.mo_hinh ∈ {B2B,B2C,DTC,SaaS,Marketplace,Personal}.
-- intake.muc_tieu định lượng + mốc thời gian; intake.kenh chọn nền tảng phù hợp.
-- persona.pov = góc nhìn đặc trưng bán được; persona.voiceTone = chất giọng riêng.
-Trả về DUY NHẤT JSON đúng cấu trúc (không markdown, không giải thích):
-{"persona":{"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":""},"intake":{"loai":"","ten":"","mota":"","website":"","muc_tieu":"","nganh":"","mo_hinh":"","thi_truong":"","kenh":"","san_pham":"","doi_thu":"","ngan_sach":"","pod_seed":"","noi_dau":"","founder":""}}`;
+Ràng buộc: persona.gender ∈ {Nữ,Nam,Khác}; age là số; intake.loai ∈ {doanh nghiệp,sản phẩm,cá nhân}; intake.mo_hinh ∈ {B2B,B2C,DTC,SaaS,Marketplace,Personal}; intake.muc_tieu định lượng + mốc.
+Trả DUY NHẤT JSON: {"persona":{"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":""},"intake":{"loai":"","ten":"","mota":"","website":"","muc_tieu":"","nganh":"","mo_hinh":"","thi_truong":"","kenh":"","san_pham":"","doi_thu":"","ngan_sach":"","pod_seed":"","noi_dau":"","founder":""}}`;
 }
 function completePersonaPrompt(){
-  return `Bạn là Character Designer. Hoàn thiện hồ sơ PERSONA dưới đây: ĐIỀN các field còn trống và làm sắc các field sơ sài, GIỮ NGUYÊN field người dùng đã viết kỹ. Tiếng Việt, nhất quán, tinh tế (nhân vật marketing chuyên nghiệp, KHÔNG NSFW).
+  return `Bạn là Character Designer. Hoàn thiện hồ sơ PERSONA: ĐIỀN field trống & làm sắc field sơ sài, GIỮ field đã viết kỹ. Tiếng Việt, tinh tế (marketing chuyên nghiệp, KHÔNG NSFW).
 ${COMPLY}
-PERSONA HIỆN TẠI:
-${JSON.stringify(S.persona)}
-Trả DUY NHẤT JSON đúng các key: {"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":""}`;
+PERSONA: ${JSON.stringify(S.persona)}
+Trả DUY NHẤT JSON: {"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":""}`;
 }
-function portraitPrompt(){
-  const p=S.persona;
-  return `Professional, tasteful editorial portrait photo of a content creator. ${p.gender||''} ${p.age?('around '+p.age+' years old'):''}. Appearance: ${p.ethnicityLook||'natural, approachable'}. Vibe: ${p.vibe||'warm, intelligent'}. Visual style: ${p.visualStyle||'soft natural light, minimal background'}. Niche: ${p.niche||''}. Realistic, high quality, safe-for-work, lifestyle social-media creator headshot, looking at camera, modern aesthetic. No text, no watermark.`;
+function clonePrompt(){
+  return `Bạn là chuyên gia tạo Digital Twin. Phân tích ảnh người này để clone thành nhân vật số. Cung cấp "publicDescription" bằng TIẾNG ANH: mô tả dày, cụ thể các đặc điểm khuôn mặt CỐ ĐỊNH (hình khuôn mặt, đường hàm, dáng mắt, sống mũi, đặc điểm nhận diện) để tái tạo nhất quán. Các field text khác bằng TIẾNG VIỆT.
+${COMPLY}
+Trả DUY NHẤT JSON: {"publicDescription":"","name":"","age":0,"gender":"Nữ|Nam|Khác","ethnicityLook":"","vibe":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","visualStyle":""}`;
 }
 function intakeFromPersonaPrompt(){
-  return `Bạn là Brand Strategist. Từ PERSONA dưới đây, SUY RA một BrandIntake (mục tiêu KD + chiến lược) hợp lý để xây kênh viral quanh nhân vật này. Tiếng Việt, định lượng, thực chiến. Điền đầy đủ.
+  return `Bạn là Brand Strategist. Từ PERSONA, SUY RA BrandIntake hợp lý để xây kênh viral quanh nhân vật này. Tiếng Việt, định lượng.
 ${COMPLY}
 ${personaContext()}
 Ràng buộc: loai ∈ {doanh nghiệp,sản phẩm,cá nhân}; mo_hinh ∈ {B2B,B2C,DTC,SaaS,Marketplace,Personal}; muc_tieu có số + mốc.
 Trả DUY NHẤT JSON: {"loai":"","ten":"","mota":"","website":"","muc_tieu":"","nganh":"","mo_hinh":"","thi_truong":"","kenh":"","san_pham":"","doi_thu":"","ngan_sach":"","pod_seed":"","noi_dau":"","founder":""}`;
 }
 function genPrompt(p){
-  return `Bạn là AI Brand Architect. Ngôn ngữ: tiếng Việt. Tư duy hệ thống, sắc bén, thực chiến, KHÔNG sáo rỗng.
+  return `Bạn là AI Brand Architect. Tiếng Việt. Tư duy hệ thống, sắc bén, thực chiến, KHÔNG sáo rỗng.
 ${personaContext()}${intakeContext()}${priorContext(p.id)}
 NHIỆM VỤ: Tạo artifact "${p.title}". ${p.note||""}
-Công thức bắt buộc: INSIGHT=TENSION+MOTIVATION+TRIGGER; Positioning=[đối tượng]+[khác biệt]+[lý do tin] vs đối thủ; Lotus nội dung 50/30/20. Mọi hook/nội dung viết bằng GIỌNG của persona ở trên.
+Công thức: INSIGHT=TENSION+MOTIVATION+TRIGGER; Positioning=[đối tượng]+[khác biệt]+[lý do tin] vs đối thủ; Lotus 50/30/20. Mọi hook/nội dung viết bằng GIỌNG persona.
 ${COMPLY}
-Trả về DUY NHẤT một JSON hợp lệ theo schema sau (đúng tên field, không thêm field lạ, không markdown, không giải thích):
+Trả DUY NHẤT một JSON hợp lệ theo schema (đúng tên field, không thêm field lạ, không markdown):
 ${p.schema}`;
 }
 function scorePrompt(p){
   const rb=p.rubric.map((r,idx)=>`${idx+1}. ${r[0]} (tối đa ${r[1]}đ)`).join("\n");
   return `Bạn là giám khảo nghiêm khắc. Chấm artifact "${p.title}" theo rubric (tổng 100đ). Gate = ${p.gate}.
-ARTIFACT:
-${JSON.stringify(S.outputs[p.id])}
+ARTIFACT: ${JSON.stringify(S.outputs[p.id])}
 RUBRIC:
 ${rb}
-Chấm điểm thật cho từng yếu tố (diem ≤ tối đa) + 1 câu lý do ngắn. Tính tong. ket_luan: "SHIP" nếu tong>=${p.gate}, "REVISE" nếu trong [${p.gate-15},${p.gate-1}], else "REDO".
+Chấm điểm thật từng yếu tố (diem ≤ tối đa) + 1 câu lý do. Tính tong. ket_luan: "SHIP" nếu tong>=${p.gate}, "REVISE" nếu trong [${p.gate-15},${p.gate-1}], else "REDO".
 Trả DUY NHẤT JSON: {"factors":[{"ten":"","trong_so":0,"diem":0,"ly_do":""}],"tong":0,"ket_luan":""}`;
 }
-function storyboardPrompt(days){
-  const comms=S.outputs.comms||{};
-  return `Bạn là Content Director. Tạo STORYBOARD ${days} ngày cho kênh của persona dưới đây. Mỗi ngày: 1 cảnh quay ngắn, hook viết BẰNG GIỌNG persona, gắn pillar A/B/C theo tỷ lệ 50/30/20, kèm imagePrompt (mô tả ảnh tiếng Anh để sinh sau) + caption đăng bài + videoPrompt ngắn.
-${personaContext()}
-PILLARS & CALENDAR tham chiếu: ${JSON.stringify({pillars:comms.pillars,calendar:comms.calendar_30})}
-${COMPLY}
-Trả DUY NHẤT JSON mảng đúng ${days} phần tử: [{"day":1,"pillar":"A","hook":"","scene":"","imagePrompt":"","caption":"","videoPrompt":""}]`;
-}
+/* studio prompts */
+function outfitIdeasPrompt(n){return `Gợi ý ${n} ý tưởng trang phục đa dạng (casual, công sở, dạ hội, streetwear, thể thao, vintage, fantasy, sci-fi...) hợp với nhân vật ${S.persona.name||'này'} (niche: ${S.persona.niche||''}). Tinh tế, an toàn nền tảng. Trả DUY NHẤT JSON mảng: [{"name":"tên tiếng Việt","prompt":"detailed English visual prompt of the outfit"}]`;}
+function sceneConceptPrompt(){return `Gợi ý 3 concept chụp ảnh độc đáo (makeup + outfit + background) cho ${S.persona.name||'nhân vật'} hợp niche ${S.persona.niche||''}. An toàn, tinh tế. Trả DUY NHẤT JSON mảng: [{"ten":"tên concept tiếng Việt","makeup":"english","outfit":"english","background":"english"}]`;}
+function costumeSetPrompt(theme){return `Thiết kế một bộ trang phục (costume set) theo chủ đề "${theme}" cho ${S.persona.name||'nhân vật'}. Trả DUY NHẤT JSON: {"name":"tên bộ tiếng Việt","items":["món 1","món 2","món 3"],"visualPrompt":"detailed English description of the full outfit"}`;}
+function extractOutfitPrompt(){return `Mô tả bộ trang phục trong ảnh này để tái sử dụng. Trả DUY NHẤT JSON: {"name":"tên tiếng Việt","masterPrompt":"detailed English description of the outfit only (not the person)"}`;}
 
 /* ---------- NAV / RENDER ---------- */
 function go(id){S.stage=id;save();render();window.scrollTo(0,0);}
 function intakeOK(){return INTAKE_FIELDS.filter(f=>f.req).every(f=>S.intake[f.k]&&String(S.intake[f.k]).trim());}
 function personaOK(){return !!(S.persona&&S.persona.name&&S.persona.niche);}
-
 function renderSteps(){
   const el=document.getElementById('steps');el.innerHTML='';
   STEP_LIST.forEach((st,i)=>{
@@ -299,9 +330,10 @@ function renderSteps(){
     let done=false;
     if(st.id==='setup')done=!!S.apiKey;
     else if(st.id==='idea')done=!!(S.persona&&S.persona.name)||!!S.idea;
-    else if(st.id==='persona'||st.id==='profile')done=personaOK();
+    else if(st.id==='persona')done=personaOK();
+    else if(st.id==='profile')done=!!(S.persona&&(S.persona.hasRef||S.persona.hasPortrait));
+    else if(st.id==='studio')done=!!(S.gallery&&S.gallery.length);
     else if(st.id==='intake')done=intakeOK();
-    else if(st.id==='storyboard')done=!!(S.storyboard&&S.storyboard.length);
     else if(st.id==='export')done=false;
     else done=!!S.outputs[st.id];
     const sc=S.scores[st.id];
@@ -313,18 +345,17 @@ function renderSteps(){
   const ph=PHASES.filter(p=>S.scores[p.id]);
   const os=document.getElementById('ovrScore'),on=document.getElementById('ovrNote');
   if(ph.length){const ov=Math.round(ph.reduce((a,p)=>a+S.scores[p.id].tong,0)/ph.length);
-    os.textContent=ov;on.textContent=(ov>=82?"Sẵn sàng xây kênh viral ✓":"Cần cải thiện để ≥82.")+` (${ph.length}/5 giai đoạn)`;
+    os.textContent=ov;on.textContent=(ov>=82?"Sẵn sàng xây kênh ✓":"Cần cải thiện để ≥82.")+` (${ph.length}/5 giai đoạn)`;
   }else{os.textContent="—";on.textContent="Hoàn thành các giai đoạn để xem điểm tổng.";}
 }
 function render(){
-  renderSteps();
-  const m=document.getElementById('main');const id=S.stage;
+  renderSteps();const m=document.getElementById('main');const id=S.stage;
   if(id==='setup')return renderSetup(m);
   if(id==='idea')return renderIdea(m);
   if(id==='persona')return renderPersona(m);
   if(id==='profile')return renderProfile(m);
+  if(id==='studio')return renderStudio(m);
   if(id==='intake')return renderIntake(m);
-  if(id==='storyboard')return renderStoryboard(m);
   if(id==='export')return renderExport(m);
   renderPhase(m,PHASES.find(p=>p.id===id));
 }
@@ -332,7 +363,7 @@ function render(){
 /* ---------- SETUP ---------- */
 function renderSetup(m){
   m.innerHTML=`<h1>① Thiết lập Gemini API</h1>
-  <p class="lead">App gọi thẳng Google Gemini từ trình duyệt của bạn. Key chỉ lưu cục bộ trên máy.</p>
+  <p class="lead">App gọi thẳng Google Gemini từ trình duyệt. Key chỉ lưu cục bộ trên máy.</p>
   <div class="card">
     <label>Gemini API Key <span class="req">*</span></label>
     <input id="ak" type="password" value="${esc(S.apiKey)}" placeholder="AIza...">
@@ -342,23 +373,21 @@ function renderSetup(m){
       <div><label>Model ảnh</label><input id="mi" value="${esc(S.modelImg)}" placeholder="gemini-2.5-flash-image"></div>
       <div><label>Ngôn ngữ</label><input id="lang" value="${esc(S.lang)}"></div>
     </div>
-    <div class="bar">
-      <button class="btn" onclick="saveSetup()">Lưu</button>
-      <button class="btn ghost" id="testBtn" onclick="testKey()">Kiểm tra kết nối</button>
-      <span id="testRes" class="status-line"></span>
-    </div>
+    <div class="bar"><button class="btn" onclick="saveSetup()">Lưu</button>
+      <button class="btn ghost" onclick="testKey()">Kiểm tra kết nối</button>
+      <span id="testRes" class="status-line"></span></div>
     <div class="err" id="setupErr"></div>
   </div>
-  <div class="note">Gợi ý: text <b>gemini-2.5-flash</b> (nhanh) hoặc <b>gemini-2.5-pro</b> (chất hơn). Ảnh <b>gemini-2.5-flash-image</b>. Nếu báo lỗi model → đổi tên cho khớp tài khoản.</div>
+  <div class="note">Model ảnh dùng cho Digital Twin & Photoshoot: <b>gemini-2.5-flash-image</b>. Nếu báo lỗi model → đổi tên cho khớp tài khoản.</div>
   <div class="bar"><button class="btn blue" onclick="go('idea')" ${S.apiKey?'':'disabled'}>Tiếp: Tạo cuộc sống mới →</button></div>`;
 }
 function saveSetup(){S.apiKey=document.getElementById('ak').value.trim();S.modelText=document.getElementById('mt').value.trim()||"gemini-2.5-flash";S.modelImg=document.getElementById('mi').value.trim()||"gemini-2.5-flash-image";S.lang=document.getElementById('lang').value.trim()||"vi";save();toast("Đã lưu");renderSteps();}
 async function testKey(){saveSetup();const r=document.getElementById('testRes');r.textContent="Đang kiểm tra...";try{await geminiText("Trả lời đúng 1 từ: OK",false);r.innerHTML='<span style="color:var(--ok)">✓ Kết nối OK</span>';}catch(e){document.getElementById('setupErr').style.display='block';document.getElementById('setupErr').textContent=e.message;r.textContent="";}}
 
-/* ---------- IDEA (Tạo cuộc sống mới) ---------- */
+/* ---------- IDEA ---------- */
 function renderIdea(m){
   m.innerHTML=`<h1>② Tạo cuộc sống mới</h1>
-  <p class="lead">Gõ 1 ý tưởng thô về nhân vật + hướng kinh doanh — AI dựng nháp Persona &amp; Mục tiêu/Chiến lược cùng lúc. Bạn xem &amp; sửa sau.</p>
+  <p class="lead">Gõ 1 ý tưởng thô — AI dựng nháp Persona &amp; Mục tiêu/Chiến lược cùng lúc.</p>
   <div class="card" style="border-color:var(--teal)">
     <label>💡 Ý tưởng của bạn</label>
     <textarea id="ideaBox" style="min-height:140px" placeholder="VD: nhân vật nữ UGC về hẹn hò, tâm lý, chuyện thầm kín cho đàn ông văn minh; bán aff sản phẩm sinh lý nam + bột vệ sinh; kể chuyện tinh tế, không quảng cáo thẳng">${esc(S.idea||'')}</textarea>
@@ -366,120 +395,302 @@ function renderIdea(m){
       <button class="btn ghost" onclick="go('persona')">Bỏ qua, điền tay →</button></div>
     <div class="err" id="ideaErr"></div>
   </div>
-  <div class="note">Nhân vật là <b>trục nhân cách</b> xuyên suốt: giọng nói, góc nhìn, nỗi đau khách — mọi hook/nội dung sau này viết bằng giọng nhân vật.</div>`;
+  <div class="note">Nhân vật là <b>trục nhân cách</b> xuyên suốt: giọng, góc nhìn, nỗi đau — và là <b>khuôn mặt</b> dùng lại trong Studio ảnh.</div>`;
   const ib=document.getElementById('ideaBox');ib.addEventListener('input',()=>{S.idea=ib.value;});
 }
 async function aiDraft(){
-  const box=document.getElementById('ideaBox'),er=document.getElementById('ideaErr');
-  const idea=box.value.trim();er.style.display='none';
+  const box=document.getElementById('ideaBox'),er=document.getElementById('ideaErr');const idea=box.value.trim();er.style.display='none';
   if(!idea){er.style.display='block';er.textContent='Hãy nhập ý tưởng trước.';return;}
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
-  S.idea=idea;save();
-  const b=document.getElementById('aiDraft');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang dựng nháp...';
-  try{
-    const o=parseJSON(await geminiText(ideaPrompt(idea),true));
+  S.idea=idea;save();const b=document.getElementById('aiDraft');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang dựng nháp...';
+  try{const o=parseJSON(await geminiText(ideaPrompt(idea),true));
     if(o.persona)S.persona=Object.assign({},S.persona,normPersona(o.persona));
     if(o.intake)INTAKE_FIELDS.forEach(f=>{if(o.intake[f.k]!=null)S.intake[f.k]=String(o.intake[f.k]);});
-    save();toast('AI đã dựng nháp — kiểm tra nhân vật');go('persona');
+    save();toast('AI đã dựng nháp');go('persona');
   }catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='⚡ AI dựng nháp Persona + Intake';}
 }
-function normPersona(o){const p={};PERSONA_FIELDS.forEach(f=>{if(o[f.k]!=null)p[f.k]=Array.isArray(o[f.k])?o[f.k].join(", "):String(o[f.k]);});return p;}
+function normPersona(o){const p={};PERSONA_FIELDS.forEach(f=>{if(o[f.k]!=null)p[f.k]=Array.isArray(o[f.k])?o[f.k].join(", "):String(o[f.k]);});if(o.publicDescription)p.publicDescription=String(o.publicDescription);return p;}
 
 /* ---------- PERSONA FORM ---------- */
 function renderPersona(m){
   let html=`<h1>③ Hồ sơ nhân vật</h1>
-  <p class="lead">Chỉnh thông tin nhân vật. Có thể để AI hoàn thiện các field còn trống.</p>
-  <div class="bar">
-    <button class="btn" id="aiPersona" onclick="aiCompletePersona()" ${personaOK()?'':''}>✨ AI hoàn thiện persona</button>
-    <span class="hint">Điền field trống, làm sắc field sơ sài, giữ phần bạn đã viết.</span>
-  </div>
-  <div class="err" id="pErr"></div>
-  <div class="card">`;
-  PERSONA_FIELDS.forEach(f=>{
-    const v=esc(S.persona[f.k]||"");
+  <p class="lead">Chỉnh thông tin nhân vật. Có thể để AI hoàn thiện field còn trống.</p>
+  <div class="bar"><button class="btn" id="aiPersona" onclick="aiCompletePersona()">✨ AI hoàn thiện persona</button>
+    <span class="hint">Điền field trống, giữ phần bạn đã viết.</span></div>
+  <div class="err" id="pErr"></div><div class="card">`;
+  PERSONA_FIELDS.forEach(f=>{const v=esc(S.persona[f.k]||"");
     html+=`<label>${f.label} ${f.req?'<span class="req">*</span>':''}</label>`;
     if(f.type==='textarea')html+=`<textarea data-pk="${f.k}" placeholder="${esc(f.ph||'')}">${v}</textarea>`;
     else if(f.type==='select')html+=`<select data-pk="${f.k}"><option value="">—</option>${f.opts.map(o=>`<option ${S.persona[f.k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
-    else html+=`<input data-pk="${f.k}" type="${f.type||'text'}" value="${v}" placeholder="${esc(f.ph||'')}">`;
-  });
-  html+=`</div><div class="bar">
-    <button class="btn ghost" onclick="savePersona()">Lưu nhân vật</button>
-    <button class="btn blue" onclick="savePersona();go('profile')">Tiếp: Chân dung →</button>
-  </div>`;
+    else html+=`<input data-pk="${f.k}" type="${f.type||'text'}" value="${v}" placeholder="${esc(f.ph||'')}">`;});
+  html+=`</div><div class="bar"><button class="btn ghost" onclick="savePersona()">Lưu nhân vật</button>
+    <button class="btn blue" onclick="savePersona();go('profile')">Tiếp: Chân dung →</button></div>`;
   m.innerHTML=html;
   m.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{S.persona[el.dataset.pk]=el.value;}));
 }
 function savePersona(){document.querySelectorAll('#main [data-pk]').forEach(el=>S.persona[el.dataset.pk]=el.value);save();toast("Đã lưu nhân vật");renderSteps();}
 async function aiCompletePersona(){
   savePersona();if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
-  const er=document.getElementById('pErr');er.style.display='none';
-  const b=document.getElementById('aiPersona');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang hoàn thiện...';
+  const er=document.getElementById('pErr');er.style.display='none';const b=document.getElementById('aiPersona');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang hoàn thiện...';
   try{const o=parseJSON(await geminiText(completePersonaPrompt(),true));S.persona=Object.assign({},S.persona,normPersona(o));save();render();toast('Đã hoàn thiện persona');}
   catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='✨ AI hoàn thiện persona';}
 }
 
-/* ---------- PROFILE + PORTRAIT ---------- */
+/* ---------- PROFILE + DIGITAL TWIN ---------- */
 async function renderProfile(m){
   const p=S.persona;
-  m.innerHTML=`<h1>④ Chân dung &amp; hồ sơ</h1>
-  <p class="lead">Sinh ảnh chân dung nhân vật và xem hồ sơ gọn.</p>
-  ${!personaOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy điền Tên &amp; Niche của nhân vật ở bước ③ trước.</div>':''}
+  m.innerHTML=`<h1>④ Chân dung &amp; Digital Twin</h1>
+  <p class="lead">Cách 1: <b>Upload selfie → AI clone</b> thành nhân vật (giữ khuôn mặt nhất quán cho mọi ảnh sau). Cách 2: sinh khuôn mặt từ mô tả.</p>
+  ${!personaOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy điền Tên &amp; Niche ở bước ③ trước.</div>':''}
   <div class="card"><div class="pf-grid">
     <div>
-      <div id="portWrap"><div class="note" style="text-align:center">Chưa có ảnh chân dung.</div></div>
+      <div id="portWrap"><div class="note" style="text-align:center">Chưa có ảnh nhận diện.</div></div>
+      <input type="file" id="selfie" accept="image/*" style="display:none" onchange="onSelfie(event)">
       <div class="bar">
-        <button class="btn" id="genPort" onclick="genPortrait()" ${personaOK()?'':'disabled'}>📸 Tạo ảnh chân dung</button>
+        <button class="btn pink" onclick="document.getElementById('selfie').click()">📤 Upload selfie → Clone</button>
+        <button class="btn ghost" id="genPort" onclick="genPortrait()" ${personaOK()?'':'disabled'}>🎨 Sinh từ mô tả</button>
       </div>
       <div class="err" id="portErr"></div>
-      <div class="hint">Ảnh lưu trong IndexedDB trên máy bạn (không kèm trong file JSON).</div>
+      <div class="hint">Ảnh nhận diện lưu IndexedDB. Dùng làm <b>neo khuôn mặt</b> cho Photoshoot/Wardrobe.</div>
     </div>
     <div id="pfInfo"></div>
   </div></div>
   <div class="bar">
     <button class="btn ghost" onclick="exportPersona()">⬇ Xuất persona.json</button>
-    <button class="btn blue" onclick="go('intake')">Tiếp: Mục tiêu KD &amp; chiến lược →</button>
+    <button class="btn blue" onclick="go('studio')">Tiếp: Studio ảnh →</button>
+    <button class="btn ghost" onclick="go('intake')">Bỏ qua Studio → Brand</button>
   </div>`;
-  // info
   const info=document.getElementById('pfInfo');
-  info.innerHTML=PERSONA_FIELDS.filter(f=>p[f.k]).map(f=>`<div class="kv"><b>${esc(f.label)}</b>${esc(p[f.k])}</div>`).join('')||'<div class="hint">Chưa có dữ liệu nhân vật.</div>';
-  // portrait
-  try{const img=await IDB.get("portrait");if(img){document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="portrait">`;}}catch(e){}
+  info.innerHTML=(p.publicDescription?`<div class="kv"><b>Digital Twin (face anchor)</b><span style="font-size:11px;color:var(--mut)">${esc(p.publicDescription).slice(0,200)}…</span></div>`:'')
+    +PERSONA_FIELDS.filter(f=>p[f.k]).map(f=>`<div class="kv"><b>${esc(f.label)}</b>${esc(p[f.k])}</div>`).join('')||'<div class="hint">Chưa có dữ liệu.</div>';
+  try{const img=await getRef()||await IDB.get("portrait");if(img)document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="">`;}catch(e){}
+}
+async function onSelfie(ev){
+  const f=ev.target.files[0];if(!f)return;
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('portErr');er.style.display='none';
+  const wrap=document.getElementById('portWrap');wrap.innerHTML='<div class="note" style="text-align:center"><span class="spinner"></span> Đang clone Digital Twin...</div>';
+  try{
+    let dataUrl=await fileToDataUrl(f);
+    const o=parseJSON(await geminiVision(clonePrompt(),dataUrl,true));
+    S.persona=Object.assign({},S.persona,normPersona(o));
+    await setRef(dataUrl); S.persona.hasPortrait=true; save();
+    render();toast('Đã clone Digital Twin từ ảnh');
+  }catch(e){er.style.display='block';er.textContent=e.message;wrap.innerHTML='<div class="note" style="text-align:center">Clone thất bại.</div>';}
 }
 async function genPortrait(){
   if(!personaOK()){toast("Thiếu thông tin nhân vật");return;}
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
-  const er=document.getElementById('portErr');er.style.display='none';
-  const b=document.getElementById('genPort');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang vẽ...';
-  try{const img=await geminiImage(portraitPrompt());await IDB.put("portrait",img);S.persona.hasPortrait=true;save();
-    document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="portrait">`;toast("Đã tạo chân dung");}
+  const er=document.getElementById('portErr');er.style.display='none';const b=document.getElementById('genPort');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang vẽ...';
+  try{const img=await geminiImage(shotPrompt({angle:'portrait headshot, eye-level'}),{ref:null});
+    await IDB.put("portrait",img);await setRef(img);S.persona.hasPortrait=true;save();
+    document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="">`;toast("Đã sinh chân dung");}
   catch(e){er.style.display='block';er.textContent=e.message;}
-  finally{if(b){b.disabled=false;b.innerHTML='📸 Tạo ảnh chân dung';}}
+  finally{if(b){b.disabled=false;b.innerHTML='🎨 Sinh từ mô tả';}}
 }
-function exportPersona(){savePersona();dl("persona.json",JSON.stringify({persona:S.persona},null,2),"application/json");}
+function exportPersona(){const pp=Object.assign({},S.persona);dl("persona.json",JSON.stringify({persona:pp},null,2),"application/json");}
 
-/* ---------- INTAKE (brand goals + strategy) ---------- */
-function renderIntake(m){
-  let html=`<h1>⑤ Mục tiêu KD &amp; chiến lược thương hiệu</h1>
-  <p class="lead">Phần input quan trọng nhất. Có thể để AI gợi ý từ nhân vật, hoặc điền mẫu / điền tay.</p>
-  <div class="bar">
-    <button class="btn" id="aiIntake" onclick="aiIntakeFromPersona()">✨ AI gợi ý từ persona</button>
-    <button class="btn ghost" onclick="saveIntake();downloadIntake()">⬇ Tải intake</button>
+/* ---------- GALLERY HELPERS ---------- */
+async function addToGallery(dataUrl,prompt,kind){
+  const id=uid();await IDB.put("g:"+id,dataUrl);
+  S.gallery.unshift({id,prompt:prompt||"",kind:kind||"shot",ts:Date.now()});
+  if(S.gallery.length>120){const drop=S.gallery.splice(120);for(const d of drop){try{await IDB.del("g:"+d.id);}catch(e){}}}
+  save();return id;
+}
+async function delGallery(id){try{await IDB.del("g:"+id);}catch(e){}S.gallery=S.gallery.filter(g=>g.id!==id);save();if(S.stage==='studio')renderStudio(document.getElementById('main'));}
+async function useAsRef(id){const u=await IDB.get("g:"+id);if(u){await setRef(u);S.persona.hasPortrait=true;save();toast("Đã đặt làm khuôn mặt neo");}}
+
+/* ---------- STUDIO (tabs: twin/photoshoot/wardrobe/gallery) ---------- */
+function studioTab(t){S._studioTab=t;save();renderStudio(document.getElementById('main'));}
+function renderStudio(m){
+  const t=S._studioTab||'photoshoot';
+  m.innerHTML=`<h1>⑤ Studio ảnh</h1>
+  <p class="lead">Sản xuất kho ảnh nhân vật: thử makeup/trang phục/pose/bối cảnh — giữ nguyên khuôn mặt Digital Twin.</p>
+  ${!personaOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Cần nhân vật (bước ③) trước.</div>':''}
+  ${!(S.persona&&(S.persona.hasRef||S.persona.publicDescription))?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Mẹo: tạo Digital Twin ở bước ④ (upload selfie) để mọi ảnh giữ cùng khuôn mặt.</div>':''}
+  <div class="tabs">
+    <button class="tab ${t==='photoshoot'?'active':''}" onclick="studioTab('photoshoot')">📸 Photoshoot</button>
+    <button class="tab ${t==='wardrobe'?'active':''}" onclick="studioTab('wardrobe')">👗 Tủ đồ</button>
+    <button class="tab ${t==='gallery'?'active':''}" onclick="studioTab('gallery')">🖼️ Thư viện (${S.gallery.length})</button>
   </div>
-  <div class="err" id="iErr"></div>
-  <div class="card">`;
-  INTAKE_FIELDS.forEach(f=>{
-    const v=esc(S.intake[f.k]||"");
+  <div id="studioBody"></div>
+  <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('profile')">← Chân dung</button>
+   <button class="btn blue" onclick="go('intake')">Tiếp: Mục tiêu KD →</button></div>`;
+  const body=document.getElementById('studioBody');
+  if(t==='photoshoot')renderPhotoshoot(body);
+  else if(t==='wardrobe')renderWardrobe(body);
+  else renderGallery(body);
+}
+
+/* --- Photoshoot --- */
+const PS={makeup:"",outfit:"",background:"",pose:"",angle:"full body shot, eye-level",shots:1,useRef:true};
+const ANGLES=["full body shot, eye-level","medium shot","close up portrait","low angle","high angle","over-the-shoulder"];
+function renderPhotoshoot(b){
+  b.innerHTML=`<div class="card">
+    <div class="bar" style="margin-top:0"><button class="btn gold sm" id="conceptBtn" onclick="aiConcept()">✨ AI gợi ý concept</button>
+      <span class="hint">Tự điền makeup/outfit/background một concept đẹp.</span></div>
+    <div class="err" id="psErr"></div>
+    <div class="row">
+      <div><label>Makeup</label><input id="ps_makeup" value="${esc(PS.makeup)}" placeholder="natural glam, dewy skin"></div>
+      <div><label>Trang phục (outfit)</label><input id="ps_outfit" value="${esc(PS.outfit)}" placeholder="elegant beige blazer, minimal"></div>
+    </div>
+    <div class="row">
+      <div><label>Bối cảnh (background)</label><input id="ps_background" value="${esc(PS.background)}" placeholder="cozy cafe, soft window light"></div>
+      <div><label>Pose</label><input id="ps_pose" value="${esc(PS.pose)}" placeholder="confident, hand on chin"></div>
+    </div>
+    <div class="row">
+      <div><label>Góc máy</label><select id="ps_angle">${ANGLES.map(a=>`<option ${PS.angle===a?'selected':''}>${a}</option>`).join('')}</select></div>
+      <div><label>Số ảnh</label><select id="ps_shots"><option value="1" ${PS.shots==1?'selected':''}>1 ảnh</option><option value="4" ${PS.shots==4?'selected':''}>4 góc máy</option></select></div>
+    </div>
+    ${S.wardrobe.length?`<label>Hoặc chọn nhanh từ Tủ đồ</label><div>${S.wardrobe.map(w=>`<span class="chip" onclick="document.getElementById('ps_outfit').value=${JSON.stringify(w.masterPrompt).replace(/"/g,'&quot;')};toast('Đã chọn ${esc(w.name)}')">👗 ${esc(w.name)}</span>`).join('')}</div>`:''}
+    <label style="margin-top:12px"><input type="checkbox" id="ps_ref" ${PS.useRef?'checked':''} style="width:auto;margin-right:6px">Giữ khuôn mặt Digital Twin (image-to-image)</label>
+    <div class="bar"><button class="btn" id="shootBtn" onclick="runShoot()" ${personaOK()?'':'disabled'}>📸 Chụp</button></div>
+  </div>
+  <div id="shootOut" class="imgrid"></div>`;
+}
+function readPS(){PS.makeup=val('ps_makeup');PS.outfit=val('ps_outfit');PS.background=val('ps_background');PS.pose=val('ps_pose');PS.angle=val('ps_angle');PS.shots=parseInt(val('ps_shots')||"1");PS.useRef=document.getElementById('ps_ref').checked;}
+function val(id){const e=document.getElementById(id);return e?e.value:"";}
+async function aiConcept(){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('psErr');er.style.display='none';const b=document.getElementById('conceptBtn');b.disabled=true;b.innerHTML='<span class="spinner"></span> ...';
+  try{const arr=parseJSON(await geminiText(sceneConceptPrompt(),true));const c=Array.isArray(arr)?arr[0]:arr;
+    if(c){document.getElementById('ps_makeup').value=c.makeup||"";document.getElementById('ps_outfit').value=c.outfit||"";document.getElementById('ps_background').value=c.background||"";toast('Đã điền concept: '+(c.ten||''));}}
+  catch(e){er.style.display='block';er.textContent=e.message;}
+  finally{b.disabled=false;b.innerHTML='✨ AI gợi ý concept';}
+}
+async function runShoot(){
+  readPS();if(!personaOK()){toast("Cần nhân vật");return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('psErr');er.style.display='none';const b=document.getElementById('shootBtn');b.disabled=true;
+  const out=document.getElementById('shootOut');
+  const angles=PS.shots===4?["full body","medium shot","close up portrait","low angle"]:[PS.angle];
+  const refOpt=PS.useRef?{}:{ref:null};
+  for(let i=0;i<angles.length;i++){
+    b.innerHTML=`<span class="spinner"></span> Đang chụp ${i+1}/${angles.length}...`;
+    const ph=document.createElement('div');ph.className='imgcard';ph.innerHTML='<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;color:#5b7187"><span class="spinner"></span></div>';out.appendChild(ph);
+    try{const prompt=shotPrompt({angle:angles[i],makeup:PS.makeup,outfit:PS.outfit,background:PS.background,pose:PS.pose});
+      const img=await geminiImage(prompt,refOpt);
+      const id=await addToGallery(img,[PS.makeup,PS.outfit,PS.background,angles[i]].filter(Boolean).join(' · '),'shot');
+      ph.innerHTML=`<img src="${img}" alt=""><div class="ov"></div>`;
+      ph.querySelector('img').dataset.gid=id;
+      const ov=ph.querySelector('.ov');
+      const mk=(label,fn)=>{const x=document.createElement('button');x.textContent=label;x.onclick=fn;ov.appendChild(x);};
+      mk('⬇',()=>dlDataUrl("muse-"+id+".png",img));
+      mk('📌 Neo',async()=>{await useAsRef(id);});
+      mk('✕',()=>{delGallery(id);ph.remove();});
+    }catch(e){ph.innerHTML=`<div style="padding:10px;font-size:11px;color:var(--coral)">${esc(e.message).slice(0,120)}</div>`;er.style.display='block';er.textContent=e.message;}
+  }
+  b.disabled=false;b.innerHTML='📸 Chụp';renderSteps();
+}
+async function useAsRefByImg(btn){const img=btn.closest('.imgcard').querySelector('img');if(img&&img.dataset.gid)await useAsRef(img.dataset.gid);}
+
+/* --- Wardrobe --- */
+let __outfitIdeas=[];
+function renderWardrobe(b){
+  b.innerHTML=`<div class="card">
+    <h2>Gợi ý trang phục</h2>
+    <div class="bar" style="margin-top:6px">
+      <button class="btn sm" id="ideasBtn" onclick="genOutfitIdeas()">💡 Gợi ý 10 outfit</button>
+      <input id="theme" placeholder="Costume-set theo chủ đề: VD Tết, cyberpunk, công sở..." style="flex:1;min-width:200px">
+      <button class="btn gold sm" id="setBtn" onclick="genCostumeSet()">🎭 Tạo bộ theo chủ đề</button>
+    </div>
+    <div class="err" id="wErr"></div>
+    <div id="ideaList"></div>
+    <label style="margin-top:14px">Trích outfit từ ảnh (upload ảnh quần áo)</label>
+    <input type="file" id="outfitFile" accept="image/*" style="display:none" onchange="onOutfitFile(event)">
+    <button class="btn ghost sm" onclick="document.getElementById('outfitFile').click()">📤 Upload ảnh outfit → lưu tủ đồ</button>
+  </div>
+  <div class="card"><h2>Tủ đồ đã lưu (${S.wardrobe.length})</h2><div id="wardrobeList"></div></div>`;
+  if(__outfitIdeas.length)paintIdeas();
+  paintWardrobe();
+}
+function paintIdeas(){
+  const el=document.getElementById('ideaList');if(!el)return;
+  el.innerHTML=__outfitIdeas.map((o,i)=>`<div class="idea-item"><div class="t"><div class="nm">${esc(o.name)}</div><div class="hint" style="margin:0">${esc(o.prompt).slice(0,90)}</div></div>
+    <button class="btn sm" onclick="tryOutfit(${i})">Mặc thử</button>
+    <button class="btn ghost sm" onclick="saveOutfit(${i})">+ Tủ</button></div>`).join('');
+}
+function paintWardrobe(){
+  const el=document.getElementById('wardrobeList');if(!el)return;
+  el.innerHTML=S.wardrobe.length?S.wardrobe.map(w=>`<div class="idea-item"><div class="t"><div class="nm">👗 ${esc(w.name)}</div><div class="hint" style="margin:0">${esc(w.masterPrompt).slice(0,90)}</div></div>
+    <button class="btn sm" onclick="tryWardrobe('${w.id}')">Mặc thử</button>
+    <button class="btn ghost sm" onclick="delWardrobe('${w.id}')">✕</button></div>`).join(''):'<div class="hint">Chưa có. Lưu từ gợi ý hoặc upload ảnh outfit.</div>';
+}
+async function genOutfitIdeas(){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('wErr');er.style.display='none';const b=document.getElementById('ideasBtn');b.disabled=true;b.innerHTML='<span class="spinner"></span> ...';
+  try{let arr=parseJSON(await geminiText(outfitIdeasPrompt(10),true));if(!Array.isArray(arr)&&arr.outfits)arr=arr.outfits;__outfitIdeas=arr||[];paintIdeas();toast('Đã gợi ý outfit');}
+  catch(e){er.style.display='block';er.textContent=e.message;}
+  finally{b.disabled=false;b.innerHTML='💡 Gợi ý 10 outfit';}
+}
+function saveOutfit(i){const o=__outfitIdeas[i];if(!o)return;S.wardrobe.unshift({id:uid(),name:o.name,masterPrompt:o.prompt});save();paintWardrobe();renderStudioCount();toast('Đã lưu vào tủ');}
+function delWardrobe(id){S.wardrobe=S.wardrobe.filter(w=>w.id!==id);save();paintWardrobe();renderStudioCount();}
+function renderStudioCount(){renderSteps();}
+async function tryOutfit(i){const o=__outfitIdeas[i];if(o)await shootOutfit(o.prompt,o.name);}
+async function tryWardrobe(id){const w=S.wardrobe.find(x=>x.id===id);if(w)await shootOutfit(w.masterPrompt,w.name);}
+async function shootOutfit(outfitPrompt,name){
+  if(!personaOK()){toast("Cần nhân vật");return;}
+  toast("Đang mặc thử: "+name);
+  try{const img=await geminiImage(shotPrompt({angle:'full body, high-end fashion photography',outfit:outfitPrompt}),{});
+    await addToGallery(img,"Outfit: "+name,'outfit');toast('Đã tạo — xem Thư viện');renderSteps();}
+  catch(e){toast("Lỗi: "+e.message.slice(0,60));}
+}
+async function genCostumeSet(){
+  const theme=val('theme').trim();if(!theme){toast("Nhập chủ đề trước");return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('wErr');er.style.display='none';const b=document.getElementById('setBtn');b.disabled=true;b.innerHTML='<span class="spinner"></span> ...';
+  try{const c=parseJSON(await geminiText(costumeSetPrompt(theme),true));
+    const img=await geminiImage(shotPrompt({angle:'full body, high-end fashion photography',outfit:c.visualPrompt||theme}),{});
+    await addToGallery(img,"Costume: "+(c.name||theme)+" — "+(c.items||[]).join(', '),'costume');
+    S.wardrobe.unshift({id:uid(),name:c.name||theme,masterPrompt:c.visualPrompt||theme});save();paintWardrobe();renderSteps();
+    toast('Đã tạo bộ "'+(c.name||theme)+'" — xem Thư viện');}
+  catch(e){er.style.display='block';er.textContent=e.message;}
+  finally{b.disabled=false;b.innerHTML='🎭 Tạo bộ theo chủ đề';}
+}
+async function onOutfitFile(ev){
+  const f=ev.target.files[0];if(!f)return;if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('wErr');er.style.display='none';toast("Đang phân tích outfit...");
+  try{const dataUrl=await fileToDataUrl(f);const o=parseJSON(await geminiVision(extractOutfitPrompt(),dataUrl,true));
+    S.wardrobe.unshift({id:uid(),name:o.name||"Outfit",masterPrompt:o.masterPrompt||""});save();paintWardrobe();renderSteps();toast('Đã thêm vào tủ đồ');}
+  catch(e){er.style.display='block';er.textContent=e.message;}
+}
+
+/* --- Gallery --- */
+async function renderGallery(b){
+  if(!S.gallery.length){b.innerHTML='<div class="note">Chưa có ảnh. Tạo ở tab Photoshoot / Tủ đồ.</div>';return;}
+  b.innerHTML=`<div class="bar" style="margin-top:6px"><button class="btn ghost sm" onclick="dlGalleryAll()">⬇ Tải tất cả ảnh</button>
+    <span class="hint">${S.gallery.length} ảnh · lưu IndexedDB trên máy bạn</span></div><div class="imgrid" id="galGrid"></div>`;
+  const grid=document.getElementById('galGrid');
+  for(const g of S.gallery){
+    const u=await IDB.get("g:"+g.id);if(!u)continue;
+    const c=document.createElement('div');c.className='imgcard';
+    c.innerHTML=`<img src="${u}" title="${esc(g.prompt)}" alt=""><div class="ov">
+      <button title="Tải">⬇</button><button title="Đặt làm khuôn mặt neo">📌</button><button title="Xoá">✕</button></div>`;
+    const bs=c.querySelectorAll('button');
+    bs[0].onclick=()=>dlDataUrl("muse-"+g.id+".png",u);
+    bs[1].onclick=async()=>{await setRef(u);S.persona.hasPortrait=true;save();toast("Đã đặt làm khuôn mặt neo");};
+    bs[2].onclick=()=>delGallery(g.id);
+    grid.appendChild(c);
+  }
+}
+async function dlGalleryAll(){let i=0;for(const g of S.gallery){const u=await IDB.get("g:"+g.id);if(u){setTimeout(()=>dlDataUrl("muse-"+g.id+".png",u),160*(++i));}}toast("Đang tải ảnh...");}
+
+/* ---------- INTAKE ---------- */
+function renderIntake(m){
+  let html=`<h1>⑥ Mục tiêu KD &amp; chiến lược thương hiệu</h1>
+  <p class="lead">Phần input quan trọng nhất. Có thể để AI gợi ý từ nhân vật.</p>
+  <div class="bar"><button class="btn" id="aiIntake" onclick="aiIntakeFromPersona()">✨ AI gợi ý từ persona</button>
+    <button class="btn ghost" onclick="saveIntake();downloadIntake()">⬇ Tải intake</button></div>
+  <div class="err" id="iErr"></div><div class="card">`;
+  INTAKE_FIELDS.forEach(f=>{const v=esc(S.intake[f.k]||"");
     html+=`<label>${f.label} ${f.req?'<span class="req">*</span>':''}</label>`;
     if(f.type==='textarea')html+=`<textarea data-k="${f.k}" placeholder="${esc(f.ph||'')}">${v}</textarea>`;
     else if(f.type==='select')html+=`<select data-k="${f.k}">${f.opts.map(o=>`<option ${S.intake[f.k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
-    else html+=`<input data-k="${f.k}" value="${v}" placeholder="${esc(f.ph||'')}">`;
-  });
-  html+=`</div><div class="bar">
-    <button class="btn ghost" onclick="saveIntake()">Lưu Intake</button>
+    else html+=`<input data-k="${f.k}" value="${v}" placeholder="${esc(f.ph||'')}">`;});
+  html+=`</div><div class="bar"><button class="btn ghost" onclick="saveIntake()">Lưu Intake</button>
     <button class="btn blue" onclick="startAutoPipeline()">⚡ Chạy pipeline AI tự động →</button>
-    <button class="btn ghost" onclick="saveIntake();go('brand')">Hoặc làm thủ công từng bước</button>
-  </div>
-  <div class="note">Mục tiêu KD càng định lượng (số + mốc) → điểm &amp; chất lượng output càng cao. "Pipeline tự động" chạy hết 5 giai đoạn + tự chấm điểm.</div>`;
+    <button class="btn ghost" onclick="saveIntake();go('brand')">Hoặc làm thủ công từng bước</button></div>
+  <div class="note">Mục tiêu KD càng định lượng (số + mốc) → điểm &amp; chất lượng output càng cao.</div>`;
   m.innerHTML=html;
   m.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{S.intake[el.dataset.k]=el.value;}));
 }
@@ -488,31 +699,30 @@ function downloadIntake(){dl("00-intake.json",JSON.stringify({intake:S.intake},n
 async function aiIntakeFromPersona(){
   saveIntake();if(!personaOK()){toast("Cần nhân vật trước (bước ③)");go('persona');return;}
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
-  const er=document.getElementById('iErr');er.style.display='none';
-  const b=document.getElementById('aiIntake');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang gợi ý...';
+  const er=document.getElementById('iErr');er.style.display='none';const b=document.getElementById('aiIntake');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang gợi ý...';
   try{const o=parseJSON(await geminiText(intakeFromPersonaPrompt(),true));INTAKE_FIELDS.forEach(f=>{if(o[f.k]!=null)S.intake[f.k]=String(o[f.k]);});save();render();toast('AI đã gợi ý intake');}
   catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='✨ AI gợi ý từ persona';}
 }
 
-/* ---------- PHASE (generate + score, sửa tay) ---------- */
+/* ---------- PHASE ---------- */
 function renderPhase(m,p){
   const out=S.outputs[p.id];const sc=S.scores[p.id];
   m.innerHTML=`<h1>${p.n}. ${p.title}</h1><p class="lead">${p.desc}</p>
-  ${!intakeOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy hoàn tất Intake (mục bắt buộc) trước khi chạy.</div>':''}
+  ${!intakeOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy hoàn tất Intake (mục bắt buộc) trước.</div>':''}
   <div class="bar">
     <button class="btn" id="genBtn" onclick="runGen('${p.id}')" ${intakeOK()?'':'disabled'}><span id="genTxt">${out?'Tạo lại bằng AI':'Tạo bằng AI'}</span></button>
     <button class="btn gold" onclick="runScore('${p.id}')" ${out?'':'disabled'}>Tự chấm điểm</button>
     ${p.note?`<span class="hint">${p.note}</span>`:''}
   </div>
   <div class="err" id="phErr"></div>
-  <label style="margin-top:16px">Kết quả (JSON — bạn có thể sửa tay)</label>
-  <textarea class="big" id="outBox" placeholder="Bấm 'Tạo bằng AI' để sinh nội dung...">${out?esc(JSON.stringify(out,null,2)):''}</textarea>
+  <label style="margin-top:16px">Kết quả (JSON — sửa tay được)</label>
+  <textarea class="big" id="outBox" placeholder="Bấm 'Tạo bằng AI'...">${out?esc(JSON.stringify(out,null,2)):''}</textarea>
   <div class="bar"><button class="btn ghost" onclick="saveOut('${p.id}')">Lưu chỉnh sửa</button>
-   <span class="hint">Sửa xong nhớ Lưu để các bước sau &amp; chấm điểm dùng bản mới.</span></div>
+   <span class="hint">Sửa xong nhớ Lưu.</span></div>
   <div id="scoreBox"></div>
   <div class="bar" style="margin-top:22px">
     ${p.n>1?`<button class="btn ghost" onclick="go('${PHASES[p.n-2].id}')">← Quay lại</button>`:`<button class="btn ghost" onclick="go('intake')">← Intake</button>`}
-    ${p.n<5?`<button class="btn blue" onclick="go('${PHASES[p.n].id}')">Tiếp →</button>`:`<button class="btn blue" onclick="go('storyboard')">Tới Storyboard →</button>`}
+    ${p.n<5?`<button class="btn blue" onclick="go('${PHASES[p.n].id}')">Tiếp →</button>`:`<button class="btn blue" onclick="go('export')">Tới Xuất file →</button>`}
   </div>`;
   if(sc)renderScore(sc,p);
 }
@@ -521,107 +731,57 @@ function renderScore(sc,p){
   let h=`<div class="card"><div class="scorehead"><span class="total" style="color:${c}">${sc.tong}</span><span class="hint">/100 · Gate ${p.gate} · <b style="color:${c}">${sc.ket_luan}</b></span></div>
   <table class="score-tbl"><tr><th>Yếu tố</th><th>Điểm</th><th>Lý do</th></tr>`;
   (sc.factors||[]).forEach(f=>h+=`<tr><td>${esc(f.ten)}</td><td>${esc(f.diem)}/${esc(f.trong_so)}</td><td>${esc(f.ly_do)}</td></tr>`);
-  h+=`</table>${sc.ket_luan!=='SHIP'?'<div class="note">Điểm dưới chuẩn → sửa yếu tố thấp rồi "Tạo lại" hoặc sửa tay, sau đó chấm lại.</div>':''}</div>`;
+  h+=`</table>${sc.ket_luan!=='SHIP'?'<div class="note">Điểm dưới chuẩn → sửa rồi chấm lại.</div>':''}</div>`;
   document.getElementById('scoreBox').innerHTML=h;
 }
 function busy(btnId,txtId,on,label){const b=document.getElementById(btnId);if(!b)return;b.disabled=on;if(txtId){document.getElementById(txtId).innerHTML=on?'<span class="spinner"></span> '+label:label;}}
-async function runGen(id){
-  const p=PHASES.find(x=>x.id===id);const err=document.getElementById('phErr');err.style.display='none';
-  busy('genBtn','genTxt',true,'Đang tạo...');
+async function runGen(id){const p=PHASES.find(x=>x.id===id);const err=document.getElementById('phErr');err.style.display='none';busy('genBtn','genTxt',true,'Đang tạo...');
   try{const j=parseJSON(await geminiText(genPrompt(p),true));S.outputs[id]=j;delete S.scores[id];save();render();toast("Đã tạo "+p.title);}
-  catch(e){err.style.display='block';err.textContent=e.message;busy('genBtn','genTxt',false,'Tạo bằng AI');}
-}
-async function runScore(id){
-  const p=PHASES.find(x=>x.id===id);saveOut(id,true);const err=document.getElementById('phErr');err.style.display='none';
-  if(!S.outputs[id]){err.style.display='block';err.textContent="Chưa có nội dung để chấm.";return;}
-  toast("Đang chấm điểm...");
+  catch(e){err.style.display='block';err.textContent=e.message;busy('genBtn','genTxt',false,'Tạo bằng AI');}}
+async function runScore(id){const p=PHASES.find(x=>x.id===id);saveOut(id,true);const err=document.getElementById('phErr');err.style.display='none';
+  if(!S.outputs[id]){err.style.display='block';err.textContent="Chưa có nội dung để chấm.";return;}toast("Đang chấm điểm...");
   try{const j=parseJSON(await geminiText(scorePrompt(p),true));S.scores[id]=j;save();renderSteps();renderScore(j,p);}
-  catch(e){err.style.display='block';err.textContent=e.message;}
-}
+  catch(e){err.style.display='block';err.textContent=e.message;}}
 function saveOut(id,silent){const box=document.getElementById('outBox');if(!box)return;try{S.outputs[id]=JSON.parse(box.value);delete S.scores[id];save();if(!silent){toast("Đã lưu");renderSteps();}}catch(e){if(!silent){const err=document.getElementById('phErr');err.style.display='block';err.textContent="JSON không hợp lệ: "+e.message;}}}
 
 /* ---------- AUTO PIPELINE ---------- */
 let __abort=false;
 async function startAutoPipeline(){
-  saveIntake();
-  if(!intakeOK()){toast("Thiếu thông tin bắt buộc (*)");go('intake');return;}
+  saveIntake();if(!intakeOK()){toast("Thiếu thông tin bắt buộc (*)");go('intake');return;}
   if(!S.apiKey){toast("Chưa có API key");go('setup');return;}
   __abort=false;openPipe();
-  for(const p of PHASES){
-    if(__abort)break;
-    try{
-      setPipe(p.id,'running','Đang tạo nội dung...');
+  for(const p of PHASES){if(__abort)break;
+    try{setPipe(p.id,'running','Đang tạo nội dung...');
       S.outputs[p.id]=parseJSON(await geminiText(genPrompt(p),true));delete S.scores[p.id];save();renderSteps();
       setPipe(p.id,'running','Đang chấm điểm...');
       S.scores[p.id]=parseJSON(await geminiText(scorePrompt(p),true));save();renderSteps();
       const sc=S.scores[p.id];setPipe(p.id,'done',sc.tong+'/100 · '+sc.ket_luan,sc.ket_luan);
-    }catch(e){setPipe(p.id,'error',(e.message||'lỗi').slice(0,90));__abort=true;}
-  }
+    }catch(e){setPipe(p.id,'error',(e.message||'lỗi').slice(0,90));__abort=true;}}
   finishPipe();
 }
 function openPipe(){
   let ex=document.getElementById('pipeOverlay');if(ex)ex.remove();
   const d=document.createElement('div');d.id='pipeOverlay';d.className='overlay';
-  d.innerHTML=`<div class="ovbox"><h2>⚡ Pipeline AI tự động</h2>
-    <p class="lead">AI chạy 5 giai đoạn và tự chấm điểm. Mỗi bước ~10-30 giây.</p>
-    <div id="pipeRows"></div>
-    <div class="bar" id="pipeFoot" style="margin-top:14px"><button class="btn ghost" onclick="abortPipe()">Dừng sau bước hiện tại</button></div></div>`;
+  d.innerHTML=`<div class="ovbox"><h2>⚡ Pipeline AI tự động</h2><p class="lead">AI chạy 5 giai đoạn và tự chấm điểm. Mỗi bước ~10-30 giây.</p>
+    <div id="pipeRows"></div><div class="bar" id="pipeFoot" style="margin-top:14px"><button class="btn ghost" onclick="abortPipe()">Dừng sau bước hiện tại</button></div></div>`;
   document.body.appendChild(d);
   const rows=d.querySelector('#pipeRows');
-  PHASES.forEach(p=>rows.insertAdjacentHTML('beforeend',
-    `<div class="piperow" id="pipe-${p.id}"><span class="pnum">${p.n}</span><span class="pt">${p.title}</span><span class="ps" id="ps-${p.id}">chờ…</span></div>`));
+  PHASES.forEach(p=>rows.insertAdjacentHTML('beforeend',`<div class="piperow" id="pipe-${p.id}"><span class="pnum">${p.n}</span><span class="pt">${p.title}</span><span class="ps" id="ps-${p.id}">chờ…</span></div>`));
 }
-function setPipe(id,state,msg,verdict){
-  const r=document.getElementById('pipe-'+id),ps=document.getElementById('ps-'+id);if(!r)return;
-  r.dataset.state=state;
+function setPipe(id,state,msg,verdict){const r=document.getElementById('pipe-'+id),ps=document.getElementById('ps-'+id);if(!r)return;r.dataset.state=state;
   const col=state==='done'?(verdict==='SHIP'?'var(--ok)':verdict==='REVISE'?'var(--gold)':'var(--coral)'):state==='error'?'var(--coral)':'var(--blue)';
-  ps.innerHTML=(state==='running'?'<span class="spinner"></span> ':'')+'<span style="color:'+col+'">'+esc(msg)+'</span>';
-}
+  ps.innerHTML=(state==='running'?'<span class="spinner"></span> ':'')+'<span style="color:'+col+'">'+esc(msg)+'</span>';}
 function abortPipe(){__abort=true;toast("Sẽ dừng sau bước hiện tại...");}
-function finishPipe(){
-  const f=document.getElementById('pipeFoot');if(!f)return;const sc=scorecardObj();
-  const done=PHASES.filter(p=>S.outputs[p.id]).length;
-  f.innerHTML=`<button class="btn" onclick="closePipe();go('storyboard')">Tạo Storyboard →</button>
-    <button class="btn ghost" onclick="closePipe();go('export')">Tới Xuất file</button>
-    <button class="btn ghost" onclick="closePipe()">Đóng</button>
-    <span class="hint">Hoàn thành ${done}/5 · Overall ${sc.overall||'—'}/100</span>`;
-}
+function finishPipe(){const f=document.getElementById('pipeFoot');if(!f)return;const sc=scorecardObj();const done=PHASES.filter(p=>S.outputs[p.id]).length;
+  f.innerHTML=`<button class="btn" onclick="closePipe();go('export')">Xem & Xuất file →</button><button class="btn ghost" onclick="closePipe()">Đóng</button>
+    <span class="hint">Hoàn thành ${done}/5 · Overall ${sc.overall||'—'}/100</span>`;}
 function closePipe(){const d=document.getElementById('pipeOverlay');if(d)d.remove();render();}
-
-/* ---------- STORYBOARD ---------- */
-function renderStoryboard(m){
-  const sb=S.storyboard;
-  m.innerHTML=`<h1>Storyboard 30 ngày</h1>
-  <p class="lead">Hook theo giọng persona + imagePrompt + caption (chỉ text — bạn tự đổ ảnh sau).</p>
-  <div class="bar">
-    <button class="btn" id="sbBtn" onclick="genStoryboard()" ${personaOK()?'':'disabled'}><span id="sbTxt">${sb?'Tạo lại 30 ngày':'Tạo storyboard 30 ngày'}</span></button>
-    ${sb?'<button class="btn ghost" onclick="dlStoryboard()">⬇ storyboard.json</button>':''}
-    ${!S.outputs.comms?'<span class="hint">Nên chạy giai đoạn 2 (Truyền thông) trước để bám pillars/calendar.</span>':''}
-  </div>
-  <div class="err" id="sbErr"></div>
-  <div id="sbList"></div>
-  <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('brandkit')">← Quay lại</button>
-   <button class="btn blue" onclick="go('export')">Tới Xuất file →</button></div>`;
-  if(sb&&sb.length)document.getElementById('sbList').innerHTML=sb.map(s=>`<div class="sb-card"><div class="d">NGÀY ${esc(s.day)} · Trụ ${esc(s.pillar)}</div><div class="h">${esc(s.hook)}</div><div class="hint">${esc(s.scene||'')}</div><code title="bấm để copy" onclick="navigator.clipboard.writeText(this.textContent);toast('Đã copy imagePrompt')">${esc(s.imagePrompt||'')}</code><div class="hint" style="margin-top:6px"><b>Caption:</b> ${esc(s.caption||'')}</div></div>`).join('');
-}
-async function genStoryboard(){
-  if(!personaOK()){toast("Cần nhân vật trước");go('persona');return;}
-  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
-  const er=document.getElementById('sbErr');er.style.display='none';
-  busy('sbBtn','sbTxt',true,'Đang dựng 30 ngày...');
-  try{let j=parseJSON(await geminiText(storyboardPrompt(30),true));if(!Array.isArray(j)&&j.storyboard)j=j.storyboard;S.storyboard=j;save();render();toast("Đã tạo storyboard");}
-  catch(e){er.style.display='block';er.textContent=e.message;busy('sbBtn','sbTxt',false,'Tạo storyboard 30 ngày');}
-}
-function dlStoryboard(){dl("storyboard.json",JSON.stringify(S.storyboard,null,2),"application/json");}
 
 /* ---------- EXPORT ---------- */
 function slug(){return (S.intake.ten||S.persona.name||"brand").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"d").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")||"brand";}
 function mdFor(id){const o=S.outputs[id];if(!o)return "";return "# "+(PHASES.find(p=>p.id===id)?.title||id)+"\n\n```json\n"+JSON.stringify(o,null,2)+"\n```\n";}
-function scorecardObj(){
-  const gd=PHASES.filter(p=>S.scores[p.id]).map(p=>({ma:String(p.n),ten:p.title,gate:p.gate,...S.scores[p.id]}));
-  const ov=gd.length?Math.round(gd.reduce((a,x)=>a+x.tong,0)/gd.length):0;
-  return {giai_doan:gd,overall:ov,san_sang_xay_kenh:ov>=82};
-}
+function scorecardObj(){const gd=PHASES.filter(p=>S.scores[p.id]).map(p=>({ma:String(p.n),ten:p.title,gate:p.gate,...S.scores[p.id]}));
+  const ov=gd.length?Math.round(gd.reduce((a,x)=>a+x.tong,0)/gd.length):0;return {giai_doan:gd,overall:ov,san_sang_xay_kenh:ov>=82};}
 function buildCommandCenter(){
   const comms=S.outputs.comms||{},brand=S.outputs.brandkit?.brand||{},strat=S.outputs.brand||{},p=S.persona||{};
   const DATA={brand:brand.ten||S.intake.ten||p.name||"Brand",tagline:brand.slogan||S.intake.mota||"",positioning:strat.positioning_statement||"",
@@ -632,57 +792,43 @@ function buildCommandCenter(){
   return CC_TEMPLATE.replace(/__BRAND__/g,esc(DATA.brand)).replace("__DATA__",JSON.stringify(DATA));
 }
 function renderExport(m){
-  const ready=PHASES.every(p=>S.outputs[p.id]);
-  const sc=scorecardObj();
+  const ready=PHASES.every(p=>S.outputs[p.id]);const sc=scorecardObj();
   m.innerHTML=`<h1>Xuất toàn bộ file</h1>
-  <p class="lead">Tải bộ dữ liệu chuẩn. Quan trọng nhất: <b>05-brand-kit.json</b> nạp ở "Hồ sơ Sản phẩm chuẩn" của tool viral; còn lại thả vào Brand Vault.</p>
+  <p class="lead">Tải bộ dữ liệu chuẩn. Quan trọng nhất: <b>05-brand-kit.json</b> nạp ở "Hồ sơ Sản phẩm chuẩn"; còn lại thả vào Brand Vault.</p>
   ${ready?'':'<div class="note" style="border-color:var(--gold);color:var(--gold)">⚠ Chưa đủ 5 giai đoạn. Vẫn tải được phần đã có.</div>'}
   <div class="card"><div class="scorehead"><span class="total" style="color:var(--teal)">${sc.overall||'—'}</span><span class="hint">/100 Overall · ${sc.san_sang_xay_kenh?'<b style="color:var(--ok)">Sẵn sàng xây kênh ✓</b>':'Nên đạt ≥82'}</span></div></div>
-  <div class="card"><h2>Tải từng file</h2>
-    <div class="bar">
-      <button class="btn gold" onclick="dlBrandKit()" ${S.outputs.brandkit?'':'disabled'}>⬇ 05-brand-kit.json (import app)</button>
+  <div class="card"><h2>Tải từng file</h2><div class="bar">
+      <button class="btn gold" onclick="dlBrandKit()" ${S.outputs.brandkit?'':'disabled'}>⬇ 05-brand-kit.json</button>
       <button class="btn ghost" onclick="dlMd('brand','01-brand-strategy')" ${S.outputs.brand?'':'disabled'}>01 brand-strategy.md</button>
       <button class="btn ghost" onclick="dlMd('comms','02-comms-strategy')" ${S.outputs.comms?'':'disabled'}>02 comms.md</button>
       <button class="btn ghost" onclick="dlMd('product','03-product-strategy')" ${S.outputs.product?'':'disabled'}>03 product.md</button>
       <button class="btn ghost" onclick="dlMd('insight','04-customer-insight')" ${S.outputs.insight?'':'disabled'}>04 insight.md</button>
       <button class="btn ghost" onclick="exportPersona()">persona.json</button>
-      <button class="btn ghost" onclick="dlStoryboard()" ${S.storyboard?'':'disabled'}>storyboard.json</button>
       <button class="btn ghost" onclick="dlScorecard()">06 scorecard.json</button>
       <button class="btn blue" onclick="dlCC()" ${S.outputs.comms?'':'disabled'}>⬇ index.html (Command Center)</button>
     </div>
+    ${S.gallery.length?`<div class="bar"><button class="btn pink" onclick="dlGalleryAll()">⬇ Tải ${S.gallery.length} ảnh Studio</button></div>`:''}
   </div>
-  <div class="bar"><button class="btn" onclick="dlAll()">⬇⬇ Tải tất cả</button>
-   <button class="btn ghost" onclick="go('storyboard')">← Quay lại</button></div>
-  <div class="note">Sau khi tải: ở app viral → "Hồ sơ Sản phẩm chuẩn" → Nạp file → chọn <b>05-brand-kit.json</b>. Thả 01–04 + persona + storyboard + scorecard + index.html vào <b>Brand Vault</b>.</div>`;
+  <div class="bar"><button class="btn" onclick="dlAll()">⬇⬇ Tải tất cả (file text)</button>
+   <button class="btn ghost" onclick="go('studio')">← Studio ảnh</button></div>
+  <div class="note">Ở app viral → "Hồ sơ Sản phẩm chuẩn" → Nạp <b>05-brand-kit.json</b>. Thả 01–04 + persona + scorecard + index.html + ảnh Studio vào <b>Brand Vault</b>.</div>`;
 }
 function dlBrandKit(){dl("05-brand-kit.json",JSON.stringify(S.outputs.brandkit,null,2),"application/json");}
 function dlMd(id,name){dl(name+".md",mdFor(id),"text/markdown");}
 function dlScorecard(){dl("06-scorecard.json",JSON.stringify(scorecardObj(),null,2),"application/json");}
 function dlCC(){dl("index.html",buildCommandCenter(),"text/html");}
-function dlAll(){
-  let i=0;const q=(fn)=>setTimeout(fn,180*(++i));
-  if(S.outputs.brandkit)q(()=>dlBrandKit());
-  if(S.persona&&S.persona.name)q(()=>exportPersona());
-  if(intakeOK())q(()=>downloadIntake());
+function dlAll(){let i=0;const q=(fn)=>setTimeout(fn,180*(++i));
+  if(S.outputs.brandkit)q(()=>dlBrandKit());if(S.persona&&S.persona.name)q(()=>exportPersona());if(intakeOK())q(()=>downloadIntake());
   ["brand|01-brand-strategy","comms|02-comms-strategy","product|03-product-strategy","insight|04-customer-insight"].forEach(x=>{const[id,nm]=x.split("|");if(S.outputs[id])q(()=>dlMd(id,nm));});
-  if(S.storyboard)q(()=>dlStoryboard());
-  q(()=>dlScorecard());
-  if(S.outputs.comms)q(()=>dlCC());
-  toast("Đang tải bộ file...");
-}
+  q(()=>dlScorecard());if(S.outputs.comms)q(()=>dlCC());toast("Đang tải bộ file...");}
 
 /* ---------- AGE GATE ---------- */
-function maybeAgeGate(){
-  if(S.ageOk)return;
+function maybeAgeGate(){if(S.ageOk)return;
   const d=document.createElement('div');d.className='overlay';d.id='ageGate';
-  d.innerHTML=`<div class="ovbox" style="max-width:440px;text-align:center">
-    <h2>Nội dung 18+</h2>
+  d.innerHTML=`<div class="ovbox" style="max-width:440px;text-align:center"><h2>Nội dung 18+</h2>
     <p class="lead" style="margin-top:8px">App hỗ trợ xây kênh cho nhiều ngành, gồm sức khoẻ người trưởng thành. Nội dung sinh ra luôn an toàn nền tảng (không khiêu dâm, không claim y khoa). Bạn đủ 18 tuổi?</p>
-    <div class="bar" style="justify-content:center">
-      <button class="btn" onclick="S.ageOk=true;save();document.getElementById('ageGate').remove();">Tôi đủ 18 tuổi — Tiếp tục</button>
-    </div></div>`;
-  document.body.appendChild(d);
-}
+    <div class="bar" style="justify-content:center"><button class="btn" onclick="S.ageOk=true;save();document.getElementById('ageGate').remove();">Tôi đủ 18 tuổi — Tiếp tục</button></div></div>`;
+  document.body.appendChild(d);}
 
 /* ---------- Command Center template ---------- */
 const CC_TEMPLATE=`<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__BRAND__ — Command Center</title>
