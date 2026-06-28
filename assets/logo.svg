@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Muse logo">
+  <defs>
+    <linearGradient id="museTile" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#C2B2FF"/><stop offset="1" stop-color="#8E7BFF"/></linearGradient>
+    <radialGradient id="museGlow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.42"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#museTile)"/><rect width="512" height="512" rx="128" fill="url(#museGlow)"/>
+  <g transform="translate(0 6)">
+    <path d="M135 256C160 234 196 226 226 228C238 229 248 234 256 242C264 234 274 229 286 228C316 226 352 234 377 256C320 268 290 266 256 263C222 266 192 268 135 256Z" fill="#1A1140" fill-opacity="0.94"/>
+    <path d="M141 262C194 271 224 270 256 268C288 270 318 271 371 262C360 310 316 348 256 348C196 348 152 310 141 262Z" fill="#1A1140" fill-opacity="0.94"/>
+    <ellipse cx="312" cy="300" rx="32" ry="12" transform="rotate(-18 312 300)" fill="#FFFFFF" fill-opacity="0.42"/>
+  </g>
+  <path d="M396 158l9 27 27 9-27 9-9 27-9-27-27-9 27-9z" fill="#FFFFFF" fill-opacity="0.92"/>
+</svg>

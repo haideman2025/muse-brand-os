@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Muse Brand OS — Digital Twin Studio · Gemini</title>
+<title>Muse — Digital Twin Studio</title>
+<meta name="application-name" content="Muse">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='512' y2='512' gradientUnits='userSpaceOnUse'%3E%3Cstop stop-color='%23C2B2FF'/%3E%3Cstop offset='1' stop-color='%238E7BFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='512' height='512' rx='128' fill='url(%23g)'/%3E%3Cg transform='translate(0 6)' fill='%231A1140' fill-opacity='.94'%3E%3Cpath d='M135 256C160 234 196 226 226 228C238 229 248 234 256 242C264 234 274 229 286 228C316 226 352 234 377 256C320 268 290 266 256 263C222 266 192 268 135 256Z'/%3E%3Cpath d='M141 262C194 271 224 270 256 268C288 270 318 271 371 262C360 310 316 348 256 348C196 348 152 310 141 262Z'/%3E%3C/g%3E%3Cpath d='M396 158l9 27 27 9-27 9-9 27-9-27-27-9 27-9z' fill='%23fff' fill-opacity='.92'/%3E%3C/svg%3E">
 <style>
   :root{--bg:#0F1923;--panel:#16222e;--panel2:#1b2a38;--line:#27384a;--teal:#00D4AA;--coral:#E85B5B;--blue:#4A9EFF;--gold:#F2C14E;--pink:#E85BAE;--txt:#E8EEF3;--mut:#8DA1B3;--ok:#2ec27e;--bad:#E85B5B}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -92,7 +94,7 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ===== TWILIGHT DREAM reskin (đè lên base) ===== */
 :root{
@@ -107,8 +109,8 @@ body{background:var(--sky);background-attachment:fixed;font-family:'Plus Jakarta
 aside{background:rgba(12,9,28,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-right:1px solid var(--line)}
 .logo{font-family:'Instrument Serif',serif;font-weight:400;font-size:23px;color:var(--acc);letter-spacing:.3px;text-shadow:0 0 22px rgba(183,166,255,.35)}
 .logo small{color:var(--mut);font-weight:600}
-h1{font-family:'Instrument Serif',serif;font-weight:400;letter-spacing:.2px;color:var(--txt);font-size:30px}
-h2{font-family:'Instrument Serif',serif;font-weight:400;color:var(--txt);font-size:21px}
+h1{font-family:'Playfair Display','Instrument Serif',serif;font-weight:600;letter-spacing:.1px;color:var(--txt);font-size:29px}
+h2{font-family:'Playfair Display','Instrument Serif',serif;font-weight:600;color:var(--txt);font-size:20px}
 .lead{color:#B3A6D0}
 label{color:#C9BEE6}
 input,select,textarea{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);color:var(--txt);border-radius:14px}
@@ -131,7 +133,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .b-rev{background:rgba(242,193,78,.16);color:var(--gold)}
 .b-bad{background:rgba(232,91,91,.18);color:var(--coral)}
 .ovr{border:1px dashed var(--line)}
-.ovr .big{color:var(--acc);font-family:'Instrument Serif',serif}
+.ovr .big{color:var(--acc);font-family:'Playfair Display',serif;font-weight:600}
 .charbar{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px}
 .charbtns button{background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--txt)}
 .charbtns button:first-child{color:var(--acc)}
@@ -142,7 +144,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .pill{border:1px solid var(--line)}
 .score-tbl th{background:rgba(255,255,255,.06);color:var(--acc)}
 .score-tbl td,.score-tbl th{border-color:var(--line)}
-.scorehead .total{font-family:'Instrument Serif',serif;font-weight:400}
+.scorehead .total{font-family:'Playfair Display',serif;font-weight:600}
 .imgcard{border:1px solid var(--line);background:rgba(255,255,255,.04)}
 .portrait{border:1px solid var(--line);border-radius:16px}
 .uploadbox{border:2px dashed var(--line)}
@@ -164,6 +166,50 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .sky-sw button{position:relative;width:22px;height:22px;border-radius:50%;border:none;padding:0;cursor:pointer;transition:transform .15s}
 .sky-sw button:active{transform:scale(.88)}
 .sky-sw button.on::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid #F3EEFF}
+/* brand logo */
+.brand{display:flex;align-items:center;gap:11px}
+.brandmark{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;box-shadow:0 0 22px rgba(183,166,255,.5);flex-shrink:0;position:relative;overflow:hidden}
+.brandmark::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.4),transparent 60%)}
+.brandmark svg{width:30px;height:30px;position:relative;z-index:1}
+.brandname{font-family:'Instrument Serif',serif;font-size:25px;color:#F3EEFF;line-height:1}
+.brandtxt small{display:block;color:var(--mut);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+/* sound bar */
+.soundbar{margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.soundbar button{flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--txt);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.soundbar button.on{background:rgba(183,166,255,.18);border-color:var(--acc);color:var(--acc)}
+.soundbar .sl{font-size:9.5px;color:#8E82AD;letter-spacing:1px;text-transform:uppercase}
+/* landing */
+#landing{position:fixed;inset:0;z-index:300;overflow-y:auto;background:var(--sky);background-attachment:fixed;color:var(--txt);font-family:'Plus Jakarta Sans',sans-serif}
+.lp-wrap{max-width:940px;margin:0 auto;padding:42px 22px 80px;position:relative;z-index:1}
+.lp-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:34px;flex-wrap:wrap}
+.lp-badge{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#C9BEE6;background:rgba(255,255,255,.06);border:1px solid var(--line);padding:6px 13px;border-radius:20px}
+.lp-hero h1{font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(32px,6vw,56px);line-height:1.1;margin:16px 0 14px}
+.lp-hero h1 em{font-style:italic;color:var(--acc)}
+.lp-sub{font-size:16px;line-height:1.7;color:#B3A6D0;max-width:640px;margin:0 0 24px}
+.lp-cta{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--a1),var(--a2));color:var(--ink);border:none;border-radius:16px;padding:15px 26px;font-size:15.5px;font-weight:700;cursor:pointer;box-shadow:0 16px 40px -10px rgba(142,123,255,.8)}
+.lp-cta:hover{filter:brightness(1.06)}
+.lp-cta.ghost{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--txt);box-shadow:none}
+.lp-quote{font-family:'Playfair Display',serif;font-style:italic;font-size:18px;color:#9E92BE;margin-top:20px}
+.lp-sec{margin-top:52px}
+.lp-h{font-family:'Playfair Display',serif;font-weight:600;font-size:25px;margin-bottom:6px}
+.lp-d{color:#B3A6D0;font-size:14px;margin-bottom:18px;max-width:640px}
+.lp-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.lp-step{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:16px;padding:16px;backdrop-filter:blur(12px)}
+.lp-step .n{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--a1),var(--a2));color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;margin-bottom:10px}
+.lp-step b{display:block;font-size:14px;margin-bottom:3px}
+.lp-step span{font-size:12px;color:#A99CC8;line-height:1.5}
+.lp-feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.lp-card{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:18px;padding:18px;backdrop-filter:blur(12px)}
+.lp-card .ic{font-size:24px;margin-bottom:8px}
+.lp-card b{display:block;font-size:15px;margin-bottom:5px}
+.lp-card p{font-size:13px;color:#B3A6D0;line-height:1.6;margin:0}
+.lp-dojo{margin-top:52px;background:linear-gradient(135deg,rgba(183,166,255,.16),rgba(230,138,160,.14));border:1px solid var(--line);border-radius:24px;padding:26px;backdrop-filter:blur(14px)}
+.lp-dojo h3{font-family:'Playfair Display',serif;font-weight:600;font-size:22px;margin-bottom:8px}
+.lp-dojo p{color:#CDBEE6;font-size:14px;line-height:1.7;margin:0 0 6px}
+.lp-pipe{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;margin-top:12px}
+.lp-pipe .chip{background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:20px;padding:6px 12px;color:var(--txt)}
+.lp-pipe .arr{color:var(--acc);font-weight:800}
+.lp-foot{margin-top:48px;text-align:center}
 @media (prefers-reduced-motion: reduce){.aurora,.star{animation:none!important}}
 </style>
 </head>
@@ -172,9 +218,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 <div class="star" style="top:12%;left:22%"></div><div class="star" style="top:26%;left:78%;animation-delay:.8s"></div><div class="star" style="top:62%;left:14%;width:2px;height:2px;animation-delay:1.4s"></div><div class="star" style="top:74%;left:84%;animation-delay:.3s"></div><div class="star" style="top:8%;left:52%;width:2px;height:2px;animation-delay:2s"></div>
 <div class="app">
   <aside>
-    <div class="logo">Muse Brand OS<small>Digital Twin · Gemini</small></div>
+    <div class="brand">
+      <span class="brandmark"><svg viewBox="0 0 512 512" fill="none"><g transform="translate(0 6)" fill="#1A1140" fill-opacity="0.94"><path d="M135 256C160 234 196 226 226 228C238 229 248 234 256 242C264 234 274 229 286 228C316 226 352 234 377 256C320 268 290 266 256 263C222 266 192 268 135 256Z"/><path d="M141 262C194 271 224 270 256 268C288 270 318 271 371 262C360 310 316 348 256 348C196 348 152 310 141 262Z"/></g><ellipse cx="312" cy="300" rx="30" ry="11" transform="rotate(-18 312 300)" fill="#fff" fill-opacity="0.4"/><path d="M396 158l9 27 27 9-27 9-9 27-9-27-27-9 27-9z" fill="#fff" fill-opacity="0.92"/></svg></span>
+      <div class="brandtxt"><div class="brandname">Muse</div><small>Digital Twin Studio</small></div>
+    </div>
     <div id="charbar"></div>
     <div id="skybar"></div>
+    <div id="soundbar"></div>
     <div class="steps" id="steps"></div>
     <div class="ovr">Overall<br><span class="big" id="ovrScore">—</span><div id="ovrNote">Hoàn thành các giai đoạn để xem điểm tổng.</div></div>
     <div class="hint" style="margin-top:14px">Key &amp; dữ liệu lưu cục bộ; ảnh lưu IndexedDB. Chỉ gọi tới Google Gemini.</div>
@@ -203,6 +253,8 @@ function migrateWS(r){
   return {v:2,
     apiKey:g.apiKey||"",modelText:g.modelText||"gemini-2.5-flash",modelImg:g.modelImg||"gemini-2.5-flash-image",lang:g.lang||"vi",
     ageOk:!!g.ageOk,_studioTab:g._studioTab||"twin",theme:g.theme||"twilight",
+    sound:(g.sound!==undefined?!!g.sound:true),music:(g.music!==undefined?!!g.music:true),
+    showLanding:(g.showLanding!==undefined?!!g.showLanding:!g.apiKey),
     activeId:id,characters:{[id]:ch},stage:g.stage||"setup"};
 }
 let S=migrateWS(JSON.parse(localStorage.getItem(LS)||"null"));
@@ -241,9 +293,102 @@ const THEMES={
 const SKY_ORDER=['twilight','dawn','aurora','rose','midnight'];
 const SKY_SW={twilight:'#3E2569,#9A5470',dawn:'#5A2747,#F2C49B',aurora:'#124E4E,#3FA07A',rose:'#6E1E5A,#D96E86',midnight:'#1E2A55,#F2C46E'};
 function applyTheme(n){const t=THEMES[n]||THEMES.twilight;const r=document.documentElement;for(const k in t)r.style.setProperty('--'+k,t[k]);}
-function setTheme(n){S.theme=n;save();applyTheme(n);renderSkyBar();}
+function setTheme(n){S.theme=n;save();applyTheme(n);renderSkyBar();const lp=document.getElementById('lpSky');if(lp)lp.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',SKY_ORDER[i]===n));}
 function renderSkyBar(){const el=document.getElementById('skybar');if(!el)return;
   el.innerHTML='<div class="skybar"><div class="lbl">Bầu trời</div><div class="sky-sw">'+SKY_ORDER.map(n=>{const c=SKY_SW[n].split(',');return `<button title="${n}" class="${S.theme===n?'on':''}" style="background:linear-gradient(135deg,${c[0]},${c[1]})" onclick="setTheme('${n}')"></button>`;}).join('')+'</div></div>';}
+/* ---------- ÂM THANH (Web Audio tổng hợp — không cần file ngoài) ---------- */
+const Sound={ctx:null,music:null,musicGain:null,arp:null,
+  init(){if(Sound.ctx)return;try{Sound.ctx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}},
+  resume(){try{if(Sound.ctx&&Sound.ctx.state==='suspended')Sound.ctx.resume();}catch(e){}},
+  blip(freq,dur,type,vol,when){const c=Sound.ctx;if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type=type||'sine';o.frequency.value=freq;o.connect(g);g.connect(c.destination);g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(vol||0.1,when+0.012);g.gain.exponentialRampToValueAtTime(0.0001,when+dur);o.start(when);o.stop(when+dur+0.03);},
+  sfx(name){if(!S.sound)return;Sound.init();if(!Sound.ctx)return;Sound.resume();const t=Sound.ctx.currentTime;
+    if(name==='click')Sound.blip(640,0.08,'triangle',0.10,t);
+    else if(name==='nav'){Sound.blip(440,0.1,'sine',0.09,t);Sound.blip(680,0.1,'sine',0.07,t+0.05);}
+    else if(name==='success')[523,659,784,1047].forEach((f,i)=>Sound.blip(f,0.18,'triangle',0.1,t+i*0.07));
+    else if(name==='gen'){Sound.blip(880,0.12,'sine',0.09,t);Sound.blip(1320,0.16,'sine',0.07,t+0.06);}
+  },
+  startMusic(){if(!S.music)return;Sound.init();if(!Sound.ctx||Sound.music)return;Sound.resume();const c=Sound.ctx;
+    const master=c.createGain();master.gain.value=0;master.connect(c.destination);master.gain.linearRampToValueAtTime(0.07,c.currentTime+3);Sound.musicGain=master;
+    const pads=[130.81,196.0,261.63].map(f=>{const o=c.createOscillator();o.type='sine';o.frequency.value=f;const g=c.createGain();g.gain.value=0.4;o.connect(g);g.connect(master);o.start();return {o,g};});
+    const scale=[523.25,587.33,659.25,783.99,880.0,659.25];let step=0;
+    Sound.arp=setInterval(()=>{if(!S.music||!Sound.ctx)return;const t=Sound.ctx.currentTime;const f=scale[step%scale.length];step++;const o=Sound.ctx.createOscillator(),g=Sound.ctx.createGain();o.type='triangle';o.frequency.value=f;o.connect(g);g.connect(master);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.16,t+0.06);g.gain.exponentialRampToValueAtTime(0.0001,t+1.5);o.start(t);o.stop(t+1.6);},1700);
+    Sound.music={pads};},
+  stopMusic(){if(Sound.arp){clearInterval(Sound.arp);Sound.arp=null;}if(Sound.musicGain&&Sound.ctx){try{Sound.musicGain.gain.linearRampToValueAtTime(0,Sound.ctx.currentTime+0.6);}catch(e){}}const m=Sound.music;Sound.music=null;if(m)setTimeout(()=>{try{m.pads.forEach(p=>p.o.stop());}catch(e){}},800);}
+};
+let __audioArmed=false;
+function armAudio(){if(__audioArmed)return;__audioArmed=true;Sound.init();Sound.resume();if(S.music)Sound.startMusic();}
+document.addEventListener('pointerdown',armAudio,{once:true});
+document.addEventListener('keydown',armAudio,{once:true});
+document.addEventListener('click',function(e){const b=e.target.closest('.btn,.lp-cta,.tab,.charbtns button,.sky-sw button,.soundbar button');if(b)Sound.sfx(b.classList.contains('lp-cta')?'nav':'click');},true);
+function toggleSound(){S.sound=!S.sound;save();renderSoundBar();if(S.sound)Sound.sfx('success');}
+function toggleMusic(){S.music=!S.music;save();renderSoundBar();Sound.init();Sound.resume();if(S.music)Sound.startMusic();else Sound.stopMusic();}
+function renderSoundBar(){const el=document.getElementById('soundbar');if(!el)return;
+  el.innerHTML=`<span class="sl">Âm thanh</span>
+    <button class="${S.sound?'on':''}" title="Hiệu ứng âm thanh" onclick="toggleSound()">${S.sound?'🔊':'🔇'}</button>
+    <button class="${S.music?'on':''}" title="Nhạc nền" onclick="toggleMusic()">🎵</button>
+    <button title="Giới thiệu Muse" onclick="openLanding()" style="width:auto;padding:0 10px">ⓘ</button>`;}
+
+/* ---------- LANDING PAGE ---------- */
+const LIPS_SVG=`<svg viewBox="0 0 512 512" fill="none"><g transform="translate(0 6)" fill="#1A1140" fill-opacity="0.94"><path d="M135 256C160 234 196 226 226 228C238 229 248 234 256 242C264 234 274 229 286 228C316 226 352 234 377 256C320 268 290 266 256 263C222 266 192 268 135 256Z"/><path d="M141 262C194 271 224 270 256 268C288 270 318 271 371 262C360 310 316 348 256 348C196 348 152 310 141 262Z"/></g><ellipse cx="312" cy="300" rx="30" ry="11" transform="rotate(-18 312 300)" fill="#fff" fill-opacity="0.4"/><path d="M396 158l9 27 27 9-27 9-9 27-9-27-27-9 27-9z" fill="#fff" fill-opacity="0.92"/></svg>`;
+const LP_FLOW=[
+ {t:"Thiết lập",d:"Dán Gemini key — chạy ngay trên máy bạn, không cài đặt."},
+ {t:"Tạo cuộc sống mới",d:"Gõ 1 ý tưởng, AI dựng nháp nhân vật + mục tiêu kinh doanh."},
+ {t:"Digital Twin",d:"Upload selfie → AI khoá một khuôn mặt nhất quán cho mọi ảnh."},
+ {t:"Studio ảnh",d:"Thử makeup/trang phục/bối cảnh, dựng kho ảnh nhân vật."},
+ {t:"Chiến lược 5 chương",d:"AI dệt brand strategy & tự chấm điểm theo rubric 100đ."},
+ {t:"Xuất & Xây kênh",d:"Tải bộ file chuẩn hoặc gửi thẳng sang Viral Dojo."}
+];
+const LP_FEATS=[
+ {ic:"🎭",t:"Digital Twin nhất quán",d:"Một khuôn mặt neo, xuyên suốt mọi ảnh — không lệch nhân vật giữa các bài đăng."},
+ {ic:"📸",t:"Studio ảnh AI",d:"Photoshoot đa góc, tủ đồ, thư viện riêng tư lưu ngay trên máy bạn."},
+ {ic:"🏆",t:"Quality Gate",d:"AI tự chấm điểm 5 giai đoạn theo rubric — biết khi nào nội dung đủ chuẩn."},
+ {ic:"👥",t:"Nhiều nhân vật",d:"Mỗi nhân vật một không gian riêng: persona, ảnh, thương hiệu, điểm số."},
+ {ic:"🎨",t:"5 bầu trời",d:"Đổi tông màu cả app tức thì — Twilight, Dawn, Aurora, Rose, Midnight."},
+ {ic:"🔒",t:"Riêng tư tuyệt đối",d:"Client-side hoàn toàn; key & dữ liệu chỉ nằm trên trình duyệt của bạn."}
+];
+function lpSkyHTML(){return SKY_ORDER.map(n=>{const c=SKY_SW[n].split(',');return `<button title="${n}" class="${S.theme===n?'on':''}" style="background:linear-gradient(135deg,${c[0]},${c[1]})" onclick="setTheme('${n}')"></button>`;}).join('');}
+function showLanding(){
+  if(document.getElementById('landing'))return;
+  const d=document.createElement('div');d.id='landing';
+  d.innerHTML=`<div class="lp-wrap">
+    <div class="lp-nav">
+      <div class="brand"><span class="brandmark">${LIPS_SVG}</span><div class="brandtxt"><div class="brandname">Muse</div><small>Digital Twin Studio</small></div></div>
+      <div class="sky-sw" id="lpSky">${lpSkyHTML()}</div>
+    </div>
+    <div class="lp-hero">
+      <span class="lp-badge">✦ Khởi đầu mới</span>
+      <h1>Cuộc đời cũ khép lại.<br><em>Một phiên bản mới</em> của bạn bắt đầu.</h1>
+      <p class="lp-sub">Muse biến một ý tưởng thành <b>nhân vật ảo (Digital Twin)</b> có khuôn mặt nhất quán, một studio ảnh riêng, và một chiến lược thương hiệu hoàn chỉnh do AI tự dệt nên &amp; tự chấm điểm — rồi nối thẳng sang <b>Viral Dojo</b> để dựng kênh.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="lp-cta" onclick="enterApp()">Dệt nên giấc mơ →</button>
+        <button class="lp-cta ghost" onclick="document.getElementById('lpFlow').scrollIntoView({behavior:'smooth'})">Xem cách hoạt động</button>
+      </div>
+      <div class="lp-quote">"Nơi bạn được sống cuộc đời mình đã chọn."</div>
+    </div>
+    <div class="lp-sec" id="lpFlow">
+      <div class="lp-h">Hành trình 6 bước</div>
+      <div class="lp-d">Từ một ý tưởng thô đến bộ thương hiệu sẵn sàng xây kênh — AI đi cùng bạn từng bước.</div>
+      <div class="lp-flow">${LP_FLOW.map((s,i)=>`<div class="lp-step"><div class="n">${i+1}</div><b>${esc(s.t)}</b><span>${esc(s.d)}</span></div>`).join('')}</div>
+    </div>
+    <div class="lp-sec">
+      <div class="lp-h">Vì sao Muse</div>
+      <div class="lp-feat">${LP_FEATS.map(f=>`<div class="lp-card"><div class="ic">${f.ic}</div><b>${esc(f.t)}</b><p>${esc(f.d)}</p></div>`).join('')}</div>
+    </div>
+    <div class="lp-dojo">
+      <h3>🚀 Nối thẳng sang Viral Dojo</h3>
+      <p>Xong chiến lược? Gửi <b>Brand Kit + ảnh nhân vật chính</b> sang <b>Viral Dojo</b> chỉ bằng một nút — tự điền sẵn dự án, không cần tải/nạp file. Nhân vật của bạn bước thẳng vào lò sản xuất nội dung viral với COREVIRAL 6 trạm.</p>
+      <div class="lp-pipe"><span class="chip">Ý tưởng</span><span class="arr">→</span><span class="chip">Nhân vật + ảnh</span><span class="arr">→</span><span class="chip">Studio</span><span class="arr">→</span><span class="chip">Chiến lược</span><span class="arr">→</span><span class="chip">Brand Kit</span><span class="arr">→</span><span class="chip" style="border-color:var(--acc);color:var(--acc)">Viral Dojo</span></div>
+    </div>
+    <div class="lp-foot">
+      <button class="lp-cta" onclick="enterApp()">Bắt đầu tạo cuộc sống mới →</button>
+      <div style="margin-top:14px;color:#8E82AD;font-size:12.5px">Chạy hoàn toàn trên máy bạn · Key Gemini riêng tư · Không gửi dữ liệu đi đâu ngoài Google Gemini</div>
+    </div>
+  </div>`;
+  document.body.appendChild(d);
+}
+function enterApp(){S.showLanding=false;save();const d=document.getElementById('landing');if(d)d.remove();render();window.scrollTo(0,0);}
+function openLanding(){S.showLanding=true;save();showLanding();window.scrollTo(0,0);}
+
 function renderCharBar(){const el=document.getElementById('charbar');if(!el)return;
   const opts=charList().map(c=>`<option value="${c.id}" ${c.id===S.activeId?'selected':''}>${esc(c.name||'(chưa đặt tên)')}</option>`).join('');
   el.innerHTML=`<div class="charbar">
@@ -255,7 +400,7 @@ function renderCharBar(){const el=document.getElementById('charbar');if(!el)retu
       <button title="Nhân bản" onclick="charDuplicate()">⎘</button>
       <button title="Xoá" onclick="charDelete()">🗑</button>
     </div></div>`;}
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500);}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500);try{if(typeof Sound!=='undefined')Sound.sfx('success');}catch(e){}}
 function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
 function dl(name,content,type){const b=new Blob([content],{type:type||'text/plain;charset=utf-8'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);}
@@ -496,7 +641,7 @@ function renderSteps(){
   }else{os.textContent="—";on.textContent="Hoàn thành các giai đoạn để xem điểm tổng.";}
 }
 function render(){
-  renderCharBar();renderSkyBar();renderSteps();const m=document.getElementById('main');const id=S.stage;
+  renderCharBar();renderSkyBar();renderSoundBar();renderSteps();const m=document.getElementById('main');const id=S.stage;
   if(id==='setup')return renderSetup(m);
   if(id==='idea')return renderIdea(m);
   if(id==='persona')return renderPersona(m);
@@ -1114,6 +1259,7 @@ if(__migratedLegacy){migrateMedia(S.activeId);}
 applyTheme(S.theme);
 maybeAgeGate();
 render();
+if(S.showLanding)showLanding();
 </script>
 </body>
 </html>
