@@ -245,6 +245,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
     <div id="charbar"></div>
     <div id="skybar"></div>
     <div id="soundbar"></div>
+    <button class="btn gold" style="width:100%;margin-top:14px;justify-content:center" onclick="openDojoDialog()">🚀 Gửi sang Viral Dojo</button>
     <div class="steps" id="steps"></div>
     <div class="ovr">Overall<br><span class="big" id="ovrScore">—</span><div id="ovrNote">Hoàn thành các giai đoạn để xem điểm tổng.</div></div>
     <div class="hint" style="margin-top:14px">Key &amp; dữ liệu lưu cục bộ; ảnh lưu IndexedDB. Chỉ gọi tới Google Gemini.</div>
@@ -429,6 +430,7 @@ function renderMobileChrome(){
   const top=document.getElementById('mtop');
   if(top)top.innerHTML=`<button class="m-menu" onclick="toggleDrawer()" aria-label="Menu">☰</button>
     <span class="brand"><span class="brandmark" style="width:32px;height:32px;border-radius:10px">${LIPS_SVG}</span><span class="brandname" style="font-size:20px">Muse</span></span>
+    <button class="m-menu" title="Gửi sang Viral Dojo" onclick="openDojoDialog()" style="font-size:16px">🚀</button>
     <span class="gpill"><span class="dot"></span>Gemini</span>`;
   const nav=document.getElementById('mnav');
   if(nav){const cur=stageGroup(S.stage);nav.innerHTML=MNAV.map(x=>`<button class="${cur===x.g?'on':''}" onclick="navMobile('${x.go}')"><span class="mi">${x.ic}</span><span class="ml">${esc(x.t)}</span></button>`).join('');}
