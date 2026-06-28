@@ -90,12 +90,91 @@
   .chip:hover{border-color:var(--teal)}.chip.on{background:#10262b;border-color:var(--teal)}
   @media(max-width:820px){.app{grid-template-columns:1fr}aside{position:static;height:auto}main{padding:20px}.row,.row3{grid-template-columns:1fr}.pf-grid{grid-template-columns:1fr}}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===== TWILIGHT DREAM reskin (đè lên base) ===== */
+:root{
+  --sky:linear-gradient(168deg,#0C0926 0%,#1E1550 32%,#3E2569 60%,#6E3A6A 84%,#9A5470 100%);
+  --a1:#C2B2FF;--a2:#8E7BFF;--acc:#C9B6FF;--g1:#8E7BFF;--g2:#E68AA0;--g3:#5BC8C8;--ink:#1a1140;
+  --bg:#0d0a22;--panel:rgba(255,255,255,.06);--panel2:rgba(255,255,255,.09);
+  --line:rgba(255,255,255,.12);--teal:var(--acc);--txt:#F3EEFF;--mut:#A99CC8;
+  --ok:#6FE3D2;--coral:#E85B5B;--gold:#F2C14E;--blue:#7C9CFF;--pink:#E68AA0;--bad:#E85B5B;
+}
+body{background:var(--sky);background-attachment:fixed;font-family:'Plus Jakarta Sans',-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--txt)}
+.app{position:relative;z-index:1;background:transparent}
+aside{background:rgba(12,9,28,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-right:1px solid var(--line)}
+.logo{font-family:'Instrument Serif',serif;font-weight:400;font-size:23px;color:var(--acc);letter-spacing:.3px;text-shadow:0 0 22px rgba(183,166,255,.35)}
+.logo small{color:var(--mut);font-weight:600}
+h1{font-family:'Instrument Serif',serif;font-weight:400;letter-spacing:.2px;color:var(--txt);font-size:30px}
+h2{font-family:'Instrument Serif',serif;font-weight:400;color:var(--txt);font-size:21px}
+.lead{color:#B3A6D0}
+label{color:#C9BEE6}
+input,select,textarea{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);color:var(--txt);border-radius:14px}
+input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(183,166,255,.16)}
+.card{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 16px 48px -18px rgba(120,80,210,.55),inset 0 1px 0 rgba(255,255,255,.08)}
+.note{border:1px dashed var(--line);color:#B3A6D0;border-radius:14px;background:rgba(255,255,255,.03)}
+.btn{background:linear-gradient(135deg,var(--a1),var(--a2));color:var(--ink);border-radius:14px;box-shadow:0 12px 30px -10px rgba(142,123,255,.7);font-weight:700}
+.btn.ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--txt);box-shadow:none}
+.btn.blue{background:linear-gradient(135deg,#9FB4FF,#7C9CFF);color:#06183a}
+.btn.gold{background:linear-gradient(135deg,#F7D98C,#F2C14E);color:#2a2400}
+.btn.coral{background:linear-gradient(135deg,#F08AA0,#E85B5B);color:#2a0c0c}
+.btn.pink{background:linear-gradient(135deg,#F2A8C8,#E68AA0);color:#2a0c1f}
+.grp{color:#7d72a0}
+.step{border-radius:12px}
+.step:hover{background:rgba(255,255,255,.05)}
+.step.active{background:rgba(183,166,255,.14);border-color:var(--acc);color:var(--txt)}
+.step .num{background:rgba(255,255,255,.08)}
+.step.done .num{background:var(--ok);color:#06241f}
+.b-ok{background:rgba(111,227,210,.16);color:var(--ok)}
+.b-rev{background:rgba(242,193,78,.16);color:var(--gold)}
+.b-bad{background:rgba(232,91,91,.18);color:var(--coral)}
+.ovr{border:1px dashed var(--line)}
+.ovr .big{color:var(--acc);font-family:'Instrument Serif',serif}
+.charbar{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px}
+.charbtns button{background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--txt)}
+.charbtns button:first-child{color:var(--acc)}
+.toast{background:linear-gradient(135deg,var(--a1),var(--a2));color:var(--ink)}
+.overlay{background:rgba(7,6,20,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.ovbox{background:rgba(22,16,42,.94);border:1px solid var(--line);border-radius:22px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.tab.active{background:linear-gradient(135deg,var(--a1),var(--a2));color:var(--ink);border-color:transparent}
+.pill{border:1px solid var(--line)}
+.score-tbl th{background:rgba(255,255,255,.06);color:var(--acc)}
+.score-tbl td,.score-tbl th{border-color:var(--line)}
+.scorehead .total{font-family:'Instrument Serif',serif;font-weight:400}
+.imgcard{border:1px solid var(--line);background:rgba(255,255,255,.04)}
+.portrait{border:1px solid var(--line);border-radius:16px}
+.uploadbox{border:2px dashed var(--line)}
+.uploadbox:hover{border-color:var(--acc)}
+.err{border-radius:14px}
+/* aurora + stars */
+.aurora,.star{position:fixed;pointer-events:none;z-index:0}
+.aurora{border-radius:50%;filter:blur(46px)}
+.a-1{top:3%;left:5%;width:340px;height:340px;background:radial-gradient(circle,var(--g1),transparent 68%);opacity:.5;animation:auDrift 18s ease-in-out infinite}
+.a-2{bottom:2%;right:4%;width:380px;height:380px;background:radial-gradient(circle,var(--g2),transparent 68%);opacity:.45;animation:auDrift 22s ease-in-out infinite reverse}
+.a-3{top:44%;left:58%;width:300px;height:300px;background:radial-gradient(circle,var(--g3),transparent 70%);opacity:.3;animation:auDrift 26s ease-in-out infinite}
+.star{width:3px;height:3px;border-radius:50%;background:#fff;box-shadow:0 0 6px #fff;animation:auTwinkle 4s ease-in-out infinite}
+@keyframes auDrift{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(18px,-22px) scale(1.08)}}
+@keyframes auTwinkle{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
+/* sky picker */
+.skybar{margin-top:14px}
+.skybar .lbl{font-size:9.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#8E82AD;margin-bottom:7px}
+.sky-sw{display:flex;gap:9px}
+.sky-sw button{position:relative;width:22px;height:22px;border-radius:50%;border:none;padding:0;cursor:pointer;transition:transform .15s}
+.sky-sw button:active{transform:scale(.88)}
+.sky-sw button.on::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid #F3EEFF}
+@media (prefers-reduced-motion: reduce){.aurora,.star{animation:none!important}}
+</style>
 </head>
 <body>
+<div class="aurora a-1"></div><div class="aurora a-2"></div><div class="aurora a-3"></div>
+<div class="star" style="top:12%;left:22%"></div><div class="star" style="top:26%;left:78%;animation-delay:.8s"></div><div class="star" style="top:62%;left:14%;width:2px;height:2px;animation-delay:1.4s"></div><div class="star" style="top:74%;left:84%;animation-delay:.3s"></div><div class="star" style="top:8%;left:52%;width:2px;height:2px;animation-delay:2s"></div>
 <div class="app">
   <aside>
     <div class="logo">Muse Brand OS<small>Digital Twin · Gemini</small></div>
     <div id="charbar"></div>
+    <div id="skybar"></div>
     <div class="steps" id="steps"></div>
     <div class="ovr">Overall<br><span class="big" id="ovrScore">—</span><div id="ovrNote">Hoàn thành các giai đoạn để xem điểm tổng.</div></div>
     <div class="hint" style="margin-top:14px">Key &amp; dữ liệu lưu cục bộ; ảnh lưu IndexedDB. Chỉ gọi tới Google Gemini.</div>
@@ -123,7 +202,7 @@ function migrateWS(r){
   if(hadData)__migratedLegacy=true;
   return {v:2,
     apiKey:g.apiKey||"",modelText:g.modelText||"gemini-2.5-flash",modelImg:g.modelImg||"gemini-2.5-flash-image",lang:g.lang||"vi",
-    ageOk:!!g.ageOk,_studioTab:g._studioTab||"twin",
+    ageOk:!!g.ageOk,_studioTab:g._studioTab||"twin",theme:g.theme||"twilight",
     activeId:id,characters:{[id]:ch},stage:g.stage||"setup"};
 }
 let S=migrateWS(JSON.parse(localStorage.getItem(LS)||"null"));
@@ -151,6 +230,20 @@ async function charDelete(){
   const oldId=S.activeId;
   try{for(const g of (c.gallery||[]))await IDB.del("g:"+g.id);await IDB.del("ref:"+oldId);await IDB.del("portrait:"+oldId);}catch(e){}
   delete __refCache[oldId];delete S.characters[oldId];S.activeId=Object.keys(S.characters)[0];__refCache={};save();render();toast("Đã xoá nhân vật");}
+/* ---------- THEME (5 bầu trời) ---------- */
+const THEMES={
+  twilight:{sky:'linear-gradient(168deg,#0C0926 0%,#1E1550 32%,#3E2569 60%,#6E3A6A 84%,#9A5470 100%)',a1:'#C2B2FF',a2:'#8E7BFF',acc:'#C9B6FF',g1:'#8E7BFF',g2:'#E68AA0',g3:'#5BC8C8'},
+  dawn:{sky:'linear-gradient(168deg,#2A1330 0%,#5A2747 30%,#9A4A55 58%,#D98A63 84%,#F2C49B 100%)',a1:'#FFCDA6',a2:'#F2956E',acc:'#FFD0AE',g1:'#FF9E7A',g2:'#FFC8A0',g3:'#E66A9A'},
+  aurora:{sky:'linear-gradient(168deg,#06122A 0%,#0E2A3E 32%,#124E4E 60%,#1E6E5A 84%,#3FA07A 100%)',a1:'#9DEBC8',a2:'#4FD0B0',acc:'#9FE8D2',g1:'#46E0B0',g2:'#5BC8E0',g3:'#7C9CFF'},
+  rose:{sky:'linear-gradient(168deg,#1A0A24 0%,#3E1140 32%,#6E1E5A 60%,#A33A6E 84%,#D96E86 100%)',a1:'#FFB6E0',a2:'#E87AC8',acc:'#FFBEE6',g1:'#E87AC8',g2:'#FF8FA0',g3:'#9B7CFF'},
+  midnight:{sky:'linear-gradient(168deg,#060A1A 0%,#0E1838 32%,#1E2A55 60%,#2E3A6E 84%,#46507E 100%)',a1:'#FFE3A0',a2:'#F2C46E',acc:'#FFE0A0',g1:'#F2C46E',g2:'#7C9CFF',g3:'#5BC8E0'}
+};
+const SKY_ORDER=['twilight','dawn','aurora','rose','midnight'];
+const SKY_SW={twilight:'#3E2569,#9A5470',dawn:'#5A2747,#F2C49B',aurora:'#124E4E,#3FA07A',rose:'#6E1E5A,#D96E86',midnight:'#1E2A55,#F2C46E'};
+function applyTheme(n){const t=THEMES[n]||THEMES.twilight;const r=document.documentElement;for(const k in t)r.style.setProperty('--'+k,t[k]);}
+function setTheme(n){S.theme=n;save();applyTheme(n);renderSkyBar();}
+function renderSkyBar(){const el=document.getElementById('skybar');if(!el)return;
+  el.innerHTML='<div class="skybar"><div class="lbl">Bầu trời</div><div class="sky-sw">'+SKY_ORDER.map(n=>{const c=SKY_SW[n].split(',');return `<button title="${n}" class="${S.theme===n?'on':''}" style="background:linear-gradient(135deg,${c[0]},${c[1]})" onclick="setTheme('${n}')"></button>`;}).join('')+'</div></div>';}
 function renderCharBar(){const el=document.getElementById('charbar');if(!el)return;
   const opts=charList().map(c=>`<option value="${c.id}" ${c.id===S.activeId?'selected':''}>${esc(c.name||'(chưa đặt tên)')}</option>`).join('');
   el.innerHTML=`<div class="charbar">
@@ -403,7 +496,7 @@ function renderSteps(){
   }else{os.textContent="—";on.textContent="Hoàn thành các giai đoạn để xem điểm tổng.";}
 }
 function render(){
-  renderCharBar();renderSteps();const m=document.getElementById('main');const id=S.stage;
+  renderCharBar();renderSkyBar();renderSteps();const m=document.getElementById('main');const id=S.stage;
   if(id==='setup')return renderSetup(m);
   if(id==='idea')return renderIdea(m);
   if(id==='persona')return renderPersona(m);
@@ -1018,6 +1111,7 @@ var tt=document.getElementById('t');document.addEventListener('click',function(e
 <\/script></body></html>`;
 
 if(__migratedLegacy){migrateMedia(S.activeId);}
+applyTheme(S.theme);
 maybeAgeGate();
 render();
 </script>
