@@ -865,12 +865,12 @@ function renderExport(m){
   </div>
   <div class="card" style="border-color:var(--gold)">
     <h2>🚀 Xây kênh viral (Viral Dojo)</h2>
-    <p class="lead" style="margin-bottom:8px">Gửi thẳng Brand Kit + nhân vật sang <b>Viral Dojo</b> để dựng kênh — tạo 1 dự án mới đã điền sẵn, không cần tải/nạp file.</p>
-    <div class="bar" style="margin-top:0">
-      <button class="btn gold" onclick="sendToDojo()" ${S.outputs.brandkit?'':'disabled'}>🚀 Xây kênh viral →</button>
-      <span class="hint">Cần hoàn tất giai đoạn 5 (Brand Kit). Liền mạch khi mở cùng link github.io; khác origin sẽ rơi về tải file + mở Dojo.</span>
+    <p class="lead" style="margin-bottom:8px">Gửi Brand Kit + <b>ảnh nhân vật chính</b> sang <b>Viral Dojo</b>: chọn nhân vật, chọn ảnh chính, chọn dự án Dojo (mới/đã có) — tự điền sẵn, không cần tải/nạp file.</p>
+    ${(activeChar().dojoLink)?`<div class="note" style="border-color:var(--ok);color:var(--ok);margin-top:0">🔗 Nhân vật đang mở đã liên kết dự án Dojo "<b>${esc(activeChar().dojoLink.projectName||'')}</b>".</div>`:''}
+    <div class="bar" style="margin-top:8px">
+      <button class="btn gold" onclick="openDojoDialog()" ${S.outputs.brandkit?'':'disabled'}>🚀 Gửi sang Dojo →</button>
+      <span class="hint">Cần hoàn tất giai đoạn 5 (Brand Kit). Liền mạch khi cùng link github.io; khác origin sẽ tải file + ảnh.</span>
     </div>
-    <div class="err" id="dojoErr"></div>
   </div>
   <div class="bar"><button class="btn" onclick="dlAll()">⬇⬇ Tải tất cả (file text)</button>
    <button class="btn ghost" onclick="go('studio')">← Studio ảnh</button></div>
@@ -888,59 +888,109 @@ function dlAll(){let i=0;const q=(fn)=>setTimeout(fn,180*(++i));
 /* ---------- NỐI VIRAL DOJO (cùng origin → chung localStorage 'dojo') ---------- */
 const DOJO_URL_REL="../viral-dojo/app.html?start=1";
 const DOJO_URL_ABS="https://haideman2025.github.io/viral-dojo/app.html?start=1";
-function dojoPlanLimit(){
-  const L={free:1,trial:2,life:10,vip:50};let plan='free';
-  try{const ses=JSON.parse(localStorage.getItem('dojo_session')||'null');if(ses&&ses.code)plan=(ses.plan&&L[ses.plan]!=null)?ses.plan:'life';}catch(e){}
-  return L[plan]||1;
+function _today10(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function _rid(){return Math.random().toString(36).slice(2,8);}
+
+/* ---------- NỐI DOJO v2: chọn nhân vật + dự án + nhồi ảnh nhân vật chính ---------- */
+function readDojo(){
+  let raw;try{raw=JSON.parse(localStorage.getItem('dojo')||'null');}catch(e){raw=null;}
+  if(!(raw&&raw.v===2&&raw.projects&&typeof raw.projects==='object')){
+    const legacyDna=(raw&&raw.dna&&typeof raw.dna==='object')?raw.dna:null;const keys=(raw&&raw.keys)||{};const np={v:2,activeId:'',keys:keys,projects:{}};
+    if(legacyDna){const lid='proj_'+_rid();np.projects[lid]={name:(legacyDna.onboard&&(legacyDna.onboard.kenh||legacyDna.onboard.nganh))||'Dự án 1',createdAt:_today10(),updatedAt:_today10(),dna:legacyDna};np.activeId=lid;}
+    raw=np;
+  }
+  return raw;
 }
-function buildDojoBrandKit(){
-  const bk=JSON.parse(JSON.stringify(S.outputs.brandkit||{}));
+function scaleDataUrl(dataUrl,max){return new Promise((res)=>{if(!dataUrl)return res('');const img=new Image();
+  img.onload=()=>{let w=img.width,h=img.height,m=max||512;if(w>h&&w>m){h=Math.round(h*m/w);w=m;}else if(h>=w&&h>m){w=Math.round(w*m/h);h=m;}
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);try{res(cv.toDataURL('image/jpeg',0.85));}catch(e){res(dataUrl);}};
+  img.onerror=()=>res(dataUrl);img.src=dataUrl;});}
+function personaDesc(p){return p.publicDescription||[p.ethnicityLook,p.vibe,p.visualStyle].filter(Boolean).join('. ');}
+/* nhồi 1 nhân vật Muse vào dna 1 dự án Dojo: brandKit + onboard + ảnh nhân vật chính (vref + roster) */
+function injectChar(dna,c,hero){
+  const p=c.persona||{},intk=c.intake||{};
+  const bk=JSON.parse(JSON.stringify((c.outputs&&c.outputs.brandkit)||{}));
   if(!bk.brand)bk.brand={ten:'',slogan:'',tone:'',khach:'',nen:'',khong:''};
   if(!Array.isArray(bk.products))bk.products=[];
   if(!bk.compliance)bk.compliance={cam:'',disclaimer:''};
-  if(!bk.personas){const p=S.persona||{};bk.personas=[p.name,p.occupation,p.voiceTone,p.pov].filter(Boolean).join(' — ');}
-  return bk;
+  if(!bk.personas)bk.personas=[p.name,p.occupation,p.voiceTone,p.pov].filter(Boolean).join(' — ');
+  dna.brandKit=bk;
+  dna.onboard=Object.assign({nganh:intk.nganh||'',kenh:intk.ten||p.name||'',khach:intk.thi_truong||''},dna.onboard||{});
+  dna.skuld=dna.skuld||{scored:[],deep:{},links:[],scripts:{},vref:{},vprompts:{},roster:[]};
+  dna.skuld.vref=Object.assign({character:'',product:'',style:''},dna.skuld.vref||{});
+  if(personaDesc(p))dna.skuld.vref.character=personaDesc(p);
+  if(p.visualStyle)dna.skuld.vref.style=p.visualStyle;
+  if(p.voiceTone)dna.skuld.vref.voice=p.voiceTone;
+  if(hero)dna.skuld.vref.characterImg=hero;
+  if(!Array.isArray(dna.skuld.roster))dna.skuld.roster=[];
+  const ten=p.name||'Nhân vật';let e=dna.skuld.roster.find(x=>x.ten===ten);
+  if(!e){e={id:'nv_'+_rid(),ten:ten,mo_ta:'',img:'',prompt:''};dna.skuld.roster.unshift(e);}
+  e.mo_ta=(p.pov||p.personality||'').slice(0,140);if(hero)e.img=hero;
 }
-function dojoOnboard(){return {nganh:S.intake.nganh||'',kenh:S.intake.ten||S.persona.name||'',khach:S.intake.thi_truong||''};}
-function sendToDojo(){
-  saveOut('brandkit',true);
-  const bk=S.outputs&&S.outputs.brandkit;
-  const er=document.getElementById('dojoErr');if(er)er.style.display='none';
-  if(!bk||!bk.brand){toast('Cần hoàn tất Brand Kit (giai đoạn 5) trước');go('brandkit');return;}
-  const brandKit=buildDojoBrandKit(),onboard=dojoOnboard();
+function openDojoDialog(){
+  const seamless=/(^|\.)github\.io$/i.test(location.hostname||'');
+  const chars=charList();const dj=readDojo();
+  const projs=Object.entries(dj.projects||{}).map(([id,p])=>({id,name:p.name}));
+  let ex=document.getElementById('dojoDlg');if(ex)ex.remove();
+  const d=document.createElement('div');d.className='overlay';d.id='dojoDlg';
+  d.innerHTML=`<div class="ovbox"><h2>🚀 Gửi nhân vật sang Viral Dojo</h2>
+    <p class="lead">Đưa Brand Kit + ảnh nhân vật chính sang Dojo để dựng kênh. Chọn nhân vật và dự án đích.</p>
+    ${seamless?'':'<div class="note" style="border-color:var(--gold);color:var(--gold)">Đang mở khác origin github.io — sẽ tải brand-kit + ảnh để bạn nạp tay vào Dojo (không truyền tự động được).</div>'}
+    <label>Nhân vật (Muse)</label>
+    <select id="dlgChar">${chars.map(c=>`<option value="${c.id}" ${c.id===S.activeId?'selected':''}>${esc(c.name||'(chưa tên)')}</option>`).join('')}</select>
+    <label>Ảnh nhân vật chính (gửi sang Dojo)</label>
+    <div id="dlgHero" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"></div>
+    <label>Dự án Dojo đích</label>
+    <select id="dlgTarget"><option value="__new__">➕ Tạo dự án Dojo mới</option>${projs.map(p=>`<option value="${p.id}">📁 ${esc(p.name)}</option>`).join('')}</select>
+    <div id="dlgLinkNote" class="hint"></div>
+    <label style="margin-top:12px"><input type="checkbox" id="dlgOpen" checked style="width:auto;margin-right:6px">Mở Dojo ngay sau khi gửi</label>
+    <div class="bar"><button class="btn gold" id="dlgSend">🚀 Gửi sang Dojo</button><button class="btn ghost" onclick="closeDojoDialog()">Đóng</button></div>
+    <div class="err" id="dlgErr"></div></div>`;
+  document.body.appendChild(d);
+  document.getElementById('dlgChar').onchange=dojoDlgRefresh;
+  document.getElementById('dlgSend').onclick=()=>{const cid=document.getElementById('dlgChar').value;const tv=document.getElementById('dlgTarget').value;doSendDojo(cid,tv==='__new__'?'new':'existing',tv==='__new__'?null:tv,document.getElementById('dlgOpen').checked);};
+  dojoDlgRefresh();
+}
+async function dojoDlgRefresh(){
+  const sel=document.getElementById('dlgChar');if(!sel)return;const cid=sel.value;const c=S.characters[cid];
+  const host=document.getElementById('dlgHero');let hero='';try{hero=await IDB.get('ref:'+cid)||await IDB.get('portrait:'+cid)||'';}catch(e){}
+  host.innerHTML=(hero?`<img src="${hero}" style="width:90px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`:'<span class="hint" style="margin:0">Chưa có ảnh chính.</span>')
+    +`<button class="btn ghost sm" onclick="dojoPickHero('${cid}')">${(c.gallery||[]).length?'📌 Chọn ảnh khác từ Studio':'Tạo ảnh ở Studio trước'}</button>`;
+  const note=document.getElementById('dlgLinkNote'),tsel=document.getElementById('dlgTarget');
+  if(c.dojoLink&&c.dojoLink.projectId&&[...tsel.options].some(o=>o.value===c.dojoLink.projectId)){tsel.value=c.dojoLink.projectId;note.innerHTML='🔗 Đã liên kết dự án "<b>'+esc(c.dojoLink.projectName||'')+'</b>" — gửi lại sẽ cập nhật.';}
+  else note.textContent='';
+}
+async function dojoPickHero(charId){
+  const c=S.characters[charId];if(!c||!(c.gallery||[]).length){toast('Nhân vật này chưa có ảnh Studio — tạo ở Studio ảnh');return;}
+  let ex=document.getElementById('heroPick');if(ex)ex.remove();
+  const d=document.createElement('div');d.className='overlay';d.id='heroPick';d.style.zIndex='130';
+  d.innerHTML=`<div class="ovbox"><h2>Chọn ảnh nhân vật chính</h2><p class="lead">Bấm 1 ảnh để đặt làm ảnh chính.</p><div class="imgrid" id="heroGrid"></div><div class="bar"><button class="btn ghost" onclick="document.getElementById('heroPick').remove()">Đóng</button></div></div>`;
+  document.body.appendChild(d);const grid=document.getElementById('heroGrid');
+  for(const g of c.gallery){const u=await IDB.get('g:'+g.id);if(!u)continue;const el=document.createElement('div');el.className='imgcard';el.style.cursor='pointer';el.innerHTML=`<img src="${u}" alt="">`;
+    el.onclick=async()=>{await IDB.put('ref:'+charId,u);__refCache[charId]=u;if(c.persona)c.persona.hasRef=true;save();const hp=document.getElementById('heroPick');if(hp)hp.remove();dojoDlgRefresh();toast('Đã đặt ảnh chính');};grid.appendChild(el);}
+}
+function closeDojoDialog(){const d=document.getElementById('dojoDlg');if(d)d.remove();}
+async function doSendDojo(charId,mode,targetId,openAfter){
+  const c=S.characters[charId];const er=document.getElementById('dlgErr');if(er)er.style.display='none';
+  if(!c){toast('Không tìm thấy nhân vật');return;}
+  if(!(c.outputs&&c.outputs.brandkit&&c.outputs.brandkit.brand)){if(er){er.style.display='block';er.textContent='Nhân vật này chưa có Brand Kit (giai đoạn 5). Hoàn tất pipeline trước.';}return;}
+  let hero='';try{hero=await IDB.get('ref:'+charId)||await IDB.get('portrait:'+charId)||'';}catch(e){}
+  hero=hero?await scaleDataUrl(hero,512):'';
   const seamless=/(^|\.)github\.io$/i.test(location.hostname||'');
   if(!seamless){
-    dlBrandKit();
-    if(er){er.style.display='block';er.style.borderColor='var(--gold)';er.style.color='var(--gold)';er.textContent='Khác origin nên không truyền trực tiếp được — đã tải 05-brand-kit.json. Mở Dojo rồi "Hồ sơ Sản phẩm chuẩn → Nạp file".';}
-    window.open(DOJO_URL_ABS,'_blank');return;
+    dl('05-brand-kit.json',JSON.stringify(c.outputs.brandkit,null,2),'application/json');
+    if(hero)dlDataUrl('nhan-vat-'+((c.persona&&c.persona.name)||'char').replace(/[^\w]+/g,'_')+'.jpg',hero);
+    window.open(DOJO_URL_ABS,'_blank');closeDojoDialog();toast('Khác origin — đã tải brand-kit + ảnh để nạp tay');return;
   }
-  let raw;try{raw=JSON.parse(localStorage.getItem('dojo')||'null');}catch(e){raw=null;}
-  // chuẩn hoá về workspace v2 (giữ dữ liệu cũ nếu là bản legacy 1 dự án)
-  if(!(raw&&raw.v===2&&raw.projects&&typeof raw.projects==='object')){
-    const legacyDna=(raw&&raw.dna&&typeof raw.dna==='object')?raw.dna:null;
-    const keys=(raw&&raw.keys)||{};const np={v:2,activeId:'',keys:keys,projects:{}};
-    if(legacyDna){const lid='proj_'+Math.random().toString(36).slice(2,8);
-      np.projects[lid]={name:(legacyDna.onboard&&(legacyDna.onboard.kenh||legacyDna.onboard.nganh))||'Dự án 1',createdAt:_today10(),updatedAt:_today10(),dna:legacyDna};np.activeId=lid;}
-    raw=np;
-  }
-  const today=_today10(),name=(S.intake.ten||S.persona.name||'Muse Brand').slice(0,60);
-  const count=Object.keys(raw.projects).length,limit=dojoPlanLimit();
-  let targetId;
-  if(count>0&&count>=limit){
-    if(!confirm('Gói Dojo đang ở giới hạn '+limit+' dự án. Ghi Brand Kit + nhân vật vào DỰ ÁN ĐANG MỞ (đè brandKit cũ của dự án đó)?\n\nOK = ghi đè · Cancel = huỷ')) return;
-    targetId=(raw.activeId&&raw.projects[raw.activeId])?raw.activeId:Object.keys(raw.projects)[0];
-    const p=raw.projects[targetId];p.dna=p.dna||{onboard:{},m1:{},scores:{}};
-    p.dna.brandKit=brandKit;p.dna.onboard=Object.assign({},onboard,p.dna.onboard||{});p.updatedAt=today;
-  }else{
-    targetId='proj_'+Math.random().toString(36).slice(2,8);
-    raw.projects[targetId]={name:name,createdAt:today,updatedAt:today,dna:{onboard:onboard,m1:{},scores:{},brandKit:brandKit}};
-  }
-  raw.v=2;raw.activeId=targetId;raw.keys=raw.keys||{};
-  try{localStorage.setItem('dojo',JSON.stringify(raw));}catch(e){if(er){er.style.display='block';er.textContent='Không ghi được sang Dojo: '+e.message;}return;}
-  toast('Đã gửi sang Viral Dojo →');
-  setTimeout(()=>{location.href=DOJO_URL_REL;},450);
+  const raw=readDojo();const today=_today10();let pid;
+  if(mode==='existing'&&targetId&&raw.projects[targetId]){pid=targetId;const p=raw.projects[pid];p.dna=p.dna||{onboard:{},m1:{},scores:{}};injectChar(p.dna,c,hero);p.updatedAt=today;}
+  else{pid='proj_'+_rid();raw.projects[pid]={name:((c.intake&&c.intake.ten)||(c.persona&&c.persona.name)||c.name||'Muse').slice(0,60),createdAt:today,updatedAt:today,dna:{onboard:{},m1:{},scores:{}}};injectChar(raw.projects[pid].dna,c,hero);}
+  raw.v=2;raw.activeId=pid;raw.keys=raw.keys||{};
+  try{localStorage.setItem('dojo',JSON.stringify(raw));}catch(e){if(er){er.style.display='block';er.textContent='Không ghi được sang Dojo (có thể vượt dung lượng localStorage do ảnh): '+e.message;}return;}
+  c.dojoLink={projectId:pid,projectName:raw.projects[pid].name,at:today};save();renderCharBar();
+  closeDojoDialog();toast('Đã gửi "'+((c.persona&&c.persona.name)||c.name)+'" sang Dojo →');
+  if(openAfter)setTimeout(()=>{location.href=DOJO_URL_REL;},450);
 }
-function _today10(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 
 /* ---------- AGE GATE ---------- */
 function maybeAgeGate(){if(S.ageOk)return;
