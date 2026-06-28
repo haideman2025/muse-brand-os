@@ -12,7 +12,14 @@
   aside{background:#0c151d;border-right:1px solid var(--line);padding:20px 16px;position:sticky;top:0;height:100vh;overflow:auto}
   .logo{font-weight:800;font-size:17px;color:var(--teal);letter-spacing:.4px}
   .logo small{display:block;color:var(--mut);font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-top:2px}
-  .steps{margin-top:20px;display:flex;flex-direction:column;gap:3px}
+  .charbar{margin-top:14px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#0e1822}
+  .charbar select{font-size:13px;padding:7px 9px;margin-top:6px}
+  .charcount{font-size:10.5px;color:var(--mut)}
+  .charbtns{display:flex;gap:5px;margin-top:7px}
+  .charbtns button{flex:0 0 auto;background:#1d2c3a;border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px;font-weight:700}
+  .charbtns button:first-child{flex:1 1 auto;color:var(--teal)}
+  .charbtns button:hover{border-color:var(--teal);color:var(--teal)}
+  .steps{margin-top:18px;display:flex;flex-direction:column;gap:3px}
   .grp{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#5b7187;text-transform:uppercase;margin:14px 4px 4px}
   .step{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--mut);border:1px solid transparent}
   .step:hover{background:#10212c}
@@ -88,6 +95,7 @@
 <div class="app">
   <aside>
     <div class="logo">Muse Brand OS<small>Digital Twin · Gemini</small></div>
+    <div id="charbar"></div>
     <div class="steps" id="steps"></div>
     <div class="ovr">Overall<br><span class="big" id="ovrScore">—</span><div id="ovrNote">Hoàn thành các giai đoạn để xem điểm tổng.</div></div>
     <div class="hint" style="margin-top:14px">Key &amp; dữ liệu lưu cục bộ; ảnh lưu IndexedDB. Chỉ gọi tới Google Gemini.</div>
@@ -102,14 +110,58 @@
    Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
-let S=JSON.parse(localStorage.getItem(LS)||"null")||{
-  apiKey:"", modelText:"gemini-2.5-flash", modelImg:"gemini-2.5-flash-image", lang:"vi",
-  ageOk:false, idea:"",
-  persona:{}, intake:{}, outputs:{}, scores:{},
-  gallery:[], wardrobe:[], _studioTab:"twin", stage:"setup"
-};
-if(!S.gallery)S.gallery=[]; if(!S.wardrobe)S.wardrobe=[]; if(!S._studioTab)S._studioTab="twin";
-function save(){localStorage.setItem(LS,JSON.stringify(S));}
+const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe'];
+function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[]};}
+let __migratedLegacy=false;
+/* Migration → workspace đa nhân vật (v2). Giữ settings toàn cục ở gốc; mỗi nhân vật 1 gói dna riêng. */
+function migrateWS(r){
+  if(r&&r.v===2&&r.characters&&r.activeId&&r.characters[r.activeId])return r;
+  const g=r||{};const id='ch_'+Math.random().toString(36).slice(2,8);const ch=blankChar();
+  let hadData=false;
+  CHAR_FIELDS.forEach(k=>{if(g[k]!=null){ch[k]=g[k];hadData=true;}});
+  if(g.persona&&g.persona.name)ch.name=g.persona.name;
+  if(hadData)__migratedLegacy=true;
+  return {v:2,
+    apiKey:g.apiKey||"",modelText:g.modelText||"gemini-2.5-flash",modelImg:g.modelImg||"gemini-2.5-flash-image",lang:g.lang||"vi",
+    ageOk:!!g.ageOk,_studioTab:g._studioTab||"twin",
+    activeId:id,characters:{[id]:ch},stage:g.stage||"setup"};
+}
+let S=migrateWS(JSON.parse(localStorage.getItem(LS)||"null"));
+function activeChar(){if(!S.characters[S.activeId])S.activeId=Object.keys(S.characters)[0];const c=S.characters[S.activeId];CHAR_FIELDS.forEach(k=>{if(c[k]==null)c[k]=(k==='idea'?'':(k==='gallery'||k==='wardrobe'?[]:{}));});return c;}
+/* S.persona / S.intake / S.outputs / S.scores / S.gallery / S.wardrobe / S.idea → trỏ vào nhân vật đang mở (non-enumerable: KHÔNG ghi trùng ra gốc localStorage). */
+CHAR_FIELDS.forEach(prop=>{Object.defineProperty(S,prop,{configurable:true,enumerable:false,
+  get(){return activeChar()[prop];},set(v){activeChar()[prop]=v;}});});
+function save(){const c=S.characters&&S.characters[S.activeId];if(c)c.updatedAt=_today10();localStorage.setItem(LS,JSON.stringify(S));}
+function syncCharName(){const c=S.characters[S.activeId];if(c&&S.persona&&S.persona.name)c.name=S.persona.name;}
+
+/* ---------- QUẢN LÝ NHIỀU NHÂN VẬT ---------- */
+function charList(){return Object.entries(S.characters).map(([id,c])=>({id,name:c.name}));}
+function charSwitch(id){if(id&&S.characters[id]&&id!==S.activeId){S.activeId=id;__refCache={};save();render();}}
+function charNew(){const id='ch_'+Math.random().toString(36).slice(2,8);
+  S.characters[id]=blankChar('Nhân vật '+(Object.keys(S.characters).length+1));
+  S.activeId=id;__refCache={};S.stage='idea';save();render();toast("Đã tạo nhân vật mới");}
+function charRename(){const c=activeChar();const n=(prompt('Đổi tên nhân vật:',c.name||'')||'').trim();if(n){c.name=n;save();renderCharBar();renderSteps();}}
+async function charDuplicate(){const src=activeChar();const id='ch_'+Math.random().toString(36).slice(2,8);
+  S.characters[id]=JSON.parse(JSON.stringify({name:(src.name||'Nhân vật')+' (copy)',createdAt:_today10(),updatedAt:_today10(),idea:src.idea,persona:src.persona,intake:src.intake,outputs:src.outputs,scores:src.scores,wardrobe:src.wardrobe,gallery:[]}));
+  try{const r=await IDB.get("ref:"+S.activeId);if(r)await IDB.put("ref:"+id,r);}catch(e){}
+  S.activeId=id;__refCache={};save();render();toast("Đã nhân bản (ảnh Studio bắt đầu trống)");}
+async function charDelete(){
+  if(Object.keys(S.characters).length<=1){toast("Không thể xoá nhân vật cuối — tạo cái khác trước");return;}
+  const c=activeChar();if(!confirm('Xoá nhân vật "'+(c.name||'')+'"? Không hồi lại được.'))return;
+  const oldId=S.activeId;
+  try{for(const g of (c.gallery||[]))await IDB.del("g:"+g.id);await IDB.del("ref:"+oldId);await IDB.del("portrait:"+oldId);}catch(e){}
+  delete __refCache[oldId];delete S.characters[oldId];S.activeId=Object.keys(S.characters)[0];__refCache={};save();render();toast("Đã xoá nhân vật");}
+function renderCharBar(){const el=document.getElementById('charbar');if(!el)return;
+  const opts=charList().map(c=>`<option value="${c.id}" ${c.id===S.activeId?'selected':''}>${esc(c.name||'(chưa đặt tên)')}</option>`).join('');
+  el.innerHTML=`<div class="charbar">
+    <div class="charcount">👥 ${charList().length} nhân vật · mỗi nhân vật 1 không gian riêng</div>
+    <select id="charSel" onchange="charSwitch(this.value)">${opts}</select>
+    <div class="charbtns">
+      <button title="Nhân vật mới" onclick="charNew()">＋ Mới</button>
+      <button title="Đổi tên" onclick="charRename()">✎</button>
+      <button title="Nhân bản" onclick="charDuplicate()">⎘</button>
+      <button title="Xoá" onclick="charDelete()">🗑</button>
+    </div></div>`;}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500);}
 function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
@@ -125,9 +177,11 @@ const IDB={db:null,
   async get(k){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readonly");const rq=t.objectStore("portraits").get(k);rq.onsuccess=()=>res(rq.result||null);rq.onerror=()=>rej(rq.error);});},
   async del(k){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readwrite");t.objectStore("portraits").delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
 };
-let __refCache;
-async function getRef(){if(__refCache!==undefined)return __refCache;try{__refCache=await IDB.get("ref");}catch(e){__refCache=null;}return __refCache;}
-async function setRef(dataUrl){__refCache=dataUrl;await IDB.put("ref",dataUrl);S.persona.hasRef=!!dataUrl;save();}
+let __refCache={};
+async function getRef(){const id=S.activeId;if(id in __refCache)return __refCache[id];let v=null;try{v=await IDB.get("ref:"+id);}catch(e){}__refCache[id]=v;return v;}
+async function setRef(dataUrl){const id=S.activeId;__refCache[id]=dataUrl;await IDB.put("ref:"+id,dataUrl);S.persona.hasRef=!!dataUrl;save();}
+/* nạp ảnh ref cũ (bản 1-nhân-vật) sang key per-character lần đầu */
+async function migrateMedia(id){try{const r=await IDB.get("ref");if(r){await IDB.put("ref:"+id,r);await IDB.del("ref");}const p=await IDB.get("portrait");if(p){await IDB.put("portrait:"+id,p);await IDB.del("portrait");}}catch(e){}}
 
 /* ---------- PERSONA / INTAKE FIELDS ---------- */
 const PERSONA_FIELDS=[
@@ -349,7 +403,7 @@ function renderSteps(){
   }else{os.textContent="—";on.textContent="Hoàn thành các giai đoạn để xem điểm tổng.";}
 }
 function render(){
-  renderSteps();const m=document.getElementById('main');const id=S.stage;
+  renderCharBar();renderSteps();const m=document.getElementById('main');const id=S.stage;
   if(id==='setup')return renderSetup(m);
   if(id==='idea')return renderIdea(m);
   if(id==='persona')return renderPersona(m);
@@ -406,7 +460,7 @@ async function aiDraft(){
   try{const o=parseJSON(await geminiText(ideaPrompt(idea),true));
     if(o.persona)S.persona=Object.assign({},S.persona,normPersona(o.persona));
     if(o.intake)INTAKE_FIELDS.forEach(f=>{if(o.intake[f.k]!=null)S.intake[f.k]=String(o.intake[f.k]);});
-    save();toast('AI đã dựng nháp');go('persona');
+    syncCharName();save();toast('AI đã dựng nháp');go('persona');
   }catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='⚡ AI dựng nháp Persona + Intake';}
 }
 function normPersona(o){const p={};PERSONA_FIELDS.forEach(f=>{if(o[f.k]!=null)p[f.k]=Array.isArray(o[f.k])?o[f.k].join(", "):String(o[f.k]);});if(o.publicDescription)p.publicDescription=String(o.publicDescription);return p;}
@@ -428,11 +482,11 @@ function renderPersona(m){
   m.innerHTML=html;
   m.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{S.persona[el.dataset.pk]=el.value;}));
 }
-function savePersona(){document.querySelectorAll('#main [data-pk]').forEach(el=>S.persona[el.dataset.pk]=el.value);save();toast("Đã lưu nhân vật");renderSteps();}
+function savePersona(){document.querySelectorAll('#main [data-pk]').forEach(el=>S.persona[el.dataset.pk]=el.value);syncCharName();save();toast("Đã lưu nhân vật");renderCharBar();renderSteps();}
 async function aiCompletePersona(){
   savePersona();if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
   const er=document.getElementById('pErr');er.style.display='none';const b=document.getElementById('aiPersona');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang hoàn thiện...';
-  try{const o=parseJSON(await geminiText(completePersonaPrompt(),true));S.persona=Object.assign({},S.persona,normPersona(o));save();render();toast('Đã hoàn thiện persona');}
+  try{const o=parseJSON(await geminiText(completePersonaPrompt(),true));S.persona=Object.assign({},S.persona,normPersona(o));syncCharName();save();render();toast('Đã hoàn thiện persona');}
   catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='✨ AI hoàn thiện persona';}
 }
 
@@ -463,7 +517,7 @@ async function renderProfile(m){
   const info=document.getElementById('pfInfo');
   info.innerHTML=(p.publicDescription?`<div class="kv"><b>Digital Twin (face anchor)</b><span style="font-size:11px;color:var(--mut)">${esc(p.publicDescription).slice(0,200)}…</span></div>`:'')
     +PERSONA_FIELDS.filter(f=>p[f.k]).map(f=>`<div class="kv"><b>${esc(f.label)}</b>${esc(p[f.k])}</div>`).join('')||'<div class="hint">Chưa có dữ liệu.</div>';
-  try{const img=await getRef()||await IDB.get("portrait");if(img)document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="">`;}catch(e){}
+  try{const img=await getRef()||await IDB.get("portrait:"+S.activeId);if(img)document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="">`;}catch(e){}
 }
 async function onSelfie(ev){
   const f=ev.target.files[0];if(!f)return;
@@ -474,7 +528,7 @@ async function onSelfie(ev){
     let dataUrl=await fileToDataUrl(f);
     const o=parseJSON(await geminiVision(clonePrompt(),dataUrl,true));
     S.persona=Object.assign({},S.persona,normPersona(o));
-    await setRef(dataUrl); S.persona.hasPortrait=true; save();
+    await setRef(dataUrl); S.persona.hasPortrait=true; syncCharName(); save();
     render();toast('Đã clone Digital Twin từ ảnh');
   }catch(e){er.style.display='block';er.textContent=e.message;wrap.innerHTML='<div class="note" style="text-align:center">Clone thất bại.</div>';}
 }
@@ -483,7 +537,7 @@ async function genPortrait(){
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
   const er=document.getElementById('portErr');er.style.display='none';const b=document.getElementById('genPort');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang vẽ...';
   try{const img=await geminiImage(shotPrompt({angle:'portrait headshot, eye-level'}),{ref:null});
-    await IDB.put("portrait",img);await setRef(img);S.persona.hasPortrait=true;save();
+    await IDB.put("portrait:"+S.activeId,img);await setRef(img);S.persona.hasPortrait=true;save();
     document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="">`;toast("Đã sinh chân dung");}
   catch(e){er.style.display='block';er.textContent=e.message;}
   finally{if(b){b.disabled=false;b.innerHTML='🎨 Sinh từ mô tả';}}
@@ -913,6 +967,7 @@ document.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){docum
 var tt=document.getElementById('t');document.addEventListener('click',function(e){var el=e.target.closest('[data-c]');if(!el)return;navigator.clipboard.writeText(el.getAttribute('data-c'));tt.classList.add('show');setTimeout(function(){tt.classList.remove('show')},1200);});
 <\/script></body></html>`;
 
+if(__migratedLegacy){migrateMedia(S.activeId);}
 maybeAgeGate();
 render();
 </script>
