@@ -1,0 +1,11 @@
+name = "muse-sync"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+
+# D1 — database_id điền sau khi chạy: wrangler d1 create muse_db
+[[d1_databases]]
+binding = "DB"
+database_name = "muse_db"
+database_id = "be8cd5e7-38e2-4218-8940-61739fe02e85"
+
+# Secret (KHÔNG để ở đây): wrangler secret put ADMIN_TOKEN

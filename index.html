@@ -290,8 +290,41 @@ function activeChar(){if(!S.characters[S.activeId])S.activeId=Object.keys(S.char
 /* S.persona / S.intake / S.outputs / S.scores / S.gallery / S.wardrobe / S.idea → trỏ vào nhân vật đang mở (non-enumerable: KHÔNG ghi trùng ra gốc localStorage). */
 CHAR_FIELDS.forEach(prop=>{Object.defineProperty(S,prop,{configurable:true,enumerable:false,
   get(){return activeChar()[prop];},set(v){activeChar()[prop]=v;}});});
-function save(){const c=S.characters&&S.characters[S.activeId];if(c)c.updatedAt=_today10();localStorage.setItem(LS,JSON.stringify(S));}
+function saveLocalOnly(){const c=S.characters&&S.characters[S.activeId];if(c)c.updatedAt=_today10();localStorage.setItem(LS,JSON.stringify(S));}
+function save(){saveLocalOnly();schedulePush();}
 function syncCharName(){const c=S.characters[S.activeId];if(c&&S.persona&&S.persona.name)c.name=S.persona.name;}
+
+/* ================= CLOUD SYNC (Phase 1: JSON access-code, đa thiết bị) ================= */
+const SYNC_URL="https://muse-sync.hai-cbe.workers.dev";
+function syncCode(){return localStorage.getItem('muse_sync_code')||'';}
+function syncVer(){return parseInt(localStorage.getItem('muse_sync_version')||'-1',10);}
+function setSyncVer(v){localStorage.setItem('muse_sync_version',String(v));}
+function setSyncCode(c,name){if(c){localStorage.setItem('muse_sync_code',c);if(name)localStorage.setItem('muse_sync_name',name);}else{localStorage.removeItem('muse_sync_code');localStorage.removeItem('muse_sync_version');localStorage.removeItem('muse_sync_name');}}
+async function syncApi(path,opts){opts=opts||{};const headers=Object.assign({'x-muse-code':syncCode()},opts.headers||{});if(opts.body)headers['Content-Type']='application/json';const r=await fetch(SYNC_URL+path,{method:opts.method||'GET',headers,body:opts.body?JSON.stringify(opts.body):undefined});const d=await r.json().catch(()=>({}));return {status:r.status,d};}
+function adoptServerBlob(blob,version){if(blob&&typeof blob==='object'&&Object.keys(blob).length){S.characters=blob;if(!S.characters[S.activeId])S.activeId=Object.keys(S.characters)[0];}setSyncVer(version);saveLocalOnly();}
+async function syncPull(){if(!syncCode())return;try{const {status,d}=await syncApi('/pull');if(status!==200)return;if(d.blob){adoptServerBlob(d.blob,d.version);if(typeof render==='function')render();toast('☁️ Đã đồng bộ từ cloud');}else{await syncPushNow(d.version);}updateSyncBtn();}catch(e){}}
+let __pushTimer=null;
+function schedulePush(){if(!syncCode())return;clearTimeout(__pushTimer);__pushTimer=setTimeout(()=>{syncPushNow();},2000);}
+async function syncPushNow(baseOverride){if(!syncCode())return;const base=(baseOverride!=null)?baseOverride:syncVer();try{const {status,d}=await syncApi('/push',{method:'POST',body:{blob:S.characters,baseVersion:(base<0?0:base)}});if(status===200&&d.ok){setSyncVer(d.version);}else if(status===409&&d.conflict){adoptServerBlob(d.serverBlob,d.version);if(typeof render==='function')render();toast('☁️ Đã tải bản mới nhất từ thiết bị khác');}updateSyncBtn();}catch(e){}}
+async function syncLogin(code){code=(code||'').trim().toUpperCase();if(!code)return;try{const r=await fetch(SYNC_URL+'/auth',{method:'POST',headers:{'x-muse-code':code}});const d=await r.json().catch(()=>({}));if(r.status!==200||!d.ok){toast('Mã không hợp lệ');return;}setSyncCode(code,d.name);setSyncVer(-1);await syncPull();toast('☁️ Đã bật đồng bộ: '+(d.name||code));updateSyncBtn();}catch(e){toast('Không kết nối được máy chủ sync');}}
+function syncLogout(){setSyncCode('');updateSyncBtn();toast('Đã tắt đồng bộ (dữ liệu vẫn ở máy này)');}
+function openSyncModal(){const on=!!syncCode();const name=localStorage.getItem('muse_sync_name')||'';
+  const html=`<div id="syncModal" style="position:fixed;inset:0;background:rgba(10,6,20,.66);z-index:900;display:flex;align-items:center;justify-content:center;padding:18px" onclick="if(event.target.id==='syncModal')this.remove()">
+    <div style="background:#241033;border:1px solid rgba(255,255,255,.14);border-radius:16px;max-width:420px;width:100%;padding:20px;color:#fff">
+      <h3 style="margin:0 0 6px">☁️ Đồng bộ đa thiết bị</h3>
+      <p style="font-size:13px;opacity:.8;margin:0 0 14px">Nhập access-code để lưu nhân vật & tủ đồ lên cloud, dùng ở mọi máy. <b>Ảnh chưa đồng bộ ở bản này</b> (bản cập nhật sau).</p>
+      ${on?`<div style="font-size:13px;margin-bottom:12px">Đang bật: <b>${esc(name||syncCode())}</b></div>
+        <button class="btn" onclick="syncPull();document.getElementById('syncModal').remove()">⟳ Kéo bản mới nhất</button>
+        <button class="btn ghost" onclick="syncLogout();document.getElementById('syncModal').remove()">Tắt đồng bộ</button>`
+      :`<input id="syncCodeInput" placeholder="MB-XXXXX-XXXXX-..." style="width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:#1a0b26;color:#fff;margin-bottom:12px">
+        <button class="btn pink" onclick="syncLogin(document.getElementById('syncCodeInput').value);document.getElementById('syncModal').remove()">Bật đồng bộ</button>
+        <button class="btn ghost" onclick="document.getElementById('syncModal').remove()">Dùng offline</button>`}
+    </div></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);}
+function updateSyncBtn(){const b=document.getElementById('syncBtn');if(!b)return;b.textContent=syncCode()?'☁️':'☁';b.style.opacity=syncCode()?'1':'.55';}
+function syncMountUI(){if(document.getElementById('syncBtn'))return;const b=document.createElement('button');b.id='syncBtn';b.title='Đồng bộ đa thiết bị';b.style.cssText='position:fixed;top:10px;right:10px;z-index:210;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(40,16,60,.85);color:#fff;font-size:16px;cursor:pointer';b.onclick=openSyncModal;document.body.appendChild(b);updateSyncBtn();}
+function syncBoot(){syncMountUI();if(syncCode())syncPull();}
+window.addEventListener('beforeunload',()=>{if(syncCode()&&syncVer()>=0){try{navigator.sendBeacon(SYNC_URL+'/push?code='+encodeURIComponent(syncCode()),new Blob([JSON.stringify({blob:S.characters,baseVersion:syncVer()})],{type:'application/json'}));}catch(e){}}});
 
 /* ---------- QUẢN LÝ NHIỀU NHÂN VẬT ---------- */
 function charList(){return Object.entries(S.characters).map(([id,c])=>({id,name:c.name}));}
@@ -1377,6 +1410,7 @@ if(__migratedLegacy){migrateMedia(S.activeId);}
 applyTheme(S.theme);
 maybeAgeGate();
 render();
+syncBoot();
 if(S.showLanding)showLanding();
 </script>
 </body>
