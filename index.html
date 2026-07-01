@@ -868,7 +868,18 @@ async function testKey(){saveSetup();const r=document.getElementById('testRes');
 /* ---------- IDEA ---------- */
 function renderIdea(m){
   m.innerHTML=`<h1>② Tạo cuộc sống mới</h1>
-  <p class="lead">Gõ 1 ý tưởng thô — AI dựng nháp Persona &amp; Mục tiêu/Chiến lược cùng lúc.</p>
+  <p class="lead">Nhanh nhất: <b>upload 1 ảnh, AI dựng hết</b>. Hoặc gõ ý tưởng thô.</p>
+  <div class="card" style="border-color:#e05a9c"><div id="ideaUpload">
+    <label>⚡ Upload → AI tự phân tích & phát triển</label>
+    <p class="hint" style="margin-top:0">Ảnh <b>nhân vật</b> → clone thành persona + DNA ngoại hình + neo khuôn mặt. Ảnh <b>sản phẩm</b> → AI đẻ ra Brand + nhân vật KOC hợp để bán nó.</p>
+    <input type="file" id="idPerson" accept="image/*" style="display:none" onchange="ideaFromPerson(event)">
+    <input type="file" id="idProduct" accept="image/*" style="display:none" onchange="ideaFromProduct(event)">
+    <div class="bar">
+      <button class="btn pink" onclick="document.getElementById('idPerson').click()">📸 Ảnh nhân vật → AI clone</button>
+      <button class="btn gold" onclick="document.getElementById('idProduct').click()">📦 Ảnh sản phẩm → AI phát triển</button>
+    </div>
+  </div></div>
+  <div class="note" style="text-align:center;opacity:.65">— hoặc gõ ý tưởng —</div>
   <div class="card" style="border-color:var(--teal)">
     <label>💡 Ý tưởng của bạn</label>
     <textarea id="ideaBox" style="min-height:140px" placeholder="VD: nhân vật nữ UGC về hẹn hò, tâm lý, chuyện thầm kín cho đàn ông văn minh; bán aff sản phẩm sinh lý nam + bột vệ sinh; kể chuyện tinh tế, không quảng cáo thẳng">${esc(S.idea||'')}</textarea>
@@ -889,6 +900,38 @@ async function aiDraft(){
     if(o.intake)INTAKE_FIELDS.forEach(f=>{if(o.intake[f.k]!=null)S.intake[f.k]=String(o.intake[f.k]);});
     syncCharName();save();toast('AI đã dựng nháp');go('persona');
   }catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='⚡ AI dựng nháp Persona + Intake';}
+}
+function productDevelopPrompt(){
+  return `Bạn là Brand & Character Strategist. Phân tích ẢNH SẢN PHẨM này rồi PHÁT TRIỂN hệ thống bán hàng: (1) BrandIntake (thương hiệu/sản phẩm + mục tiêu + chiến lược), (2) PERSONA nhân vật KOC/UGC hợp nhất để bán sản phẩm này + "dna" ngoại hình. Suy luận từ ảnh: sản phẩm là gì, nhóm khách, nỗi đau, cách kể chuyện tinh tế. Tiếng Việt cụ thể, thực chiến, KHÔNG để trống field.
+${COMPLY}
+Ràng buộc: persona.gender ∈ {Nữ,Nam,Khác}; age là số; intake.loai ∈ {doanh nghiệp,sản phẩm,cá nhân}; intake.mo_hinh ∈ {B2B,B2C,DTC,SaaS,Marketplace,Personal}; intake.muc_tieu định lượng + mốc. "dna" chọn đúng nhãn tiếng Việt: ${dnaOptionsHint()}.
+Trả DUY NHẤT JSON: {"persona":{"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":"","dna":{"ethnicity":"","skinTone":"","eyeColor":"","hairColor":"","hairStyle":"","bodyType":"","breastSize":"","buttSize":""}},"intake":{"loai":"","ten":"","mota":"","website":"","muc_tieu":"","nganh":"","mo_hinh":"","thi_truong":"","kenh":"","san_pham":"","doi_thu":"","ngan_sach":"","pod_seed":"","noi_dau":"","founder":""}}`;
+}
+function ideaBusy(msg){const u=document.getElementById('ideaUpload');if(u)u.innerHTML=`<div class="note" style="text-align:center"><span class="spinner"></span> ${msg}</div>`;}
+async function ideaFromPerson(ev){
+  const f=ev.target.files[0];if(!f)return;
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  ideaBusy('Đang clone nhân vật từ ảnh...');
+  try{
+    const dataUrl=await fileToDataUrl(f);
+    const o=parseJSON(await geminiVision(clonePrompt(),dataUrl,true));
+    S.persona=Object.assign({},S.persona,normPersona(o));
+    await setRef(dataUrl);S.persona.hasPortrait=true;syncCharName();save();
+    toast('✓ AI đã clone nhân vật + DNA từ ảnh');go('persona');
+  }catch(e){render();const er=document.getElementById('ideaErr');if(er){er.style.display='block';er.textContent='Clone thất bại: '+e.message;}toast('Clone thất bại');}
+}
+async function ideaFromProduct(ev){
+  const f=ev.target.files[0];if(!f)return;
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  ideaBusy('Đang phân tích sản phẩm & dựng Brand + nhân vật...');
+  try{
+    const dataUrl=await fileToDataUrl(f);
+    const o=parseJSON(await geminiVision(productDevelopPrompt(),dataUrl,true));
+    if(o.persona)S.persona=Object.assign({},S.persona,normPersona(o.persona));
+    if(o.intake)INTAKE_FIELDS.forEach(fld=>{if(o.intake[fld.k]!=null)S.intake[fld.k]=String(o.intake[fld.k]);});
+    syncCharName();save();
+    toast('✓ AI đã phát triển Brand + nhân vật từ sản phẩm');go('persona');
+  }catch(e){render();const er=document.getElementById('ideaErr');if(er){er.style.display='block';er.textContent='Phân tích thất bại: '+e.message;}toast('Phân tích thất bại');}
 }
 function normPersona(o){const p={};PERSONA_FIELDS.forEach(f=>{if(o[f.k]!=null)p[f.k]=Array.isArray(o[f.k])?o[f.k].join(", "):String(o[f.k]);});if(o.publicDescription)p.publicDescription=String(o.publicDescription);
   if(o.dna&&typeof o.dna==='object'){const cur=(S.persona&&S.persona.dna)||{},nd=Object.assign({},cur);
