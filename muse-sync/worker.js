@@ -113,6 +113,30 @@ export default {
       const acc = await env.DB.prepare('SELECT code,name,blob,version FROM accounts WHERE code=?').bind(code).first();
       if (!acc) return json({ error: 'Mã không hợp lệ.' }, 401);
 
+      // ---------- R2 MEDIA (Phase 2): ảnh theo account, key = code + '/' + localKey ----------
+      if (path === '/img') {
+        if (!env.IMG) return json({ error: 'R2 chưa cấu hình (binding IMG).' }, 500);
+        const key = url.searchParams.get('key') || '';
+        if (!key || !/^[A-Za-z0-9:_.\-]{1,120}$/.test(key)) return json({ error: 'key không hợp lệ.' }, 400);
+        const objKey = code + '/' + key;
+        if (req.method === 'GET') {
+          const obj = await env.IMG.get(objKey);
+          if (!obj) return new Response('', { status: 404, headers: CORS });
+          return new Response(obj.body, { status: 200, headers: { ...CORS, 'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'image/png', 'Cache-Control': 'private, max-age=86400' } });
+        }
+        if (req.method === 'POST') {
+          const buf = await req.arrayBuffer();
+          if (buf.byteLength > 8 * 1024 * 1024) return json({ error: 'Ảnh quá lớn (>8MB).' }, 413);
+          await env.IMG.put(objKey, buf, { httpMetadata: { contentType: req.headers.get('content-type') || 'image/png' } });
+          return json({ ok: true, key, size: buf.byteLength });
+        }
+        return json({ error: 'method' }, 405);
+      }
+      if (path === '/img/delete' && req.method === 'POST') {
+        if (env.IMG) { const b = await req.json().catch(() => ({})); if (b.key && /^[A-Za-z0-9:_.\-]{1,120}$/.test(b.key)) await env.IMG.delete(code + '/' + b.key); }
+        return json({ ok: true });
+      }
+
       if (path === '/auth' && req.method === 'POST') {
         await touch(env, code, false);
         const m = await accMeta(env, code);

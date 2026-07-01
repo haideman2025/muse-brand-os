@@ -335,13 +335,13 @@ function charNew(){const id='ch_'+Math.random().toString(36).slice(2,8);
 function charRename(){const c=activeChar();const n=(prompt('Đổi tên nhân vật:',c.name||'')||'').trim();if(n){c.name=n;save();renderCharBar();renderSteps();}}
 async function charDuplicate(){const src=activeChar();const id='ch_'+Math.random().toString(36).slice(2,8);
   S.characters[id]=JSON.parse(JSON.stringify({name:(src.name||'Nhân vật')+' (copy)',createdAt:_today10(),updatedAt:_today10(),idea:src.idea,persona:src.persona,intake:src.intake,outputs:src.outputs,scores:src.scores,wardrobe:src.wardrobe,gallery:[]}));
-  try{const r=await IDB.get("ref:"+S.activeId);if(r)await IDB.put("ref:"+id,r);}catch(e){}
+  try{const r=await mediaGet("ref:"+S.activeId);if(r)await mediaPut("ref:"+id,r);}catch(e){}
   S.activeId=id;__refCache={};save();render();toast("Đã nhân bản (ảnh Studio bắt đầu trống)");}
 async function charDelete(){
   if(Object.keys(S.characters).length<=1){toast("Không thể xoá nhân vật cuối — tạo cái khác trước");return;}
   const c=activeChar();if(!confirm('Xoá nhân vật "'+(c.name||'')+'"? Không hồi lại được.'))return;
   const oldId=S.activeId;
-  try{for(const g of (c.gallery||[]))await IDB.del("g:"+g.id);await IDB.del("ref:"+oldId);await IDB.del("portrait:"+oldId);}catch(e){}
+  try{for(const g of (c.gallery||[]))await mediaDel("g:"+g.id);await mediaDel("ref:"+oldId);await mediaDel("portrait:"+oldId);}catch(e){}
   delete __refCache[oldId];delete S.characters[oldId];S.activeId=Object.keys(S.characters)[0];__refCache={};save();render();toast("Đã xoá nhân vật");}
 /* ---------- THEME (5 bầu trời) ---------- */
 const THEMES={
@@ -503,8 +503,16 @@ const IDB={db:null,
   async del(k){const db=await IDB.open();return new Promise((res,rej)=>{const t=db.transaction("portraits","readwrite");t.objectStore("portraits").delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);});}
 };
 let __refCache={};
-async function getRef(){const id=S.activeId;if(id in __refCache)return __refCache[id];let v=null;try{v=await IDB.get("ref:"+id);}catch(e){}__refCache[id]=v;return v;}
-async function setRef(dataUrl){const id=S.activeId;__refCache[id]=dataUrl;await IDB.put("ref:"+id,dataUrl);S.persona.hasRef=!!dataUrl;save();}
+/* ---- MEDIA layer (Phase 2): IDB cục bộ + R2 cloud hydrate ---- */
+function blobToDataUrl(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b);});}
+async function r2Put(key,dataUrl){if(typeof syncCode!=='function'||!syncCode())return;try{const blob=await(await fetch(dataUrl)).blob();await fetch(SYNC_URL+'/img?key='+encodeURIComponent(key),{method:'POST',headers:{'x-muse-code':syncCode(),'Content-Type':blob.type||'image/png'},body:blob});}catch(e){}}
+async function r2Get(key){if(typeof syncCode!=='function'||!syncCode())return null;try{const r=await fetch(SYNC_URL+'/img?key='+encodeURIComponent(key),{headers:{'x-muse-code':syncCode()}});if(!r.ok)return null;return await blobToDataUrl(await r.blob());}catch(e){return null;}}
+async function mediaPut(key,dataUrl){try{await IDB.put(key,dataUrl);}catch(e){}r2Put(key,dataUrl);return dataUrl;}
+async function mediaGet(key){let v=null;try{v=await IDB.get(key);}catch(e){}if(v)return v;v=await r2Get(key);if(v){try{await IDB.put(key,v);}catch(e){}}return v;}
+async function mediaDel(key){try{await IDB.del(key);}catch(e){}if(typeof syncCode==='function'&&syncCode()){try{fetch(SYNC_URL+'/img/delete',{method:'POST',headers:{'x-muse-code':syncCode(),'Content-Type':'application/json'},body:JSON.stringify({key:key})});}catch(e){}}}
+
+async function getRef(){const id=S.activeId;if(id in __refCache&&__refCache[id])return __refCache[id];let v=await mediaGet("ref:"+id);__refCache[id]=v;return v;}
+async function setRef(dataUrl){const id=S.activeId;__refCache[id]=dataUrl;await mediaPut("ref:"+id,dataUrl);S.persona.hasRef=!!dataUrl;save();}
 /* nạp ảnh ref cũ (bản 1-nhân-vật) sang key per-character lần đầu */
 async function migrateMedia(id){try{const r=await IDB.get("ref");if(r){await IDB.put("ref:"+id,r);await IDB.del("ref");}const p=await IDB.get("portrait");if(p){await IDB.put("portrait:"+id,p);await IDB.del("portrait");}}catch(e){}}
 
@@ -1005,7 +1013,7 @@ async function renderProfile(m){
   const info=document.getElementById('pfInfo');
   info.innerHTML=(p.publicDescription?`<div class="kv"><b>Digital Twin (face anchor)</b><span style="font-size:11px;color:var(--mut)">${esc(p.publicDescription).slice(0,200)}…</span></div>`:'')
     +PERSONA_FIELDS.filter(f=>p[f.k]).map(f=>`<div class="kv"><b>${esc(f.label)}</b>${esc(p[f.k])}</div>`).join('')||'<div class="hint">Chưa có dữ liệu.</div>';
-  try{const img=await getRef()||await IDB.get("portrait:"+S.activeId);if(img)document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="">`;}catch(e){}
+  try{const img=await getRef()||await mediaGet("portrait:"+S.activeId);if(img)document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="">`;}catch(e){}
 }
 async function onSelfie(ev){
   const f=ev.target.files[0];if(!f)return;
@@ -1025,7 +1033,7 @@ async function genPortrait(){
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
   const er=document.getElementById('portErr');er.style.display='none';const b=document.getElementById('genPort');b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang vẽ...';
   try{const img=await geminiImage(shotPrompt({angle:'portrait headshot, eye-level'}),{ref:null});
-    await IDB.put("portrait:"+S.activeId,img);await setRef(img);S.persona.hasPortrait=true;save();
+    await mediaPut("portrait:"+S.activeId,img);await setRef(img);S.persona.hasPortrait=true;save();
     document.getElementById('portWrap').innerHTML=`<img class="portrait" src="${img}" alt="">`;toast("Đã sinh chân dung");}
   catch(e){er.style.display='block';er.textContent=e.message;}
   finally{if(b){b.disabled=false;b.innerHTML='🎨 Sinh từ mô tả';}}
@@ -1034,13 +1042,13 @@ function exportPersona(){const pp=Object.assign({},S.persona);dl("persona.json",
 
 /* ---------- GALLERY HELPERS ---------- */
 async function addToGallery(dataUrl,prompt,kind){
-  const id=uid();await IDB.put("g:"+id,dataUrl);
+  const id=uid();await mediaPut("g:"+id,dataUrl);
   S.gallery.unshift({id,prompt:prompt||"",kind:kind||"shot",ts:Date.now()});
-  if(S.gallery.length>120){const drop=S.gallery.splice(120);for(const d of drop){try{await IDB.del("g:"+d.id);}catch(e){}}}
+  if(S.gallery.length>120){const drop=S.gallery.splice(120);for(const d of drop){await mediaDel("g:"+d.id);}}
   save();return id;
 }
-async function delGallery(id){try{await IDB.del("g:"+id);}catch(e){}S.gallery=S.gallery.filter(g=>g.id!==id);save();if(S.stage==='studio')renderStudio(document.getElementById('main'));}
-async function useAsRef(id){const u=await IDB.get("g:"+id);if(u){await setRef(u);S.persona.hasPortrait=true;save();toast("Đã đặt làm khuôn mặt neo");}}
+async function delGallery(id){await mediaDel("g:"+id);S.gallery=S.gallery.filter(g=>g.id!==id);save();if(S.stage==='studio')renderStudio(document.getElementById('main'));}
+async function useAsRef(id){const u=await mediaGet("g:"+id);if(u){await setRef(u);S.persona.hasPortrait=true;save();toast("Đã đặt làm khuôn mặt neo");}}
 
 /* ---------- STUDIO (tabs: twin/photoshoot/wardrobe/gallery) ---------- */
 function studioTab(t){S._studioTab=t;save();renderStudio(document.getElementById('main'));}
@@ -1156,11 +1164,15 @@ function paintIdeas(){
     <button class="btn sm" onclick="tryOutfit(${i})">Mặc thử</button>
     <button class="btn ghost sm" onclick="saveOutfit(${i})">+ Tủ</button></div>`).join('');
 }
-function paintWardrobe(){
+async function paintWardrobe(){
   const el=document.getElementById('wardrobeList');if(!el)return;
-  el.innerHTML=S.wardrobe.length?S.wardrobe.map(w=>`<div class="idea-item"><div class="t"><div class="nm">👗 ${esc(w.name)}</div><div class="hint" style="margin:0">${esc(w.masterPrompt).slice(0,90)}</div></div>
+  if(!S.wardrobe.length){el.innerHTML='<div class="hint">Chưa có. Lưu từ gợi ý hoặc upload ảnh outfit.</div>';return;}
+  el.innerHTML=S.wardrobe.map(w=>`<div class="idea-item"><div class="t" style="display:flex;gap:8px;align-items:center">
+    ${w.img?`<img id="wbimg_${w.id}" style="width:42px;height:54px;object-fit:cover;border-radius:8px;background:#2a1636;flex:none" alt="">`:''}
+    <div><div class="nm">👗 ${esc(w.name)}</div><div class="hint" style="margin:0">${esc(w.masterPrompt).slice(0,80)}</div></div></div>
     <button class="btn sm" onclick="tryWardrobe('${w.id}')">Mặc thử</button>
-    <button class="btn ghost sm" onclick="delWardrobe('${w.id}')">✕</button></div>`).join(''):'<div class="hint">Chưa có. Lưu từ gợi ý hoặc upload ảnh outfit.</div>';
+    <button class="btn ghost sm" onclick="delWardrobe('${w.id}')">✕</button></div>`).join('');
+  for(const w of S.wardrobe){if(w.img){const u=await mediaGet("wb:"+w.id);const im=document.getElementById('wbimg_'+w.id);if(im&&u)im.src=u;}}
 }
 async function genOutfitIdeas(){
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
@@ -1170,7 +1182,7 @@ async function genOutfitIdeas(){
   finally{b.disabled=false;b.innerHTML='💡 Gợi ý 10 outfit';}
 }
 function saveOutfit(i){const o=__outfitIdeas[i];if(!o)return;S.wardrobe.unshift({id:uid(),name:o.name,masterPrompt:o.prompt});save();paintWardrobe();renderStudioCount();toast('Đã lưu vào tủ');}
-function delWardrobe(id){S.wardrobe=S.wardrobe.filter(w=>w.id!==id);save();paintWardrobe();renderStudioCount();}
+function delWardrobe(id){mediaDel("wb:"+id);S.wardrobe=S.wardrobe.filter(w=>w.id!==id);save();paintWardrobe();renderStudioCount();}
 function renderStudioCount(){renderSteps();}
 async function tryOutfit(i){const o=__outfitIdeas[i];if(o)await shootOutfit(o.prompt,o.name);}
 async function tryWardrobe(id){const w=S.wardrobe.find(x=>x.id===id);if(w)await shootOutfit(w.masterPrompt,w.name);}
@@ -1188,7 +1200,8 @@ async function genCostumeSet(){
   try{const c=parseJSON(await geminiText(costumeSetPrompt(theme),true));
     const img=await geminiImage(shotPrompt({angle:'full body, high-end fashion photography',outfit:c.visualPrompt||theme}),{});
     await addToGallery(img,"Costume: "+(c.name||theme)+" — "+(c.items||[]).join(', '),'costume');
-    S.wardrobe.unshift({id:uid(),name:c.name||theme,masterPrompt:c.visualPrompt||theme});save();paintWardrobe();renderSteps();
+    const wid=uid();await mediaPut("wb:"+wid,img);
+    S.wardrobe.unshift({id:wid,name:c.name||theme,masterPrompt:c.visualPrompt||theme,img:true});save();paintWardrobe();renderSteps();
     toast('Đã tạo bộ "'+(c.name||theme)+'" — xem Thư viện');}
   catch(e){er.style.display='block';er.textContent=e.message;}
   finally{b.disabled=false;b.innerHTML='🎭 Tạo bộ theo chủ đề';}
@@ -1197,7 +1210,8 @@ async function onOutfitFile(ev){
   const f=ev.target.files[0];if(!f)return;if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
   const er=document.getElementById('wErr');er.style.display='none';toast("Đang phân tích outfit...");
   try{const dataUrl=await fileToDataUrl(f);const o=parseJSON(await geminiVision(extractOutfitPrompt(),dataUrl,true));
-    S.wardrobe.unshift({id:uid(),name:o.name||"Outfit",masterPrompt:o.masterPrompt||""});save();paintWardrobe();renderSteps();toast('Đã thêm vào tủ đồ');}
+    const wid=uid();await mediaPut("wb:"+wid,dataUrl);
+    S.wardrobe.unshift({id:wid,name:o.name||"Outfit",masterPrompt:o.masterPrompt||"",img:true});save();paintWardrobe();renderSteps();toast('Đã thêm vào tủ đồ (kèm ảnh)');}
   catch(e){er.style.display='block';er.textContent=e.message;}
 }
 
@@ -1208,7 +1222,7 @@ async function renderGallery(b){
     <span class="hint">${S.gallery.length} ảnh · lưu IndexedDB trên máy bạn</span></div><div class="imgrid" id="galGrid"></div>`;
   const grid=document.getElementById('galGrid');
   for(const g of S.gallery){
-    const u=await IDB.get("g:"+g.id);if(!u)continue;
+    const u=await mediaGet("g:"+g.id);if(!u)continue;
     const c=document.createElement('div');c.className='imgcard';
     c.innerHTML=`<img src="${u}" title="${esc(g.prompt)}" alt=""><div class="ov">
       <button title="Tải">⬇</button><button title="Đặt làm khuôn mặt neo">📌</button><button title="Xoá">✕</button></div>`;
@@ -1219,7 +1233,7 @@ async function renderGallery(b){
     grid.appendChild(c);
   }
 }
-async function dlGalleryAll(){let i=0;for(const g of S.gallery){const u=await IDB.get("g:"+g.id);if(u){setTimeout(()=>dlDataUrl("muse-"+g.id+".png",u),160*(++i));}}toast("Đang tải ảnh...");}
+async function dlGalleryAll(){let i=0;for(const g of S.gallery){const u=await mediaGet("g:"+g.id);if(u){setTimeout(()=>dlDataUrl("muse-"+g.id+".png",u),160*(++i));}}toast("Đang tải ảnh...");}
 
 /* ---------- INTAKE ---------- */
 function renderIntake(m){
@@ -1445,7 +1459,7 @@ function openDojoDialog(){
 }
 async function dojoDlgRefresh(){
   const sel=document.getElementById('dlgChar');if(!sel)return;const cid=sel.value;const c=S.characters[cid];
-  const host=document.getElementById('dlgHero');let hero='';try{hero=await IDB.get('ref:'+cid)||await IDB.get('portrait:'+cid)||'';}catch(e){}
+  const host=document.getElementById('dlgHero');let hero='';try{hero=await mediaGet('ref:'+cid)||await mediaGet('portrait:'+cid)||'';}catch(e){}
   host.innerHTML=(hero?`<img src="${hero}" style="width:90px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`:'<span class="hint" style="margin:0">Chưa có ảnh chính.</span>')
     +`<button class="btn ghost sm" onclick="dojoPickHero('${cid}')">${(c.gallery||[]).length?'📌 Chọn ảnh khác từ Studio':'Tạo ảnh ở Studio trước'}</button>`;
   const note=document.getElementById('dlgLinkNote'),tsel=document.getElementById('dlgTarget');
@@ -1458,15 +1472,15 @@ async function dojoPickHero(charId){
   const d=document.createElement('div');d.className='overlay';d.id='heroPick';d.style.zIndex='650';
   d.innerHTML=`<div class="ovbox"><h2>Chọn ảnh nhân vật chính</h2><p class="lead">Bấm 1 ảnh để đặt làm ảnh chính.</p><div class="imgrid" id="heroGrid"></div><div class="bar"><button class="btn ghost" onclick="document.getElementById('heroPick').remove()">Đóng</button></div></div>`;
   document.body.appendChild(d);const grid=document.getElementById('heroGrid');
-  for(const g of c.gallery){const u=await IDB.get('g:'+g.id);if(!u)continue;const el=document.createElement('div');el.className='imgcard';el.style.cursor='pointer';el.innerHTML=`<img src="${u}" alt="">`;
-    el.onclick=async()=>{await IDB.put('ref:'+charId,u);__refCache[charId]=u;if(c.persona)c.persona.hasRef=true;save();const hp=document.getElementById('heroPick');if(hp)hp.remove();dojoDlgRefresh();toast('Đã đặt ảnh chính');};grid.appendChild(el);}
+  for(const g of c.gallery){const u=await mediaGet('g:'+g.id);if(!u)continue;const el=document.createElement('div');el.className='imgcard';el.style.cursor='pointer';el.innerHTML=`<img src="${u}" alt="">`;
+    el.onclick=async()=>{await mediaPut('ref:'+charId,u);__refCache[charId]=u;if(c.persona)c.persona.hasRef=true;save();const hp=document.getElementById('heroPick');if(hp)hp.remove();dojoDlgRefresh();toast('Đã đặt ảnh chính');};grid.appendChild(el);}
 }
 function closeDojoDialog(){const d=document.getElementById('dojoDlg');if(d)d.remove();}
 async function doSendDojo(charId,mode,targetId,openAfter){
   const c=S.characters[charId];const er=document.getElementById('dlgErr');if(er)er.style.display='none';
   if(!c){toast('Không tìm thấy nhân vật');return;}
   if(!(c.outputs&&c.outputs.brandkit&&c.outputs.brandkit.brand)){if(er){er.style.display='block';er.textContent='Nhân vật này chưa có Brand Kit (giai đoạn 5). Hoàn tất pipeline trước.';}return;}
-  let hero='';try{hero=await IDB.get('ref:'+charId)||await IDB.get('portrait:'+charId)||'';}catch(e){}
+  let hero='';try{hero=await mediaGet('ref:'+charId)||await mediaGet('portrait:'+charId)||'';}catch(e){}
   hero=hero?await scaleDataUrl(hero,512):'';
   const seamless=/(^|\.)github\.io$/i.test(location.hostname||'');
   if(!seamless){
