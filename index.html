@@ -667,12 +667,47 @@ function moodProfile(p){
   return MOOD_LIB.confident;
 }
 
+/* ---------- CHARACTER DNA (ngoại hình chi tiết — clone từ My-Muse-AI) ---------- */
+/* Mỗi mục: [nhãn tiếng Việt, cụm mô tả English dùng thẳng trong prompt]. Tông gợi cảm/
+   trưởng thành nhưng NON-EXPLICIT (bust/hips figure) để vẫn render được trên Gemini. */
+const DNA_LIB={
+  ethnicity:[['Á Đông','East Asian'],['Đông Nam Á','Southeast Asian'],['Da trắng','Caucasian'],['Da đen','Black African'],['Latin','Latina Hispanic'],['Ả Rập','Middle Eastern Arab'],['Ấn Độ','South Asian Indian'],['Lai','mixed ethnicity']],
+  skinTone:[['Trắng sứ','fair porcelain skin'],['Trắng hồng','light rosy skin'],['Nâu sáng','light tan skin'],['Nâu mật','warm honey-tan skin'],['Nâu','deep tan skin'],['Nâu đậm','rich dark brown skin']],
+  eyeColor:[['Nâu','brown eyes'],['Đen','dark brown eyes'],['Hạt dẻ','hazel eyes'],['Xanh lá','green eyes'],['Xanh dương','blue eyes'],['Xám','grey eyes'],['Hổ phách','amber eyes']],
+  hairColor:[['Đen','black'],['Nâu','brown'],['Nâu hạt dẻ','chestnut brown'],['Vàng','blonde'],['Bạch kim','platinum blonde'],['Đỏ / auburn','auburn red'],['Hồng','pink'],['Xanh','blue'],['Tím','purple'],['Bạc','silver']],
+  hairStyle:[['Dài thẳng','long straight'],['Dài gợn sóng','long wavy'],['Ngắn','short'],['Đuôi ngựa','ponytail'],['Tết','braided'],['Tóc mái','with bangs'],['Búi','bun'],['Búi 2 bên','space buns'],['Pixie','pixie cut'],['Bob','bob cut'],['Wolf cut','wolf cut'],['Undercut','undercut'],['Xoăn Afro','afro'],['Dreadlocks','dreadlocks']],
+  bodyType:[['Mảnh mai','slim slender figure'],['Săn chắc','athletic toned figure'],['Đồng hồ cát','curvy hourglass figure'],['Đầy đặn','voluptuous full figure'],['Cơ bắp','muscular physique']],
+  breastSize:[['—',''],['Nhỏ','small bust'],['Vừa','medium bust'],['Đầy','full bust'],['Lớn','large full bust']],
+  buttSize:[['—',''],['Thon','slim hips'],['Săn chắc','toned athletic hips'],['Vừa','curvy hips'],['Đầy đặn','full rounded hips']]
+};
+function dnaLabel(cat,val){const e=(DNA_LIB[cat]||[]).find(x=>x[0]===val);return e?e[1]:'';}
+/* ---- Kho Studio (pose/bối cảnh/outfit/cosplay) port từ My-Muse ---- */
+const POSE_LIB=[['Nhìn qua vai','looking over her shoulder with a mysterious smile'],['Tựa cửa sổ','leaning against a window frame, thoughtful, natural light'],['Dựa tường','leaning casually against a wall, confident stance'],['Quyền lực','hands on hips, strong posture, looking directly at camera'],['Nằm trên cỏ','lying back in a field of flowers, dreamy expression'],['Cận mặt','extreme close-up focusing on the eyes, captivating gaze'],['Khiêu vũ','captured mid-dance, flowing motion, dynamic and energetic'],['Selfie gương','taking a mirror selfie, playful and modern'],['Thì thầm','hand near her mouth as if sharing a secret, intriguing'],['Tựa lan can','leaning on a balcony railing overlooking a scenic view'],['Vươn vai sáng','stretching languidly in bed, soft morning light'],['High fashion','avant-garde architectural artistic high-fashion pose']];
+const BG_LIB=[['Penthouse đêm','a luxurious penthouse with floor-to-ceiling windows over the city at night'],['Quán cà phê','a cozy rustic coffee shop with warm lighting'],['Biển hoàng hôn','a serene beach at sunset with golden light'],['Rừng huyền bí','an enchanted forest with shafts of light through the canopy'],['Phố neon','a neon-lit city street at night, wet pavement reflections, Blade Runner style'],['Thư viện cổ','a grand old library with towering bookshelves'],['Trạm vũ trụ','a futuristic space station interior with a view of Earth'],['Phòng khiêu vũ','an opulent ballroom with crystal chandeliers'],['Bể bơi sang','a luxurious infinity pool at a tropical resort'],['Vườn Nhật','a tranquil Japanese garden with a koi pond and cherry blossoms'],['Phòng ngủ tối giản','a minimalist modern bedroom with soft neutral colors'],['Sân khấu','a concert stage with bright spotlights and a cheering crowd']];
+const OUTFIT_LIB=[['Đầm dạ hội','an elegant floor-length sequined evening gown'],['Đồ công sở','a sharp tailored pantsuit with a silk blouse'],['Streetwear','oversized jacket, crop top, baggy jeans and chunky sneakers'],['Đồ da edgy','a black leather jacket, leather pants and combat boots'],['Bohemian','a boho maxi skirt, crochet top and layered jewelry'],['Đầm cocktail','a sophisticated little black cocktail dress'],['Váy hè hoa','a light flowy floral sundress'],['Cutout dạ hội','a high-fashion gown with dramatic cutouts and sheer panels'],['Latex couture','a glossy latex haute-couture bodysuit, editorial'],['Kimono','a traditional Japanese kimono with intricate patterns'],['Nữ thần fantasy','ornate goddess armor with flowing fabric and metallic accents'],['Áo len oversize','a cozy oversized knit sweater, autumn vibe']];
+const COSPLAY_LIB=[['Sailor Moon','cosplaying as Sailor Moon in the white-blue-red sailor fuku with a golden tiara'],['2B Nier','cosplaying as 2B from Nier Automata, elegant black gothic dress with a blindfold'],['Tifa FF7','cosplaying as Tifa Lockhart, white crop top, black miniskirt and red boots'],['Raiden Shogun','cosplaying as the Raiden Shogun from Genshin Impact, ornate purple kimono, long braid'],['Zelda BOTW','cosplaying as Princess Zelda, royal blue and gold champion tunic'],['Hatsune Miku','cosplaying as Hatsune Miku with turquoise twintails and a futuristic idol outfit'],['Elf công chúa','an elegant elf princess in a sheer layered gown with a jewelled bodice and pointed ears'],['Chiến binh gothic','a gothic warrior in ornate dark armor with a flowing cape']];
+function studioChips(arr,inputId){return arr.map(function(o){return `<span class="chip" onclick="var e=document.getElementById('${inputId}');e.value=${JSON.stringify(o[1]).replace(/"/g,'&quot;')};toast('Đã chọn: ${o[0].replace(/'/g,"\\'")}')">${esc(o[0])}</span>`;}).join(' ');}
+function dnaDesc(){
+  const p=S.persona,d=(p&&p.dna)||{},parts=[];
+  if(d.ethnicity)parts.push(dnaLabel('ethnicity',d.ethnicity));
+  if(d.bodyType)parts.push(dnaLabel('bodyType',d.bodyType));
+  if(d.breastSize)parts.push(dnaLabel('breastSize',d.breastSize));
+  if(d.buttSize)parts.push(dnaLabel('buttSize',d.buttSize));
+  if(d.skinTone)parts.push(dnaLabel('skinTone',d.skinTone));
+  const hc=dnaLabel('hairColor',d.hairColor),hs=dnaLabel('hairStyle',d.hairStyle);
+  if(hc||hs)parts.push(`${hc} ${hs} hair`.trim());
+  if(d.eyeColor)parts.push(dnaLabel('eyeColor',d.eyeColor));
+  if(d.customPhysicalDetails)parts.push(d.customPhysicalDetails);
+  return parts.filter(Boolean).join(', ');
+}
+
 /* ---------- VISUAL BASE (anchor nhận diện — Subject layer) ---------- */
 function visualBase(){
-  const p=S.persona;
-  if(p.publicDescription) return `a real person: (${p.publicDescription})`;
+  const p=S.persona,dna=dnaDesc();
+  if(p.publicDescription) return `a real person: (${p.publicDescription})${dna?', '+dna:''}`;
   let d=`a ${p.age||'young'}-year-old ${p.gender==='Nam'?'man':'woman'}`;
-  if(p.ethnicityLook)d+=`, ${p.ethnicityLook}`;
+  if(dna)d+=`, ${dna}`;
+  else if(p.ethnicityLook)d+=`, ${p.ethnicityLook}`;
   if(p.vibe)d+=`, vibe: ${p.vibe}`;
   if(p.visualStyle)d+=`, visual style: ${p.visualStyle}`;
   return d;
@@ -724,12 +759,15 @@ function completePersonaPrompt(){
   return `Bạn là Character Designer. Hoàn thiện hồ sơ PERSONA: ĐIỀN field trống & làm sắc field sơ sài, GIỮ field đã viết kỹ. Tiếng Việt, tinh tế (marketing chuyên nghiệp; có thể gợi cảm/quyến rũ tinh tế kiểu high-fashion, KHÔNG khiêu dâm).
 ${COMPLY}
 PERSONA: ${JSON.stringify(S.persona)}
-Trả DUY NHẤT JSON: {"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":""}`;
+Điền "dna" cho field còn trống — CHỌN ĐÚNG nhãn tiếng Việt trong mỗi nhóm: ${dnaOptionsHint()}.
+Trả DUY NHẤT JSON: {"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":"","dna":{"ethnicity":"","skinTone":"","eyeColor":"","hairColor":"","hairStyle":"","bodyType":"","breastSize":"","buttSize":""}}`;
 }
+function dnaOptionsHint(){return Object.keys(DNA_LIB).map(function(cat){return cat+': '+DNA_LIB[cat].map(x=>x[0]).filter(l=>l!=='—').join(' / ');}).join('  ·  ');}
 function clonePrompt(){
   return `Bạn là chuyên gia tạo Digital Twin. Phân tích ảnh người này để clone thành nhân vật số. Cung cấp "publicDescription" bằng TIẾNG ANH: mô tả dày, cụ thể các đặc điểm khuôn mặt CỐ ĐỊNH (hình khuôn mặt, đường hàm, dáng mắt, sống mũi, đặc điểm nhận diện) để tái tạo nhất quán. Các field text khác bằng TIẾNG VIỆT.
+Đọc ảnh và điền "dna" — CHỌN ĐÚNG một nhãn tiếng Việt trong mỗi nhóm (để trống nếu không rõ): ${dnaOptionsHint()}.
 ${COMPLY}
-Trả DUY NHẤT JSON: {"publicDescription":"","name":"","age":0,"gender":"Nữ|Nam|Khác","ethnicityLook":"","vibe":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","visualStyle":""}`;
+Trả DUY NHẤT JSON: {"publicDescription":"","name":"","age":0,"gender":"Nữ|Nam|Khác","ethnicityLook":"","vibe":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","visualStyle":"","dna":{"ethnicity":"","skinTone":"","eyeColor":"","hairColor":"","hairStyle":"","bodyType":"","breastSize":"","buttSize":""}}`;
 }
 function intakeFromPersonaPrompt(){
   return `Bạn là Brand Strategist. Từ PERSONA, SUY RA BrandIntake hợp lý để xây kênh viral quanh nhân vật này. Tiếng Việt, định lượng.
@@ -852,9 +890,27 @@ async function aiDraft(){
     syncCharName();save();toast('AI đã dựng nháp');go('persona');
   }catch(e){er.style.display='block';er.textContent=e.message;b.disabled=false;b.innerHTML='⚡ AI dựng nháp Persona + Intake';}
 }
-function normPersona(o){const p={};PERSONA_FIELDS.forEach(f=>{if(o[f.k]!=null)p[f.k]=Array.isArray(o[f.k])?o[f.k].join(", "):String(o[f.k]);});if(o.publicDescription)p.publicDescription=String(o.publicDescription);return p;}
+function normPersona(o){const p={};PERSONA_FIELDS.forEach(f=>{if(o[f.k]!=null)p[f.k]=Array.isArray(o[f.k])?o[f.k].join(", "):String(o[f.k]);});if(o.publicDescription)p.publicDescription=String(o.publicDescription);
+  if(o.dna&&typeof o.dna==='object'){const cur=(S.persona&&S.persona.dna)||{},nd=Object.assign({},cur);
+    Object.keys(DNA_LIB).forEach(cat=>{const v=o.dna[cat];if(v==null)return;const s=String(v);
+      if(DNA_LIB[cat].some(x=>x[0]===s))nd[cat]=s; else{const m=DNA_LIB[cat].find(x=>x[1].toLowerCase().includes(s.toLowerCase())||s.toLowerCase().includes(x[1].toLowerCase()));if(m)nd[cat]=m[0];}});
+    if(o.dna.customPhysicalDetails!=null)nd.customPhysicalDetails=String(o.dna.customPhysicalDetails);
+    p.dna=nd;}
+  return p;}
 
 /* ---------- PERSONA FORM ---------- */
+/* ---- DNA picker (chip) ---- */
+function setDna(cat,val){document.querySelectorAll('#main [data-pk]').forEach(el=>S.persona[el.dataset.pk]=el.value);if(!S.persona.dna)S.persona.dna={};S.persona.dna[cat]=(S.persona.dna[cat]===val?'':val);save();render();}
+function dnaChips(cat){const cur=(S.persona.dna||{})[cat]||'';return DNA_LIB[cat].map(function(o){const lab=o[0],on=cur===lab,sty=on?'style="background:#e05a9c;color:#fff;border-color:transparent"':'';return `<span class="chip" ${sty} onclick="setDna('${cat}','${lab.replace(/'/g,"\\'")}')">${esc(lab)}</span>`;}).join(' ');}
+function dnaCardHtml(){
+  const rows=[['ethnicity','Sắc tộc'],['skinTone','Tông da'],['bodyType','Vóc dáng'],['breastSize','Vòng 1 (18+)'],['buttSize','Vòng 3 (18+)'],['hairColor','Màu tóc'],['hairStyle','Kiểu tóc'],['eyeColor','Màu mắt']];
+  const cd=esc((S.persona.dna||{}).customPhysicalDetails||'');
+  return `<div class="card"><h2>🧬 Ngoại hình DNA</h2>
+    <p class="hint" style="margin-top:0">Chọn đặc điểm ngoại hình để mọi ảnh giữ nhất quán. Tông gợi cảm/trưởng thành, an toàn nền tảng (không khiêu dâm).</p>
+    ${rows.map(function(r){return `<label style="margin-top:10px;display:block">${r[1]}</label><div>${dnaChips(r[0])}</div>`;}).join('')}
+    <label style="margin-top:10px;display:block">Chi tiết riêng (nốt ruồi, hình xăm, sẹo...)</label>
+    <textarea placeholder="VD: nốt ruồi cạnh môi, hình xăm nhỏ ở vai" oninput="if(!S.persona.dna)S.persona.dna={};S.persona.dna.customPhysicalDetails=this.value">${cd}</textarea></div>`;
+}
 function renderPersona(m){
   let html=`<h1>③ Hồ sơ nhân vật</h1>
   <p class="lead">Chỉnh thông tin nhân vật. Có thể để AI hoàn thiện field còn trống.</p>
@@ -866,7 +922,7 @@ function renderPersona(m){
     if(f.type==='textarea')html+=`<textarea data-pk="${f.k}" placeholder="${esc(f.ph||'')}">${v}</textarea>`;
     else if(f.type==='select')html+=`<select data-pk="${f.k}"><option value="">—</option>${f.opts.map(o=>`<option ${S.persona[f.k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
     else html+=`<input data-pk="${f.k}" type="${f.type||'text'}" value="${v}" placeholder="${esc(f.ph||'')}">`;});
-  html+=`</div><div class="bar"><button class="btn ghost" onclick="savePersona()">Lưu nhân vật</button>
+  html+=`</div>`+dnaCardHtml()+`<div class="bar"><button class="btn ghost" onclick="savePersona()">Lưu nhân vật</button>
     <button class="btn blue" onclick="savePersona();go('profile')">Tiếp: Chân dung →</button></div>`;
   m.innerHTML=html;
   m.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{S.persona[el.dataset.pk]=el.value;}));
@@ -986,6 +1042,10 @@ function renderPhotoshoot(b){
       <div><label>Số ảnh</label><select id="ps_shots"><option value="1" ${PS.shots==1?'selected':''}>1 ảnh</option><option value="4" ${PS.shots==4?'selected':''}>4 góc máy</option></select></div>
     </div>
     ${S.wardrobe.length?`<label>Hoặc chọn nhanh từ Tủ đồ</label><div>${S.wardrobe.map(w=>`<span class="chip" onclick="document.getElementById('ps_outfit').value=${JSON.stringify(w.masterPrompt).replace(/"/g,'&quot;')};toast('Đã chọn ${esc(w.name)}')">👗 ${esc(w.name)}</span>`).join('')}</div>`:''}
+    <label style="margin-top:12px">👗 Outfit gợi ý</label><div>${studioChips(OUTFIT_LIB,'ps_outfit')}</div>
+    <label style="margin-top:8px">🎭 Cosplay / anime</label><div>${studioChips(COSPLAY_LIB,'ps_outfit')}</div>
+    <label style="margin-top:8px">💃 Pose</label><div>${studioChips(POSE_LIB,'ps_pose')}</div>
+    <label style="margin-top:8px">🏙️ Bối cảnh</label><div>${studioChips(BG_LIB,'ps_background')}</div>
     <label style="margin-top:12px"><input type="checkbox" id="ps_ref" ${PS.useRef?'checked':''} style="width:auto;margin-right:6px">Giữ khuôn mặt Digital Twin (image-to-image)</label>
     <div class="bar"><button class="btn" id="shootBtn" onclick="runShoot()" ${personaOK()?'':'disabled'}>📸 Chụp</button></div>
   </div>
