@@ -267,8 +267,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
    Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
-const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe'];
-function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[]};}
+const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog'];
+function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[]};}
 let __migratedLegacy=false;
 /* Migration → workspace đa nhân vật (v2). Giữ settings toàn cục ở gốc; mỗi nhân vật 1 gói dna riêng. */
 function migrateWS(r){
@@ -286,7 +286,7 @@ function migrateWS(r){
     activeId:id,characters:{[id]:ch},stage:g.stage||"setup"};
 }
 let S=migrateWS(JSON.parse(localStorage.getItem(LS)||"null"));
-function activeChar(){if(!S.characters[S.activeId])S.activeId=Object.keys(S.characters)[0];const c=S.characters[S.activeId];CHAR_FIELDS.forEach(k=>{if(c[k]==null)c[k]=(k==='idea'?'':(k==='gallery'||k==='wardrobe'?[]:{}));});return c;}
+function activeChar(){if(!S.characters[S.activeId])S.activeId=Object.keys(S.characters)[0];const c=S.characters[S.activeId];CHAR_FIELDS.forEach(k=>{if(c[k]==null)c[k]=(k==='idea'?'':(k==='gallery'||k==='wardrobe'||k==='vlogLog'?[]:{}));});return c;}
 /* S.persona / S.intake / S.outputs / S.scores / S.gallery / S.wardrobe / S.idea → trỏ vào nhân vật đang mở (non-enumerable: KHÔNG ghi trùng ra gốc localStorage). */
 CHAR_FIELDS.forEach(prop=>{Object.defineProperty(S,prop,{configurable:true,enumerable:false,
   get(){return activeChar()[prop];},set(v){activeChar()[prop]=v;}});});
@@ -1316,8 +1316,9 @@ function renderVideo(b){
     <div class="bar" style="flex-wrap:wrap;margin-top:6px">
       <button class="btn gold" id="vidVlogBtn" onclick="genVlog()" ${personaOK()?'':'disabled'}>📹 Vlog liền mạch (từ persona)</button>
       <button class="btn" id="vidVlogPackBtn" onclick="genVlogPack()" ${personaOK()?'':'disabled'}>📹 Pack 10 vlog</button>
-      <span class="hint" style="align-self:center">Vlog = đời thường chân thật, cảm xúc, từ dữ liệu nhân vật</span>
+      <span class="hint" style="align-self:center">Vlog = đời thường chân thật, cảm xúc, từ dữ liệu nhân vật · mỗi vlog đủ ${Math.max(1,Math.round(VID.duration/10))} clip theo thời lượng đã chọn</span>
     </div>
+    ${vlogLogPanelHTML()}
   </div>
   <div id="vidOut"></div>`;
   items.forEach(async it=>{if(it.imgKey){const u=await mediaGet(it.imgKey);const im=b.querySelector(`img[data-ik="${it.imgKey}"]`);if(im&&u)im.src=u;}});
@@ -1373,29 +1374,43 @@ function aiPromptSafe(p){
   return (p||'A stylish young woman does a cinematic fashion transformation trying on an elegant outfit, catwalk and playful posing.')+guard;
 }
 async function genVideoAI(){await runAIVideos(1,Math.max(1,Math.round(VID.duration/10)),'vidAiBtn','✨ AI sáng tạo (từ ý tưởng)','fashion');}
-async function genVideoPack(){await runAIVideos(10,1,'vidPackBtn','🎁 Pack 10 video','fashion');}
+async function genVideoPack(){await runAIVideos(10,Math.max(1,Math.round(VID.duration/10)),'vidPackBtn','🎁 Pack 10 video','fashion');}
 async function genVlog(){await runAIVideos(1,Math.max(1,Math.round(VID.duration/10)),'vidVlogBtn','📹 Vlog liền mạch','vlog');}
-async function genVlogPack(){await runAIVideos(10,1,'vidVlogPackBtn','📹 Pack 10 vlog','vlog');}
+async function genVlogPack(){await runAIVideos(10,Math.max(1,Math.round(VID.duration/10)),'vidVlogPackBtn','📹 Pack 10 vlog','vlog');}
 /* Vlog: đời thường chân thật, cảm xúc, KHÔNG glam/runway, KHÔNG voiceover */
 function vlogPromptSafe(p){
   p=(p||'').trim();
   const guard=' Vertical 9:16, about 10s. AUTHENTIC everyday vlog: a generic young woman (NO face description, NO real or famous person, NO reference-image mention), handheld iPhone POV/selfie, candid real-life moment, natural light, a real cozy setting, authentic UGC, emotional and relatable — NOT glam, NOT runway, NOT plastic, NOT CGI, NOT over-sharpened; real skin with pores and subtle film grain. 4-6 smooth quick cuts, a hook in the first second, momentum to the end. Mood music + a short on-screen caption, no voiceover. Platform-safe and tasteful.';
   return (p||'A young woman shares a warm, candid everyday moment of her life, filmed like an authentic iPhone vlog.')+guard;
 }
+function vlogHistoryBlock(){
+  const log=(S.vlogLog||[]);
+  if(!log.length)return {done:'',life:''};
+  const recent=log.slice(-40);
+  const done=recent.map(e=>'• '+(e.series||'?')+(e.beats&&e.beats.length?(' — '+e.beats.join(' / ')):'')).join('\n');
+  const places=[...new Set(recent.map(e=>e.place).filter(Boolean))].slice(0,12).join(', ');
+  const people=[...new Set(recent.flatMap(e=>e.people||[]))].slice(0,12).join(', ');
+  const life=[places&&('Địa điểm quen thuộc: '+places),people&&('Người/mối quan hệ đã xuất hiện: '+people)].filter(Boolean).join('\n');
+  return {done, life, count:log.length};
+}
 function vlogGenPrompt(nVideos,clipsPerVideo){
   const p=S.persona||{};
   const ctx=[p.name&&('Tên: '+p.name),p.age&&('Tuổi: '+p.age),p.vibe&&('Vibe: '+p.vibe),p.personality&&('Tính cách: '+p.personality),p.occupation&&('Nghề: '+p.occupation),p.niche&&('Niche: '+p.niche),p.pov&&('POV/Góc nhìn: '+p.pov),p.voiceTone&&('Chất giọng: '+p.voiceTone),p.backstory&&('Backstory: '+String(p.backstory).slice(0,300)),p.visualStyle&&('Visual style: '+p.visualStyle)].filter(Boolean).join('\n');
   const idea=(document.getElementById('vid_idea')||{}).value||'';
-  return `Bạn là ĐẠO DIỄN vlog đời thường CHÂN THẬT cho Google Flow (Omni). Dựa trên NHÂN VẬT, tự dựng ${nVideos>1?(nVideos+' vlog KHÁC NHAU — như một người có CUỘC SỐNG THẬT, mỗi vlog là 1 khoảnh khắc/câu chuyện đời thường khác nhau'):('MỘT vlog LIỀN MẠCH gồm '+clipsPerVideo+' clip 10s nối nhau thành một mạch cảm xúc trọn vẹn (mở đầu → diễn biến → cao trào/lắng đọng)')}.
+  const H=vlogHistoryBlock();
+  const histBlock=H.done?`\n📔 NHẬT KÝ CUỘC ĐỜI (đã tạo ${H.count} vlog trước đó) — TUYỆT ĐỐI KHÔNG lặp lại nội dung/bối cảnh/khoảnh khắc dưới đây:
+${H.done}
+${H.life?H.life+'\n':''}⚡ MẠCH CUỘC SỐNG CÓ THẬT: Coi nhân vật như một CON NGƯỜI CÓ THẬT đang sống tiếp. Vlog mới phải NỐI TIẾP dòng đời đó — tái sử dụng địa điểm/người thân/thói quen quen thuộc một cách tự nhiên, có TIẾN TRIỂN thời gian & cảm xúc (mùa/giờ/tâm trạng đổi khác), thi thoảng CALLBACK khoảnh khắc cũ, để tổng thể như một cuộc đời liền mạch — KHÔNG rời rạc, KHÔNG lặp.\n`:'';
+  return `Bạn là ĐẠO DIỄN vlog đời thường CHÂN THẬT cho Google Flow (Omni). Dựa trên NHÂN VẬT, tự dựng ${nVideos>1?(nVideos+' vlog KHÁC NHAU — như một người có CUỘC SỐNG THẬT, mỗi vlog là 1 khoảnh khắc/câu chuyện đời thường khác nhau'+(clipsPerVideo>1?(', MỖI vlog gồm '+clipsPerVideo+' clip 10s NỐI LIỀN MẠCH (mở đầu → diễn biến → lắng đọng)'):', mỗi vlog 1 clip 10s')):('MỘT vlog LIỀN MẠCH gồm '+clipsPerVideo+' clip 10s nối nhau thành một mạch cảm xúc trọn vẹn (mở đầu → diễn biến → cao trào/lắng đọng)')}.
 NHÂN VẬT:
 ${ctx||'một cô gái trẻ sống tình cảm, đời thường'}
-${idea?('Định hướng thêm: '+idea+'\n'):''}YÊU CẦU: CHÂN THẬT như đời sống (KHÔNG glam/sàn diễn), giàu CẢM XÚC, gần gũi, relatable, bám tính cách/POV/nghề/niche nhân vật. AI TỰ CHỌN mạch hợp nhất (một ngày của nhân vật / hành trình cảm xúc / khoảnh khắc lifestyle).
+${idea?('Định hướng thêm: '+idea+'\n'):''}${histBlock}YÊU CẦU: CHÂN THẬT như đời sống (KHÔNG glam/sàn diễn), giàu CẢM XÚC, gần gũi, relatable, bám tính cách/POV/nghề/niche nhân vật. AI TỰ CHỌN mạch hợp nhất (một ngày của nhân vật / hành trình cảm xúc / khoảnh khắc lifestyle).
 MỖI clip = 1 prompt TIẾNG ANH cho Omni, CÔNG THỨC AN TOÀN:
 - Chủ thể CHUNG CHUNG "a young woman" — KHÔNG tả mặt, KHÔNG "real/famous person", KHÔNG "reference image", KHÔNG tên riêng.
 - Phong cách VLOG: handheld iPhone POV/selfie, candid real-life moment, natural light, real cozy settings (nhà/bếp/quán cà phê/phố/nơi làm việc...), authentic UGC, emotional & relatable — real skin, NOT glam/runway/plastic/CGI.
 - Nhịp: 4-6 quick cuts mượt/10s, hook giây đầu, giữ chân.
 ${clipsPerVideo>1?'- Các clip trong 1 vlog PHẢI NỐI LIỀN MẠCH (cùng nhân vật, cùng ngày/câu chuyện, cảm xúc dâng dần).\n':''}- Vertical 9:16, ~10s, KHÔNG voiceover (nhạc mood + chữ overlay ngắn + hành động).
-Trả DUY NHẤT JSON mảng ${nVideos} phần tử: [{"series":"tên vlog tiếng Việt","clips":[{"prompt_en":"prompt tiếng Anh đầy đủ","audio":"english mood music","overlay":"chữ overlay ngắn tiếng Việt","beat":"khoảnh khắc/cảm xúc"}]}]`;
+Trả DUY NHẤT JSON mảng ${nVideos} phần tử: [{"series":"tên vlog tiếng Việt","noi_chon":"địa điểm chính (VD: căn bếp nhà, quán cà phê góc phố, phòng ngủ...)","nhan_vat_phu":["người/thú cưng xuất hiện nếu có, VD: mẹ, bạn thân, mèo Miu"],"clips":[{"prompt_en":"prompt tiếng Anh đầy đủ","audio":"english mood music","overlay":"chữ overlay ngắn tiếng Việt","beat":"khoảnh khắc/cảm xúc"}]}]`;
 }
 async function runAIVideos(nVideos,clipsPerVideo,btnId,btnLabel,mode){
   if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
@@ -1414,11 +1429,49 @@ async function runAIVideos(nVideos,clipsPerVideo,btnId,btnLabel,mode){
     __vidVideos=arr.slice(0,nVideos).map((v,vi)=>{
       let clips=(v.clips||[]).map((c,ci)=>({seq:ci+1,prompt:wrap(c.prompt_en||''),audio:c.audio||(isVlog?'warm emotional lo-fi music':'trending background music'),talentLabel:(isVlog?(c.beat||'Vlog'):(c.talent||talentNames||'Sáng tạo')),overlayText:c.overlay||'',outfit:isVlog?{name:'',imgKey:null}:(outfits.length?outfits[(vi+ci)%outfits.length]:{name:'AI concept',imgKey:null})}));
       if(!clips.length)clips=[{seq:1,prompt:wrap(''),audio:isVlog?'warm emotional lo-fi music':'trending background music',talentLabel:isVlog?'Vlog':'Sáng tạo',overlayText:'',outfit:{name:'',imgKey:null}}];
-      return {series:v.series||((isVlog?'Vlog ':'Video ')+(vi+1)),clips};
+      const people=Array.isArray(v.nhan_vat_phu)?v.nhan_vat_phu.filter(Boolean):(v.nhan_vat_phu?[v.nhan_vat_phu]:[]);
+      return {series:v.series||((isVlog?'Vlog ':'Video ')+(vi+1)),place:v.noi_chon||'',people,clips};
     });
+    if(isVlog)logVlogHistory(__vidVideos);
     renderVideoOut();toast('✓ AI tạo '+__vidVideos.length+(isVlog?' vlog':' video'));
   }catch(e){toast('Lỗi AI: '+(e.message||e));}
   finally{if(b){b.disabled=false;b.innerHTML=btnLabel;}}
+}
+/* ---- Nhật ký cuộc đời nhân vật: chống trùng + nối mạch cuộc sống có thật ---- */
+function logVlogHistory(videos){
+  if(!S.vlogLog)S.vlogLog=[];
+  const day=_today10();
+  videos.forEach(v=>{
+    S.vlogLog.push({date:day,dur:VID.duration,clips:(v.clips||[]).length,series:v.series||'Vlog',
+      place:v.place||'',people:(v.people||[]).filter(Boolean),
+      beats:(v.clips||[]).map(c=>c.talentLabel).filter(b=>b&&b!=='Vlog')});
+  });
+  if(S.vlogLog.length>300)S.vlogLog=S.vlogLog.slice(-300);
+  save();
+  const p=document.getElementById('vlogLogPanel');if(p)p.outerHTML=vlogLogPanelHTML();
+}
+function vlogLogPanelHTML(){
+  const log=(S.vlogLog||[]);
+  if(!log.length)return `<div id="vlogLogPanel" class="hint" style="margin-top:8px">📔 Nhật ký cuộc đời: chưa có vlog nào — vlog đầu tiên sẽ mở đầu dòng đời nhân vật.</div>`;
+  const recent=log.slice(-12).reverse();
+  const rows=recent.map(e=>`<div style="padding:6px 0;border-top:1px solid rgba(255,255,255,.06)">
+    <div style="font-size:12px"><b>${esc(e.series)}</b> <span class="hint">· ${esc(e.date||'')} · ${e.clips||1} clip</span></div>
+    ${(e.place||e.beats&&e.beats.length)?`<div class="hint" style="font-size:11px">${e.place?'📍 '+esc(e.place)+' · ':''}${esc((e.beats||[]).join(' / '))}</div>`:''}
+    ${e.people&&e.people.length?`<div class="hint" style="font-size:11px">👥 ${esc(e.people.join(', '))}</div>`:''}
+  </div>`).join('');
+  return `<div id="vlogLogPanel" class="card" style="margin-top:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <b style="font-size:13px">📔 Nhật ký cuộc đời nhân vật · ${log.length} vlog</b>
+      <button class="btn ghost sm" onclick="clearVlogLog()">🗑 Xoá nhật ký</button></div>
+    <div class="hint" style="font-size:11px;margin:4px 0">AI đọc nhật ký này để KHÔNG tạo trùng và nối tiếp một cuộc sống có thật (${Math.min(40,log.length)} vlog gần nhất được nạp).</div>
+    ${rows}${log.length>12?`<div class="hint" style="font-size:11px;margin-top:6px">…và ${log.length-12} vlog cũ hơn</div>`:''}
+  </div>`;
+}
+function clearVlogLog(){
+  if(!confirm('Xoá toàn bộ nhật ký cuộc đời của nhân vật này? AI sẽ mất mạch nối tiếp và có thể tạo lại nội dung cũ.'))return;
+  S.vlogLog=[];save();
+  const p=document.getElementById('vlogLogPanel');if(p)p.outerHTML=vlogLogPanelHTML();
+  toast('Đã xoá nhật ký');
 }
 function renderVideoOut(){
   const o=document.getElementById('vidOut');if(!o)return;
