@@ -1299,7 +1299,8 @@ function renderVideo(b){
       <div><label>Thời lượng → số clip 10s</label><select id="vid_dur" onchange="VID.duration=parseInt(this.value)">
         <option value="10" ${VID.duration==10?'selected':''}>10s · 1 clip</option>
         <option value="20" ${VID.duration==20?'selected':''}>20s · 2 clip</option>
-        <option value="30" ${VID.duration==30?'selected':''}>30s · 3 clip</option></select></div>
+        <option value="30" ${VID.duration==30?'selected':''}>30s · 3 clip</option>
+        <option value="60" ${VID.duration==60?'selected':''}>60s · 6 clip (vlog dài)</option></select></div>
       <div><label>Đã chọn</label><input value="${VID.talents.length} tài năng · ${VID.outfits.length} outfit" readonly></div>
     </div>
     <label style="margin-top:12px">👗 Tủ đồ / thư viện — tick outfit biến hình (theo thứ tự)</label>
@@ -1311,6 +1312,11 @@ function renderVideo(b){
       <button class="btn blue" onclick="genVideoClips()" ${personaOK()?'':'disabled'}>🎬 Sinh từ outfit</button>
       <button class="btn gold" id="vidAiBtn" onclick="genVideoAI()" ${personaOK()?'':'disabled'}>✨ AI sáng tạo (từ ý tưởng)</button>
       <button class="btn" id="vidPackBtn" onclick="genVideoPack()" ${personaOK()?'':'disabled'}>🎁 Pack 10 video</button>
+    </div>
+    <div class="bar" style="flex-wrap:wrap;margin-top:6px">
+      <button class="btn gold" id="vidVlogBtn" onclick="genVlog()" ${personaOK()?'':'disabled'}>📹 Vlog liền mạch (từ persona)</button>
+      <button class="btn" id="vidVlogPackBtn" onclick="genVlogPack()" ${personaOK()?'':'disabled'}>📹 Pack 10 vlog</button>
+      <span class="hint" style="align-self:center">Vlog = đời thường chân thật, cảm xúc, từ dữ liệu nhân vật</span>
     </div>
   </div>
   <div id="vidOut"></div>`;
@@ -1366,25 +1372,51 @@ function aiPromptSafe(p){
   const guard=' Vertical 9:16, about 10s, trending TikTok. Subject is a generic stylish young woman — NO face description, NO real or famous person, NO reference-image mention. EXACTLY 6-8 quick cuts on the music beat, a hook in the very first second, a fresh angle or motion every second, no dead frames. Shot on an iPhone, natural real skin with pores and subtle film grain — NOT plastic, NOT CGI, NOT over-sharpened, NOT airbrushed. Elegant outfit-change transformation, platform-safe and tasteful, no voiceover.';
   return (p||'A stylish young woman does a cinematic fashion transformation trying on an elegant outfit, catwalk and playful posing.')+guard;
 }
-async function genVideoAI(){await runVideoAI(1,Math.max(1,Math.round(VID.duration/10)),'vidAiBtn','✨ AI sáng tạo (từ ý tưởng)');}
-async function genVideoPack(){await runVideoAI(10,1,'vidPackBtn','🎁 Pack 10 video');}
-async function runVideoAI(nVideos,clipsPerVideo,btnId,btnLabel){
+async function genVideoAI(){await runAIVideos(1,Math.max(1,Math.round(VID.duration/10)),'vidAiBtn','✨ AI sáng tạo (từ ý tưởng)','fashion');}
+async function genVideoPack(){await runAIVideos(10,1,'vidPackBtn','🎁 Pack 10 video','fashion');}
+async function genVlog(){await runAIVideos(1,Math.max(1,Math.round(VID.duration/10)),'vidVlogBtn','📹 Vlog liền mạch','vlog');}
+async function genVlogPack(){await runAIVideos(10,1,'vidVlogPackBtn','📹 Pack 10 vlog','vlog');}
+/* Vlog: đời thường chân thật, cảm xúc, KHÔNG glam/runway, KHÔNG voiceover */
+function vlogPromptSafe(p){
+  p=(p||'').trim();
+  const guard=' Vertical 9:16, about 10s. AUTHENTIC everyday vlog: a generic young woman (NO face description, NO real or famous person, NO reference-image mention), handheld iPhone POV/selfie, candid real-life moment, natural light, a real cozy setting, authentic UGC, emotional and relatable — NOT glam, NOT runway, NOT plastic, NOT CGI, NOT over-sharpened; real skin with pores and subtle film grain. 4-6 smooth quick cuts, a hook in the first second, momentum to the end. Mood music + a short on-screen caption, no voiceover. Platform-safe and tasteful.';
+  return (p||'A young woman shares a warm, candid everyday moment of her life, filmed like an authentic iPhone vlog.')+guard;
+}
+function vlogGenPrompt(nVideos,clipsPerVideo){
+  const p=S.persona||{};
+  const ctx=[p.name&&('Tên: '+p.name),p.age&&('Tuổi: '+p.age),p.vibe&&('Vibe: '+p.vibe),p.personality&&('Tính cách: '+p.personality),p.occupation&&('Nghề: '+p.occupation),p.niche&&('Niche: '+p.niche),p.pov&&('POV/Góc nhìn: '+p.pov),p.voiceTone&&('Chất giọng: '+p.voiceTone),p.backstory&&('Backstory: '+String(p.backstory).slice(0,300)),p.visualStyle&&('Visual style: '+p.visualStyle)].filter(Boolean).join('\n');
+  const idea=(document.getElementById('vid_idea')||{}).value||'';
+  return `Bạn là ĐẠO DIỄN vlog đời thường CHÂN THẬT cho Google Flow (Omni). Dựa trên NHÂN VẬT, tự dựng ${nVideos>1?(nVideos+' vlog KHÁC NHAU — như một người có CUỘC SỐNG THẬT, mỗi vlog là 1 khoảnh khắc/câu chuyện đời thường khác nhau'):('MỘT vlog LIỀN MẠCH gồm '+clipsPerVideo+' clip 10s nối nhau thành một mạch cảm xúc trọn vẹn (mở đầu → diễn biến → cao trào/lắng đọng)')}.
+NHÂN VẬT:
+${ctx||'một cô gái trẻ sống tình cảm, đời thường'}
+${idea?('Định hướng thêm: '+idea+'\n'):''}YÊU CẦU: CHÂN THẬT như đời sống (KHÔNG glam/sàn diễn), giàu CẢM XÚC, gần gũi, relatable, bám tính cách/POV/nghề/niche nhân vật. AI TỰ CHỌN mạch hợp nhất (một ngày của nhân vật / hành trình cảm xúc / khoảnh khắc lifestyle).
+MỖI clip = 1 prompt TIẾNG ANH cho Omni, CÔNG THỨC AN TOÀN:
+- Chủ thể CHUNG CHUNG "a young woman" — KHÔNG tả mặt, KHÔNG "real/famous person", KHÔNG "reference image", KHÔNG tên riêng.
+- Phong cách VLOG: handheld iPhone POV/selfie, candid real-life moment, natural light, real cozy settings (nhà/bếp/quán cà phê/phố/nơi làm việc...), authentic UGC, emotional & relatable — real skin, NOT glam/runway/plastic/CGI.
+- Nhịp: 4-6 quick cuts mượt/10s, hook giây đầu, giữ chân.
+${clipsPerVideo>1?'- Các clip trong 1 vlog PHẢI NỐI LIỀN MẠCH (cùng nhân vật, cùng ngày/câu chuyện, cảm xúc dâng dần).\n':''}- Vertical 9:16, ~10s, KHÔNG voiceover (nhạc mood + chữ overlay ngắn + hành động).
+Trả DUY NHẤT JSON mảng ${nVideos} phần tử: [{"series":"tên vlog tiếng Việt","clips":[{"prompt_en":"prompt tiếng Anh đầy đủ","audio":"english mood music","overlay":"chữ overlay ngắn tiếng Việt","beat":"khoảnh khắc/cảm xúc"}]}]`;
+}
+async function runAIVideos(nVideos,clipsPerVideo,btnId,btnLabel,mode){
   if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const isVlog=mode==='vlog';
   const idea=(document.getElementById('vid_idea')||{}).value||'';
   const talentNames=collectTalents().map(t=>t[1].replace(/^✨ /,'')).join(', ');
   const items=vidOutfitItems();
   const outfits=VID.outfits.map(k=>items.find(x=>x.key===k)).filter(Boolean);
-  const b=document.getElementById(btnId);if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> AI đang sáng tạo...';}
+  const promptText=isVlog?vlogGenPrompt(nVideos,clipsPerVideo):videoGenPrompt(idea,talentNames,nVideos,clipsPerVideo);
+  const wrap=isVlog?vlogPromptSafe:aiPromptSafe;
+  const b=document.getElementById(btnId);if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> AI đang dựng...';}
   try{
-    let arr=parseJSON(await geminiText(videoGenPrompt(idea,talentNames,nVideos,clipsPerVideo),true));
+    let arr=parseJSON(await geminiText(promptText,true));
     if(!Array.isArray(arr))arr=arr.videos||[arr];
     __vidVideos=arr.slice(0,nVideos).map((v,vi)=>{
-      let clips=(v.clips||[]).map((c,ci)=>({seq:ci+1,prompt:aiPromptSafe(c.prompt_en||''),audio:c.audio||'trending background music',talentLabel:c.talent||talentNames||'Sáng tạo',outfit:outfits.length?outfits[(vi+ci)%outfits.length]:{name:'AI concept',imgKey:null}}));
-      if(!clips.length)clips=[{seq:1,prompt:aiPromptSafe(''),audio:'trending background music',talentLabel:'Sáng tạo',outfit:outfits[vi%Math.max(1,outfits.length)]||{name:'AI concept',imgKey:null}}];
-      return {series:v.series||('Video '+(vi+1)),clips};
+      let clips=(v.clips||[]).map((c,ci)=>({seq:ci+1,prompt:wrap(c.prompt_en||''),audio:c.audio||(isVlog?'warm emotional lo-fi music':'trending background music'),talentLabel:(isVlog?(c.beat||'Vlog'):(c.talent||talentNames||'Sáng tạo')),overlayText:c.overlay||'',outfit:isVlog?{name:'',imgKey:null}:(outfits.length?outfits[(vi+ci)%outfits.length]:{name:'AI concept',imgKey:null})}));
+      if(!clips.length)clips=[{seq:1,prompt:wrap(''),audio:isVlog?'warm emotional lo-fi music':'trending background music',talentLabel:isVlog?'Vlog':'Sáng tạo',overlayText:'',outfit:{name:'',imgKey:null}}];
+      return {series:v.series||((isVlog?'Vlog ':'Video ')+(vi+1)),clips};
     });
-    renderVideoOut();toast('✓ AI tạo '+__vidVideos.length+' video');
+    renderVideoOut();toast('✓ AI tạo '+__vidVideos.length+(isVlog?' vlog':' video'));
   }catch(e){toast('Lỗi AI: '+(e.message||e));}
   finally{if(b){b.disabled=false;b.innerHTML=btnLabel;}}
 }
@@ -1405,7 +1437,7 @@ function renderVideoOut(){
           <div class="imgcard"><img data-face="1" style="aspect-ratio:3/4;object-fit:cover" alt=""><div class="ov" style="opacity:1"><span style="font-size:9px;padding:2px 4px">Khuôn mặt neo</span></div></div>
           ${c.outfit&&c.outfit.imgKey?`<div class="imgcard"><img data-ik="${c.outfit.imgKey}" style="aspect-ratio:3/4;object-fit:cover" alt=""><div class="ov" style="opacity:1"><span style="font-size:9px;padding:2px 4px">${esc(c.outfit.name)}</span></div></div>`:`<div class="hint" style="align-self:center">Look mặc định</div>`}
         </div>
-        <div class="hint" style="margin-top:6px">🎵 ${esc(c.audio)} · không voiceover · 6-8 quick-cut</div>
+        <div class="hint" style="margin-top:6px">🎵 ${esc(c.audio)}${c.overlayText?' · 💬 '+esc(c.overlayText):''} · không voiceover</div>
       </div>`).join('')+`</div>`).join('');
   getRef().then(u=>{if(u)o.querySelectorAll('img[data-face]').forEach(im=>im.src=u);});
   __vidVideos.forEach(v=>v.clips.forEach(async c=>{if(c.outfit&&c.outfit.imgKey){const u=await mediaGet(c.outfit.imgKey);o.querySelectorAll(`img[data-ik="${c.outfit.imgKey}"]`).forEach(im=>{if(u)im.src=u;});}}));
@@ -1425,7 +1457,7 @@ async function dlVideoPack(){
       const sid=dn+'-S'+(ci+1);nvShots.push(sid);
       let sp=[];const k=c.outfit&&c.outfit.imgKey;
       if(k&&prodMap[k]){sp=[prodMap[k].id];const pe=products.find(x=>x.id===prodMap[k].id);if(pe)pe.xuat_hien_o.push(sid);}
-      return {seq:ci+1,thoi_luong:'10s',nhan_vat:['NV1'],san_pham:sp,no_product:sp.length===0,canh:'',cam_xuc:'',goc_may:'',overlay:{text:'',do_hoa:'',sfx:'',nhac:c.audio||''},ly_do_gan:c.talentLabel||'',prompt_en:c.prompt,voiceover:''};
+      return {seq:ci+1,thoi_luong:'10s',nhan_vat:['NV1'],san_pham:sp,no_product:sp.length===0,canh:'',cam_xuc:'',goc_may:'',overlay:{text:c.overlayText||'',do_hoa:'',sfx:'',nhac:c.audio||''},ly_do_gan:c.talentLabel||'',prompt_en:c.prompt,voiceover:''};
     });
     return {ngay:dn,series:v.series||('Video '+(vi+1)),voice:{ngon_ngu:'Vietnamese',ma_ngon_ngu:'vi-VN',phong_cach:''},arc_cam_xuc:[],shots};
   });
