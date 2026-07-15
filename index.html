@@ -1344,7 +1344,7 @@ function genVideoClips(){
 function renderVideoOut(){
   const o=document.getElementById('vidOut');if(!o)return;
   o.innerHTML=`<div class="bar" style="margin:14px 0 4px"><button class="btn sm" onclick="copyAllVid()">📋 Copy tất cả prompt</button>
-    <button class="btn ghost sm" onclick="dlVideoPack()">⬇ Tải JSON pack (kèm ảnh)</button>
+    <button class="btn ghost sm" onclick="dlVideoPack()">⬇ Tải flow-pack/v1 (import tool Flow)</button>
     <span class="hint">${__vidClips.length} clip · dán từng prompt vào Flow (Omni) + chọn ảnh tham chiếu bên dưới</span></div>`
     +__vidClips.map((c,i)=>`<div class="card" style="margin-top:12px">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -1364,18 +1364,38 @@ function renderVideoOut(){
 }
 function copyVidClip(i){navigator.clipboard.writeText(__vidClips[i].prompt);toast('Đã copy prompt clip '+(i+1));}
 function copyAllVid(){navigator.clipboard.writeText(__vidClips.map(c=>`=== CLIP ${c.seq} (10s · ${c.talentLabel}) ===\n${c.prompt}`).join('\n\n'));toast('Đã copy '+__vidClips.length+' prompt');}
+/* Xuất ĐÚNG schema flow-pack/v1 (viral-dojo/CYM) để tool Flow import.
+   NV1 = nhân vật (nhúng portrait) · outfit → products (nhúng ảnh) · days[0].shots */
 async function dlVideoPack(){
   const portrait=await getRef();
-  const chars=[];const seen={};
-  for(const c of __vidClips){if(c.outfit.imgKey&&!seen[c.outfit.imgKey]){seen[c.outfit.imgKey]=await mediaGet(c.outfit.imgKey);}}
+  const prodMap={},products=[];let pi=0;
+  for(const c of __vidClips){
+    const k=c.outfit&&c.outfit.imgKey;
+    if(k&&!prodMap[k]){pi++;const id='SP'+pi;const img=await mediaGet(k);
+      prodMap[k]={id};products.push({id,ten:c.outfit.name||('Outfit '+pi),mo_ta:'Outfit biến hình',upload_huong_dan:'Upload ảnh outfit vào Flow → ingredients cho shot dùng nó',xuat_hien_o:[],prompt_anh:'',co_anh:!!img,anh_base64:img||''});}
+  }
+  const nvShots=[];
+  const shots=__vidClips.map((c,i)=>{
+    const sid='N1-S'+(i+1);nvShots.push(sid);
+    let sp=[];const k=c.outfit&&c.outfit.imgKey;
+    if(k&&prodMap[k]){sp=[prodMap[k].id];const pe=products.find(x=>x.id===prodMap[k].id);if(pe)pe.xuat_hien_o.push(sid);}
+    return {seq:i+1,thoi_luong:'10s',nhan_vat:['NV1'],san_pham:sp,no_product:sp.length===0,canh:'',cam_xuc:'',goc_may:'',overlay:{text:'',do_hoa:'',sfx:'',nhac:c.audio||''},ly_do_gan:c.talentLabel||'',prompt_en:c.prompt,voiceover:''};
+  });
+  const talents=[...new Set(__vidClips.map(c=>c.talentLabel))].join(', ');
+  const handle=S.persona.name?('@'+S.persona.name.toLowerCase().replace(/[^a-z0-9]+/g,'')):'';
   const pack={
-    schema:'muse-video/omni-v1',
-    meta:{model:'omni',aspect:'9:16',clip_seconds:10,total_seconds:VID.duration,voiceover:false,style:'transformation × talent, 6-8 quick-cut cinematic, SFW editorial'},
-    character:{name:S.persona.name||'',portrait_base64:portrait||'',note:'Nhận diện lấy từ ảnh tham chiếu (portrait) — prompt cố ý KHÔNG tả mặt để né policy Flow.'},
-    clips:__vidClips.map(c=>({seq:c.seq,seconds:10,talent:c.talentLabel,outfit:c.outfit.name,outfit_base64:seen[c.outfit.imgKey]||'',audio:c.audio,prompt_en:c.prompt}))
+    schema:'flow-pack/v1',
+    meta:{kenh:handle,doi_tuong:'',nen_tang:'TikTok/Reels',ti_le:'9:16',thoi_luong_shot:'10s',muc_tieu:'affiliate thời trang · biến hình · viral',scene_upload:false,upload_entities:['characters','products'],
+      voice:{ngon_ngu:'Vietnamese',ma_ngon_ngu:'vi-VN',phong_cach:'',ghi_chu:'Video KHÔNG voiceover — nhạc + hành động; giữ mặt từ ảnh tham chiếu'},
+      y_tuong_goc:'Video thời trang biến hình thử đồ × tài năng ('+talents+'), 6-8 quick-cut cinematic, chất máy quay iPhone thật, nhìn ống kính.',
+      anh_nhan_vat_nhung:!!portrait,anh_san_pham_nhung:products.some(p=>p.anh_base64)},
+    characters:[{id:'NV1',ten:S.persona.name||'NV chính',mo_ta:'Nhân vật chính — giữ khuôn mặt nhất quán từ ảnh tham chiếu.',upload_huong_dan:'Upload 1 ảnh nhân vật vào Flow → ingredients (giữ nguyên mọi shot)',xuat_hien_o:nvShots,prompt_anh:'',co_anh:!!portrait,anh_base64:portrait||''}],
+    products:products,
+    scenes:[],
+    days:[{ngay:'N1',series:'Biến hình thời trang × '+talents,voice:{ngon_ngu:'Vietnamese',ma_ngon_ngu:'vi-VN',phong_cach:''},arc_cam_xuc:[],shots:shots}]
   };
-  dl('muse-video-'+(S.persona.name||'char').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24)+'.json',JSON.stringify(pack,null,2),'application/json');
-  toast('Đã tải JSON pack');
+  dl('flow-pack-'+(S.persona.name||'video').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24)+'.json',JSON.stringify(pack,null,2),'application/json');
+  toast('Đã tải flow-pack/v1 — import vào tool Flow');
 }
 
 /* ---------- INTAKE ---------- */
