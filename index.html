@@ -1287,7 +1287,7 @@ function renderVideo(b){
   VID.custom=document.getElementById('vid_custom')?document.getElementById('vid_custom').value:VID.custom;
   b.innerHTML=`<div class="card">
     <h2>🎬 Bộ prompt Video Omni (Google Flow)</h2>
-    <p class="hint" style="margin-top:2px"><b>Biến hình thử đồ</b> × <b>tài năng</b> → prompt EN + danh sách ảnh cần chọn trong Flow. Prompt cố ý <b>KHÔNG tả mặt/outfit</b> (né policy người-nổi-tiếng & nhạy cảm — để ảnh tham chiếu lo) + thêm <b>chất máy quay iPhone thật</b> để bớt "nhựa", có cảm xúc. 10-30s, 6-8 quick-cut.</p>
+    <p class="hint" style="margin-top:2px"><b>Biến hình thử đồ</b> × <b>tài năng</b> → prompt EN + danh sách ảnh cần chọn trong Flow. Prompt cố ý <b>KHÔNG tả mặt/outfit</b> (né policy người-nổi-tiếng & nhạy cảm — để ảnh tham chiếu lo) + thêm <b>chất máy quay iPhone thật</b> để bớt "nhựa", có cảm xúc. Mỗi 10s: <b>6-8 quick-cut mượt theo nhịp nhạc + hook giữ chân từng giây</b>.</p>
     ${!hasRef?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④) để mọi clip giữ cùng khuôn mặt.</div>':''}
     <label>Tài năng (chọn nhiều)</label>
     <div>${VID_TALENTS.map(t=>`<span class="chip" style="${VID.talents.includes(t[0])?'border-color:var(--gold);color:var(--gold)':''}" onclick="vidTalent('${t[0]}')">${VID.talents.includes(t[0])?'✓ ':''}${t[1]}</span>`).join('')}</div>
@@ -1318,7 +1318,7 @@ function videoClipPrompt(i,total,talentAction,audio){
   const cont=i>0?' Continues smoothly from the previous clip — the same girl, a fresh new look.':'';
   return `Vertical 9:16 short cinematic fashion video, about 10 seconds, trending TikTok style. `
     +`The girl from the reference image ${talentAction}, with a smooth outfit-change transformation reveal, playful trendy TikTok energy, looking into the camera lens with a captivating, charming gaze.${cont} `
-    +`Editing: 6-8 smooth quick cuts, dynamic changing camera angles, silky seamless scene transitions and beautiful cinematic morph effects, super eye-catching and impressive. `
+    +`Editing & retention: EXACTLY 6-8 quick cuts within the 10 seconds (each cut about 1.2-1.6s), cut ON the music beat for a smooth, satisfying rhythm; a scroll-stopping hook in the very first second, then EVERY second reveals a fresh camera angle, motion or micro-payoff so viewers keep watching — no dead frames, no lingering. Dynamic angles (extreme close-up, low-angle, POV, tracking, whip-pan, macro insert, dutch tilt), silky seamless match-cut and morph transitions, high-retention TikTok momentum, super eye-catching and impressive. `
     +`Look: elegant cinematic fashion film, soft natural color grade, gentle flattering light. `
     +`Realism: shot on an iPhone 15 Pro, natural handheld motion, true-to-life skin texture with visible pores and tiny natural imperfections, authentic candid UGC feel, subtle film grain — photorealistic and emotional, NOT over-sharpened, NOT plastic, NOT a 3D render, NOT airbrushed. `
     +`Audio: ${audio}; no voiceover. Keep it tasteful and platform-appropriate.`;
