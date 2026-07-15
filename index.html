@@ -1062,6 +1062,7 @@ function renderStudio(m){
     <button class="tab ${t==='photoshoot'?'active':''}" onclick="studioTab('photoshoot')">📸 Photoshoot</button>
     <button class="tab ${t==='wardrobe'?'active':''}" onclick="studioTab('wardrobe')">👗 Tủ đồ</button>
     <button class="tab ${t==='gallery'?'active':''}" onclick="studioTab('gallery')">🖼️ Thư viện (${S.gallery.length})</button>
+    <button class="tab ${t==='video'?'active':''}" onclick="studioTab('video')">🎬 Video Omni</button>
   </div>
   <div id="studioBody"></div>
   <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('profile')">← Chân dung</button>
@@ -1069,6 +1070,7 @@ function renderStudio(m){
   const body=document.getElementById('studioBody');
   if(t==='photoshoot')renderPhotoshoot(body);
   else if(t==='wardrobe')renderWardrobe(body);
+  else if(t==='video')renderVideo(body);
   else renderGallery(body);
 }
 
@@ -1234,6 +1236,123 @@ async function renderGallery(b){
   }
 }
 async function dlGalleryAll(){let i=0;for(const g of S.gallery){const u=await mediaGet("g:"+g.id);if(u){setTimeout(()=>dlDataUrl("muse-"+g.id+".png",u),160*(++i));}}toast("Đang tải ảnh...");}
+
+/* --- 🎬 VIDEO OMNI (bộ prompt cho Google Flow — biến hình × tài năng) --- */
+/* [key, nhãn, action EN, âm thanh EN] */
+const VID_TALENTS=[
+  ['guitar','🎸 Chơi guitar','playing an acoustic guitar, fingers gently on the strings','natural warm acoustic guitar melody'],
+  ['piano','🎹 Chơi piano','playing a grand piano gracefully','a soft delicate piano melody'],
+  ['sing','🎤 Hát','singing softly with emotion','her gentle singing voice with light reverb'],
+  ['dance','💃 Nhảy','dancing with graceful flowing movements','upbeat rhythmic trending music'],
+  ['catwalk','🚶‍♀️ Catwalk','walking a runway catwalk with confident elegant poise','a stylish fashion runway beat'],
+  ['pose','✨ Tạo dáng biểu cảm','striking cute, expressive, attractive poses','soft cinematic background music']
+];
+const VID={talents:['guitar','pose'],outfits:[],duration:20,custom:''};
+let __vidClips=[];
+function vidOutfitItems(){
+  const items=[];
+  (S.wardrobe||[]).forEach(w=>items.push({key:'wb:'+w.id,name:w.name,desc:w.masterPrompt||w.name,imgKey:w.img?('wb:'+w.id):null}));
+  (S.gallery||[]).forEach(g=>items.push({key:'g:'+g.id,name:(g.prompt||'Ảnh').slice(0,26),desc:g.prompt||'her outfit as shown in the reference image',imgKey:'g:'+g.id}));
+  return items;
+}
+function vidTalent(k){const i=VID.talents.indexOf(k);if(i<0)VID.talents.push(k);else VID.talents.splice(i,1);renderVideo(document.getElementById('studioBody'));}
+function vidOutfit(k){const i=VID.outfits.indexOf(k);if(i<0)VID.outfits.push(k);else VID.outfits.splice(i,1);renderVideo(document.getElementById('studioBody'));}
+function renderVideo(b){
+  const hasRef=!!(S.persona&&(S.persona.hasRef||S.persona.publicDescription));
+  const items=vidOutfitItems();
+  VID.custom=document.getElementById('vid_custom')?document.getElementById('vid_custom').value:VID.custom;
+  b.innerHTML=`<div class="card">
+    <h2>🎬 Bộ prompt Video Omni (Google Flow)</h2>
+    <p class="hint" style="margin-top:2px">Nhân vật (khoá mặt) × <b>biến hình thử đồ</b> × <b>tài năng</b> → sinh prompt EN + danh sách ảnh cần chọn trong Flow. Video ngắn 10-30s, 6-8 quick-cut cinematic, giữ SFW.</p>
+    ${!hasRef?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④) để mọi clip giữ cùng khuôn mặt.</div>':''}
+    <label>Tài năng (chọn nhiều)</label>
+    <div>${VID_TALENTS.map(t=>`<span class="chip" style="${VID.talents.includes(t[0])?'border-color:var(--gold);color:var(--gold)':''}" onclick="vidTalent('${t[0]}')">${VID.talents.includes(t[0])?'✓ ':''}${t[1]}</span>`).join('')}</div>
+    <input id="vid_custom" value="${esc(VID.custom)}" placeholder="Tài năng khác (tự nhập, EN càng tốt)" style="margin-top:8px">
+    <div class="row" style="margin-top:10px">
+      <div><label>Thời lượng → số clip 10s</label><select id="vid_dur" onchange="VID.duration=parseInt(this.value)">
+        <option value="10" ${VID.duration==10?'selected':''}>10s · 1 clip</option>
+        <option value="20" ${VID.duration==20?'selected':''}>20s · 2 clip</option>
+        <option value="30" ${VID.duration==30?'selected':''}>30s · 3 clip</option></select></div>
+      <div><label>Đã chọn</label><input value="${VID.talents.length} tài năng · ${VID.outfits.length} outfit" readonly></div>
+    </div>
+    <label style="margin-top:12px">👗 Tủ đồ / thư viện — tick outfit biến hình (theo thứ tự)</label>
+    ${items.length?`<div class="imgrid" id="vidOutfits">${items.map(it=>{const ord=VID.outfits.indexOf(it.key);return `<div class="imgcard" style="cursor:pointer;${ord>=0?'outline:3px solid var(--gold)':''}" onclick="vidOutfit('${it.key}')">
+      ${it.imgKey?`<img data-ik="${it.imgKey}" style="aspect-ratio:3/4;object-fit:cover" alt="">`:`<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:26px">👗</div>`}
+      <div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.6))"><span style="font-size:10px;padding:3px 5px">${ord>=0?('#'+(ord+1)+' '):''}${esc(it.name)}</span></div></div>`;}).join('')}</div>`
+      :'<div class="hint">Chưa có ảnh outfit. Tạo ở tab Tủ đồ / Photoshoot trước (không bắt buộc — có thể sinh với look mặc định).</div>'}
+    <div class="bar"><button class="btn blue" onclick="genVideoClips()" ${personaOK()?'':'disabled'}>🎬 Sinh bộ prompt</button></div>
+  </div>
+  <div id="vidOut"></div>`;
+  // hydrate thumbnail outfit
+  items.forEach(async it=>{if(it.imgKey){const u=await mediaGet(it.imgKey);const im=b.querySelector(`img[data-ik="${it.imgKey}"]`);if(im&&u)im.src=u;}});
+  if(__vidClips.length)renderVideoOut();
+}
+function videoClipPrompt(i,total,outfitDesc,talentAction,mood,audio){
+  const cont=i>0?' Continues seamlessly from the previous clip — the SAME woman, identical face, evolving her look.':'';
+  return `Vertical 9:16 short-form fashion video, about 10 seconds, TikTok / Reels style. `
+    +`Subject: the SAME single woman — ${visualBase()} — keep the EXACT same face identity in every clip (use the provided reference image). `
+    +`Wearing: ${outfitDesc}. `
+    +`Action: ${talentAction}, a smooth "biến hình" transformation trying on the outfit, cute expressive attractive posing.${cont} `
+    +`Editing: 6-8 silky quick cuts, varied creative camera angles (extreme close-up, low-angle, POV, tracking shot, whip-pan, macro insert, dutch tilt), seamless match-cut transitions and cinematic morph between looks. `
+    +`Lighting & mood: ${mood.lighting}. Style: ${mood.styleMood}, cinematic color grade, elegant film-like motion. `
+    +`Audio: ${audio}; no voiceover. `
+    +`Tasteful, safe-for-work, non-explicit fashion editorial — loungewear / sleepwear styled as high-fashion editorial; platform-safe (TikTok / Instagram friendly). No burned-in text, no subtitles, no watermark.`;
+}
+function genVideoClips(){
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  const talents=VID.talents.map(k=>VID_TALENTS.find(t=>t[0]===k)).filter(Boolean);
+  const cust=(document.getElementById('vid_custom')||{}).value||'';
+  if(cust.trim())talents.push(['custom','✨ '+cust.trim(),cust.trim(),'soft cinematic background music']);
+  if(!talents.length){toast('Chọn ít nhất 1 tài năng');return;}
+  const items=vidOutfitItems();
+  const outfits=VID.outfits.map(k=>items.find(x=>x.key===k)).filter(Boolean);
+  const n=Math.max(1,Math.round(VID.duration/10));
+  const mood=moodProfile(S.persona);
+  __vidClips=[];
+  for(let i=0;i<n;i++){
+    const outfit=outfits.length?outfits[i%outfits.length]:{name:'Đồ ngủ lụa (mặc định)',desc:'an elegant silk loungewear / sleepwear set, tasteful editorial fashion',imgKey:null};
+    const talent=talents[i%talents.length];
+    const audio=talent[3]||'soft cinematic background music';
+    __vidClips.push({seq:i+1,prompt:videoClipPrompt(i,n,outfit.desc,talent[2],mood,audio),outfit,audio,talentLabel:talent[1]});
+  }
+  renderVideoOut();
+}
+function renderVideoOut(){
+  const o=document.getElementById('vidOut');if(!o)return;
+  o.innerHTML=`<div class="bar" style="margin:14px 0 4px"><button class="btn sm" onclick="copyAllVid()">📋 Copy tất cả prompt</button>
+    <button class="btn ghost sm" onclick="dlVideoPack()">⬇ Tải JSON pack (kèm ảnh)</button>
+    <span class="hint">${__vidClips.length} clip · dán từng prompt vào Flow (Omni) + chọn ảnh tham chiếu bên dưới</span></div>`
+    +__vidClips.map((c,i)=>`<div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <b>🎬 Clip ${c.seq}/${__vidClips.length} · 10s · ${esc(c.talentLabel)}</b>
+        <button class="btn gold sm" onclick="copyVidClip(${i})">📋 Copy prompt</button></div>
+      <textarea readonly style="margin-top:8px;height:150px;font-size:12px">${esc(c.prompt)}</textarea>
+      <label style="margin-top:8px">Ảnh cần chọn tham chiếu trong Flow</label>
+      <div class="imgrid" style="grid-template-columns:repeat(auto-fill,minmax(74px,1fr))">
+        <div class="imgcard"><img data-face="1" style="aspect-ratio:3/4;object-fit:cover" alt=""><div class="ov" style="opacity:1"><span style="font-size:9px;padding:2px 4px">Khuôn mặt neo</span></div></div>
+        ${c.outfit.imgKey?`<div class="imgcard"><img data-ik="${c.outfit.imgKey}" style="aspect-ratio:3/4;object-fit:cover" alt=""><div class="ov" style="opacity:1"><span style="font-size:9px;padding:2px 4px">${esc(c.outfit.name)}</span></div></div>`:`<div class="hint" style="align-self:center">Look mặc định (không cần ảnh outfit)</div>`}
+      </div>
+      <div class="hint" style="margin-top:6px">🎵 ${esc(c.audio)} · không voiceover · 6-8 quick-cut</div>
+    </div>`).join('');
+  // hydrate face + outfit thumbnails
+  getRef().then(u=>{if(u)o.querySelectorAll('img[data-face]').forEach(im=>im.src=u);});
+  __vidClips.forEach(async c=>{if(c.outfit.imgKey){const u=await mediaGet(c.outfit.imgKey);o.querySelectorAll(`img[data-ik="${c.outfit.imgKey}"]`).forEach(im=>{if(u)im.src=u;});}});
+}
+function copyVidClip(i){navigator.clipboard.writeText(__vidClips[i].prompt);toast('Đã copy prompt clip '+(i+1));}
+function copyAllVid(){navigator.clipboard.writeText(__vidClips.map(c=>`=== CLIP ${c.seq} (10s · ${c.talentLabel}) ===\n${c.prompt}`).join('\n\n'));toast('Đã copy '+__vidClips.length+' prompt');}
+async function dlVideoPack(){
+  const portrait=await getRef();
+  const chars=[];const seen={};
+  for(const c of __vidClips){if(c.outfit.imgKey&&!seen[c.outfit.imgKey]){seen[c.outfit.imgKey]=await mediaGet(c.outfit.imgKey);}}
+  const pack={
+    schema:'muse-video/omni-v1',
+    meta:{model:'omni',aspect:'9:16',clip_seconds:10,total_seconds:VID.duration,voiceover:false,style:'transformation × talent, 6-8 quick-cut cinematic, SFW editorial'},
+    character:{name:S.persona.name||'',face_anchor:visualBase(),portrait_base64:portrait||''},
+    clips:__vidClips.map(c=>({seq:c.seq,seconds:10,talent:c.talentLabel,outfit:c.outfit.name,outfit_base64:seen[c.outfit.imgKey]||'',audio:c.audio,prompt_en:c.prompt}))
+  };
+  dl('muse-video-'+(S.persona.name||'char').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24)+'.json',JSON.stringify(pack,null,2),'application/json');
+  toast('Đã tải JSON pack');
+}
 
 /* ---------- INTAKE ---------- */
 function renderIntake(m){
