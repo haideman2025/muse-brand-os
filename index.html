@@ -647,6 +647,31 @@ async function geminiImage(prompt,opts){
     throw e;
   }
 }
+/* Image-gen với NHIỀU ảnh tham chiếu (mặt nhân vật + sản phẩm) cho bộ ảnh SP */
+async function geminiImageOnceMulti(prompt,refs){
+  const parts=[{text:prompt}];
+  (refs||[]).forEach(r=>{if(r){const clean=r.replace(/^data:image\/\w+;base64,/,'');parts.push({inlineData:{mimeType:"image/jpeg",data:clean}});}});
+  const body={contents:[{parts:parts}],generationConfig:{responseModalities:["IMAGE","TEXT"]}};
+  const r=await fetch(imgUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok){let t=await r.text();const e=new Error("Gemini image "+r.status+": "+t.slice(0,300));e.http=r.status;throw e;}
+  const d=await r.json();const cand=d?.candidates?.[0];
+  for(const p of (cand?.content?.parts||[])){if(p.inlineData&&p.inlineData.data)return "data:"+(p.inlineData.mimeType||"image/png")+";base64,"+p.inlineData.data;}
+  const e=new Error("noimage");e.reason=d?.promptFeedback?.blockReason||cand?.finishReason||"EMPTY";e.detail=(cand?.content?.parts||[]).map(p=>p.text).filter(Boolean).join(" ").slice(0,160);throw e;
+}
+async function geminiImageMulti(prompt,refs){
+  if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
+  refs=(refs||[]).filter(Boolean);
+  try{ return await geminiImageOnceMulti(prompt,refs); }
+  catch(e){
+    // noimage: bỏ dần ref (giữ ref cuối = SẢN PHẨM, thứ bắt buộc phải có), rồi thử không ref
+    if(e.message==="noimage" && refs.length>1){ try{ return await geminiImageOnceMulti(prompt,refs.slice(-1)); }catch(e2){ e=e2; } }
+    if(e.message==="noimage" && refs.length){ try{ return await geminiImageOnceMulti(prompt,[]); }catch(e3){ e=e3; } }
+    if(e.message==="noimage"){ const rr=(e.reason||"").toString().toUpperCase();
+      if(rr.includes("SAFETY")||rr.includes("PROHIBITED")||rr.includes("BLOCK")||rr.includes("RECITATION")) throw new Error("Gemini CHẶN AN TOÀN concept này — thử concept kín hơn. "+(e.detail?("· "+e.detail):("· "+e.reason)));
+      throw new Error("Không nhận được ảnh · "+e.reason+(e.detail?(" · "+e.detail):"")); }
+    throw e;
+  }
+}
 function parseJSON(t){t=t.trim().replace(/^```json/i,"").replace(/^```/,"").replace(/```$/,"").trim();return JSON.parse(t);}
 function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(file);});}
 
@@ -1084,6 +1109,7 @@ function renderStudio(m){
   ${!(S.persona&&(S.persona.hasRef||S.persona.publicDescription))?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Mẹo: tạo Digital Twin ở bước ④ (upload selfie) để mọi ảnh giữ cùng khuôn mặt.</div>':''}
   <div class="tabs">
     <button class="tab ${t==='photoshoot'?'active':''}" onclick="studioTab('photoshoot')">📸 Photoshoot</button>
+    <button class="tab ${t==='product'?'active':''}" onclick="studioTab('product')">🛍️ Bộ ảnh SP</button>
     <button class="tab ${t==='wardrobe'?'active':''}" onclick="studioTab('wardrobe')">👗 Tủ đồ</button>
     <button class="tab ${t==='gallery'?'active':''}" onclick="studioTab('gallery')">🖼️ Thư viện (${S.gallery.length})</button>
     <button class="tab ${t==='video'?'active':''}" onclick="studioTab('video')">🎬 Video Omni</button>
@@ -1093,6 +1119,7 @@ function renderStudio(m){
    <button class="btn blue" onclick="go('intake')">Tiếp: Mục tiêu KD →</button></div>`;
   const body=document.getElementById('studioBody');
   if(t==='photoshoot')renderPhotoshoot(body);
+  else if(t==='product')renderProductSet(body);
   else if(t==='wardrobe')renderWardrobe(body);
   else if(t==='video')renderVideo(body);
   else renderGallery(body);
@@ -1260,6 +1287,126 @@ async function renderGallery(b){
   }
 }
 async function dlGalleryAll(){let i=0;for(const g of S.gallery){const u=await mediaGet("g:"+g.id);if(u){setTimeout(()=>dlDataUrl("muse-"+g.id+".png",u),160*(++i));}}toast("Đang tải ảnh...");}
+
+/* ==================== ⑤ BỘ ẢNH SẢN PHẨM (product × character, storytelling-to-sale) ==================== */
+const PSET_RATIOS={'1:1':'square 1:1 format','4:5':'vertical 4:5 portrait format','3:4':'vertical 3:4 portrait format'};
+const PSET_TEMPLATES={
+  story:{name:'Câu chuyện bán hàng',desc:'10 khung mạch cảm xúc hook→khát khao→chốt',beats:[
+    {a:'intimate close-up portrait, eye-level',m:'serene',r:'OPENING HOOK: the character in a quiet emotional moment revealing a subtle unmet need or longing; product not yet present or only faintly hinted; draw the viewer in emotionally.'},
+    {a:'wide establishing lifestyle shot',m:'warm',r:'EVERYDAY WORLD: establish the character\'s relatable daily life and the environment where the product will belong.'},
+    {a:'medium shot, natural candid',m:'warm',r:'DISCOVERY: the character encounters and holds the product for the first time, curious and hopeful; product clearly visible in hand.'},
+    {a:'product hero shot with the character\'s hands, shallow depth of field',m:'editorial',r:'PRODUCT HERO: a beautiful cinematic hero shot foregrounding the product presented by the character; the product is the star, crisp and desirable.'},
+    {a:'medium close-up, over-the-shoulder',m:'warm',r:'IN USE: the character genuinely using / wearing / applying the product in a natural, believable way.'},
+    {a:'close-up on face and result',m:'aspirational',r:'BENEFIT MOMENT: capture the emotional payoff — the feeling or result the product gives, radiant and authentic.'},
+    {a:'confident three-quarter full-body shot',m:'confident',r:'TRANSFORMATION: the character now confident and fulfilled, the product integrated into their identity and lifestyle.'},
+    {a:'macro detail shot',m:'editorial',r:'DETAIL & TEXTURE: an elegant macro of the product\'s texture/detail with the character subtly in context, conveying premium quality.'},
+    {a:'golden-hour aspirational portrait',m:'aspirational',r:'ASPIRATION: the character glowing, the product as part of an enviable, desirable life.'},
+    {a:'direct-to-camera medium shot',m:'confident',r:'CTA CLOSE: the character looks directly at the viewer with an inviting, confident expression while presenting the product — a warm call to own it.'}
+  ]},
+  pdp:{name:'PDP Hero Set',desc:'10 khung thương mại sạch cho trang sản phẩm',beats:[
+    {a:'front hero shot, eye-level',m:'confident',r:'clean commercial hero: character presenting the product front-on, product prominent and sharp.'},
+    {a:'full-body shot',m:'confident',r:'full look with the product in context on the character.'},
+    {a:'medium shot, three-quarter angle',m:'editorial',r:'three-quarter angle showcasing the product from a flattering side.'},
+    {a:'close-up product-in-hand macro',m:'editorial',r:'macro of the product held by the character, showing detail and finish.'},
+    {a:'low angle',m:'confident',r:'low-angle empowering shot with the product prominent.'},
+    {a:'high angle',m:'warm',r:'high-angle friendly shot featuring the product.'},
+    {a:'over-the-shoulder',m:'warm',r:'over-the-shoulder view of the character engaging with the product.'},
+    {a:'profile side shot',m:'editorial',r:'clean profile showing the product from the side.'},
+    {a:'close-up portrait with product near face',m:'alluring',r:'beauty close-up with the product elegantly near the face.'},
+    {a:'medium shot, direct to camera',m:'confident',r:'final clean commercial shot, character presenting the product to camera.'}
+  ]},
+  lifestyle:{name:'Lifestyle',desc:'10 khung đời thường truyền cảm hứng',beats:[
+    {a:'wide lifestyle shot',m:'warm',r:'morning routine at home, natural light, character using the product casually.'},
+    {a:'medium candid',m:'warm',r:'cozy cafe moment with the product on the table or in hand.'},
+    {a:'outdoor natural light',m:'aspirational',r:'outdoor stroll, product as part of the day, breezy and aspirational.'},
+    {a:'close-up candid',m:'serene',r:'quiet self-care moment with the product, calm and intimate.'},
+    {a:'over-the-shoulder',m:'warm',r:'getting ready by a mirror, product visible.'},
+    {a:'full-body street style',m:'confident',r:'street-style walk, product integrated into the outfit and lifestyle.'},
+    {a:'medium shot at a desk',m:'confident',r:'productive moment, product supporting the character\'s day.'},
+    {a:'golden-hour portrait',m:'aspirational',r:'golden-hour glow, product as part of an enviable life.'},
+    {a:'close-up detail',m:'editorial',r:'detail of the product in a real, lived-in setting.'},
+    {a:'relaxed evening shot',m:'serene',r:'unwinding in the evening with the product, warm and content.'}
+  ]}
+};
+const PSET={img:null,det:null,tpl:'story',ratio:'4:5'};
+function productDetectPrompt(){
+  return `Bạn là chuyên gia e-commerce. Nhìn ẢNH SẢN PHẨM và trả DUY NHẤT JSON:
+{"type":"one of: apparel, skincare, cosmetic, gadget, food_drink, accessory, other","name":"tên sản phẩm ngắn gọn (tiếng Việt)","colors":"english: main colors & materials","key_features":"english: notable visual features / label text to preserve exactly","placement":"english: one short phrase on how a person would naturally hold/wear/use it in a photo"}`;
+}
+function productShotPrompt(beat,det,ratio){
+  const m=MOOD_LIB[beat.m]||moodProfile(S.persona);
+  const rt=PSET_RATIOS[ratio]||PSET_RATIOS['4:5'];
+  const PT=PHOTO_TOKENS.replace(', vertical 3:4','');
+  const prod=det?`the product ("${det.name||'the product'}"${det.type?', a '+det.type:''}${det.colors?', '+det.colors:''})`:'the product';
+  const feat=det&&det.key_features?` Preserve these product features exactly: ${det.key_features}.`:'';
+  const place=det&&det.placement?det.placement:'the character interacts with the product naturally';
+  return `${beat.a} of ${visualBase()}. Expression & mood: ${m.expression}. This image FEATURES ${prod} together with the character. SCENE DIRECTION: ${beat.r} Product interaction: ${place}. Setting fits the story with natural depth and tasteful props. Lighting: ${m.lighting}. Composition: ${m.lens}, rule-of-thirds, shallow depth of field, subject and product in razor-sharp focus, ${rt}. Style & mood: ${m.styleMood}. Color palette: ${m.palette}.
+PRODUCT CONSISTENCY (critical): reproduce the EXACT SAME product shown in the product reference image — identical shape, color, materials, proportions, and any label/logo/text EXACTLY as-is; do NOT redesign, restyle, relabel or invent a different product.${feat}
+CHARACTER CONSISTENCY: preserve the EXACT same facial identity as the character reference image — same face shape, bone structure, eyes, nose, lips and proportions; unmistakably the same person; do not beautify or alter the face.
+${PT} Artful commercial e-commerce photography for a premium online store — emotionally compelling, aspirational and conversion-driving. Tasteful and platform-safe: no nudity, no sexual content. No text overlay, no watermark.`;
+}
+function renderProductSet(b){
+  const hasFace=!!(S.persona&&(S.persona.hasRef||S.persona.publicDescription));
+  b.innerHTML=`<div class="card">
+    <label>🛍️ Ảnh sản phẩm <span class="req">*</span></label>
+    <p class="hint" style="margin-top:0">Upload 1 ảnh sản phẩm rõ nét (nền sạch càng tốt). AI ghép sản phẩm này CÙNG nhân vật Muse thành bộ 10 ảnh bán hàng cảm xúc cho web Shopify.</p>
+    <input type="file" id="pset_file" accept="image/*" style="display:none" onchange="psetUpload(event)">
+    <div class="bar">
+      <button class="btn gold" onclick="document.getElementById('pset_file').click()">📦 Chọn ảnh sản phẩm</button>
+      ${PSET.img?`<img src="${PSET.img}" style="height:64px;border-radius:8px;border:1px solid var(--line,#2a3550)">`:''}
+      ${PSET.det?`<span class="hint">AI nhận diện: <b>${esc(PSET.det.name||'?')}</b></span>`:''}
+    </div>
+    ${PSET.det?`<div class="row"><div><label>Loại sản phẩm (sửa nếu AI đoán sai)</label><select id="pset_type">${['apparel','skincare','cosmetic','gadget','food_drink','accessory','other'].map(t=>`<option ${PSET.det.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div><label>Tên / mô tả ngắn</label><input id="pset_name" value="${esc(PSET.det.name||'')}"></div></div>`:''}
+    ${!hasFace?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④, upload selfie) để bộ ảnh giữ đúng khuôn mặt nhân vật.</div>':''}
+    <label style="margin-top:12px">🎬 Kiểu bộ ảnh</label>
+    <div>${Object.keys(PSET_TEMPLATES).map(k=>`<span class="chip" onclick="PSET.tpl='${k}';renderStudio(document.getElementById('main'))" style="${PSET.tpl===k?'outline:2px solid var(--gold);color:var(--gold)':''}"><b>${esc(PSET_TEMPLATES[k].name)}</b> · ${esc(PSET_TEMPLATES[k].desc)}</span>`).join(' ')}</div>
+    <div class="row" style="margin-top:12px">
+      <div><label>Tỉ lệ khung (Shopify)</label><select id="pset_ratio">${Object.keys(PSET_RATIOS).map(r=>`<option ${PSET.ratio===r?'selected':''}>${r}</option>`).join('')}</select></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn" id="psetBtn" onclick="runProductSet()" ${(PSET.img&&personaOK())?'':'disabled'}>✨ Tạo bộ 10 ảnh</button></div>
+    </div>
+    <div class="err" id="psetErr"></div>
+  </div>
+  <div id="psetOut" class="imgrid"></div>`;
+}
+async function psetUpload(ev){
+  const f=ev.target.files[0];if(!f)return;
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  PSET.img=await fileToDataUrl(f);PSET.det=null;renderStudio(document.getElementById('main'));
+  const err=document.getElementById('psetErr');
+  try{PSET.det=parseJSON(await geminiVision(productDetectPrompt(),PSET.img,true));toast('✓ Đã nhận diện sản phẩm');}
+  catch(e){PSET.det={type:'other',name:'',colors:'',key_features:'',placement:''};if(err){err.style.display='block';err.textContent='Không tự nhận diện được — bạn chọn loại thủ công. '+e.message;}}
+  renderStudio(document.getElementById('main'));
+}
+function readPset(){if(document.getElementById('pset_type'))PSET.det=Object.assign(PSET.det||{},{type:val('pset_type'),name:val('pset_name')});PSET.ratio=val('pset_ratio')||PSET.ratio;}
+async function runProductSet(){
+  readPset();
+  if(!PSET.img){toast('Cần ảnh sản phẩm');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const tpl=PSET_TEMPLATES[PSET.tpl]||PSET_TEMPLATES.story;const beats=tpl.beats;
+  const face=await getRef();
+  const b=document.getElementById('psetBtn');if(b)b.disabled=true;
+  const out=document.getElementById('psetOut');out.innerHTML='';
+  const er=document.getElementById('psetErr');if(er)er.style.display='none';
+  for(let i=0;i<beats.length;i++){
+    if(b)b.innerHTML=`<span class="spinner"></span> Đang tạo ${i+1}/${beats.length}...`;
+    const ph=document.createElement('div');ph.className='imgcard';ph.innerHTML='<div style="aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;color:#5b7187"><span class="spinner"></span></div>';out.appendChild(ph);
+    try{
+      const prompt=productShotPrompt(beats[i],PSET.det,PSET.ratio);
+      const img=await geminiImageMulti(prompt,[face,PSET.img]);
+      const id=await addToGallery(img,`${tpl.name} · shot ${i+1}`,'product');
+      ph.innerHTML=`<img src="${img}" alt=""><div class="ov"></div>`;ph.querySelector('img').dataset.gid=id;
+      const ov=ph.querySelector('.ov');const mk=(l,fn)=>{const x=document.createElement('button');x.textContent=l;x.onclick=fn;ov.appendChild(x);};
+      mk('⬇',()=>dlDataUrl("muse-prod-"+id+".png",img));
+      mk('📌 Neo',async()=>{await useAsRef(id);});
+      mk('✕',()=>{delGallery(id);ph.remove();});
+    }catch(e){ph.innerHTML=`<div style="padding:10px;font-size:11px;color:var(--coral)">${esc(e.message).slice(0,140)}</div>`;if(er){er.style.display='block';er.textContent=e.message;}}
+  }
+  if(b){b.disabled=false;b.innerHTML='✨ Tạo bộ 10 ảnh';}
+  if(typeof renderSteps==='function')renderSteps();
+  const dl=document.createElement('div');dl.className='bar';dl.style.gridColumn='1/-1';dl.innerHTML='<button class="btn ghost" onclick="dlGalleryAll()">⬇ Tải tất cả ảnh trong Thư viện</button>';out.appendChild(dl);
+}
 
 /* --- 🎬 VIDEO OMNI (bộ prompt cho Google Flow — biến hình × tài năng) --- */
 /* [key, nhãn, action EN, âm thanh EN] */
