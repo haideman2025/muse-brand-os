@@ -98,17 +98,19 @@
 <style>
 /* ===== TWILIGHT DREAM reskin (đè lên base) ===== */
 :root{
-  --sky:linear-gradient(168deg,#0C0926 0%,#1E1550 32%,#3E2569 60%,#6E3A6A 84%,#9A5470 100%);
-  --a1:#C2B2FF;--a2:#8E7BFF;--acc:#C9B6FF;--g1:#8E7BFF;--g2:#E68AA0;--g3:#5BC8C8;--ink:#1a1140;
-  --bg:#0d0a22;--panel:rgba(255,255,255,.06);--panel2:rgba(255,255,255,.09);
-  --line:rgba(255,255,255,.12);--teal:var(--acc);--txt:#F3EEFF;--mut:#A99CC8;
+  /* Twilight Dream — clean (Brand Guideline v1.0) */
+  --sky:linear-gradient(175deg,#120D30 0%,#0E0A26 40%,#0B081E 100%);
+  --a1:#C2B2FF;--a2:#8E7BFF;--acc:#C2B2FF;--g1:#8E7BFF;--g2:#E68AA0;--g3:#5BC8C8;--ink:#1A1140;
+  --bg:#0B081E;--panel:rgba(255,255,255,.05);--panel2:rgba(255,255,255,.06);
+  --line:rgba(255,255,255,.12);--teal:var(--acc);--txt:#F3EEFF;--mut:#9D91C4;--mut2:#6E6394;
+  --soft:#C9BEE6;--soft2:#E4DBFF;
   --ok:#6FE3D2;--coral:#E85B5B;--gold:#F2C14E;--blue:#7C9CFF;--pink:#E68AA0;--bad:#E85B5B;
 }
 body{background:var(--sky);background-attachment:fixed;font-family:'Plus Jakarta Sans',-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--txt)}
 .app{background:transparent}
 main{position:relative;z-index:1}
 aside{background:rgba(12,9,28,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-right:1px solid var(--line)}
-.logo{font-family:'Instrument Serif',serif;font-weight:400;font-size:23px;color:var(--acc);letter-spacing:.3px;text-shadow:0 0 22px rgba(183,166,255,.35)}
+.logo{font-family:'Playfair Display',serif;font-weight:600;font-size:23px;color:var(--acc);letter-spacing:.3px;text-shadow:0 0 22px rgba(183,166,255,.35)}
 .logo small{color:var(--mut);font-weight:600}
 h1{font-family:'Playfair Display','Instrument Serif',serif;font-weight:600;letter-spacing:.1px;color:var(--txt);font-size:29px}
 h2{font-family:'Playfair Display','Instrument Serif',serif;font-weight:600;color:var(--txt);font-size:20px}
@@ -151,8 +153,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .uploadbox{border:2px dashed var(--line)}
 .uploadbox:hover{border-color:var(--acc)}
 .err{border-radius:14px}
-/* aurora + stars */
-.aurora,.star{position:fixed;pointer-events:none;z-index:-1}
+/* aurora + stars — ẩn cho look "sạch hơn" (Twilight Clean) */
+.aurora,.star{display:none!important}
+.aurora-legacy,.star-legacy{position:fixed;pointer-events:none;z-index:-1}
 .aurora{border-radius:50%;filter:blur(46px)}
 .a-1{top:3%;left:5%;width:340px;height:340px;background:radial-gradient(circle,var(--g1),transparent 68%);opacity:.5;animation:auDrift 18s ease-in-out infinite}
 .a-2{bottom:2%;right:4%;width:380px;height:380px;background:radial-gradient(circle,var(--g2),transparent 68%);opacity:.45;animation:auDrift 22s ease-in-out infinite reverse}
@@ -172,7 +175,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .brandmark{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;box-shadow:0 0 22px rgba(183,166,255,.5);flex-shrink:0;position:relative;overflow:hidden}
 .brandmark::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.4),transparent 60%)}
 .brandmark svg{width:30px;height:30px;position:relative;z-index:1}
-.brandname{font-family:'Instrument Serif',serif;font-size:25px;color:#F3EEFF;line-height:1}
+.brandname{font-family:'Playfair Display',serif;font-weight:600;font-size:23px;color:#F3EEFF;line-height:1}
 .brandtxt small{display:block;color:var(--mut);font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
 /* sound bar */
 .soundbar{margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -348,11 +351,11 @@ async function charDelete(){
   delete __refCache[oldId];delete S.characters[oldId];S.activeId=Object.keys(S.characters)[0];__refCache={};save();render();toast("Đã xoá nhân vật");}
 /* ---------- THEME (5 bầu trời) ---------- */
 const THEMES={
-  twilight:{sky:'linear-gradient(168deg,#0C0926 0%,#1E1550 32%,#3E2569 60%,#6E3A6A 84%,#9A5470 100%)',a1:'#C2B2FF',a2:'#8E7BFF',acc:'#C9B6FF',g1:'#8E7BFF',g2:'#E68AA0',g3:'#5BC8C8'},
-  dawn:{sky:'linear-gradient(168deg,#2A1330 0%,#5A2747 30%,#9A4A55 58%,#D98A63 84%,#F2C49B 100%)',a1:'#FFCDA6',a2:'#F2956E',acc:'#FFD0AE',g1:'#FF9E7A',g2:'#FFC8A0',g3:'#E66A9A'},
-  aurora:{sky:'linear-gradient(168deg,#06122A 0%,#0E2A3E 32%,#124E4E 60%,#1E6E5A 84%,#3FA07A 100%)',a1:'#9DEBC8',a2:'#4FD0B0',acc:'#9FE8D2',g1:'#46E0B0',g2:'#5BC8E0',g3:'#7C9CFF'},
-  rose:{sky:'linear-gradient(168deg,#1A0A24 0%,#3E1140 32%,#6E1E5A 60%,#A33A6E 84%,#D96E86 100%)',a1:'#FFB6E0',a2:'#E87AC8',acc:'#FFBEE6',g1:'#E87AC8',g2:'#FF8FA0',g3:'#9B7CFF'},
-  midnight:{sky:'linear-gradient(168deg,#060A1A 0%,#0E1838 32%,#1E2A55 60%,#2E3A6E 84%,#46507E 100%)',a1:'#FFE3A0',a2:'#F2C46E',acc:'#FFE0A0',g1:'#F2C46E',g2:'#7C9CFF',g3:'#5BC8E0'}
+  twilight:{sky:'linear-gradient(175deg,#120D30 0%,#0E0A26 40%,#0B081E 100%)',a1:'#C2B2FF',a2:'#8E7BFF',acc:'#C2B2FF',g1:'#8E7BFF',g2:'#E68AA0',g3:'#5BC8C8'},
+  dawn:{sky:'linear-gradient(175deg,#2A1330 0%,#4A2040 45%,#1A0E1E 100%)',a1:'#C2B2FF',a2:'#8E7BFF',acc:'#C2B2FF',g1:'#8E7BFF',g2:'#E68AA0',g3:'#5BC8C8'},
+  aurora:{sky:'linear-gradient(175deg,#06122A 0%,#0E2A32 45%,#071018 100%)',a1:'#C2B2FF',a2:'#8E7BFF',acc:'#C2B2FF',g1:'#8E7BFF',g2:'#E68AA0',g3:'#5BC8C8'},
+  rose:{sky:'linear-gradient(175deg,#1A0A24 0%,#341032 45%,#120714 100%)',a1:'#C2B2FF',a2:'#8E7BFF',acc:'#C2B2FF',g1:'#8E7BFF',g2:'#E68AA0',g3:'#5BC8C8'},
+  midnight:{sky:'linear-gradient(175deg,#060A1A 0%,#101A38 45%,#05070F 100%)',a1:'#C2B2FF',a2:'#8E7BFF',acc:'#C2B2FF',g1:'#8E7BFF',g2:'#E68AA0',g3:'#5BC8C8'}
 };
 const SKY_ORDER=['twilight','dawn','aurora','rose','midnight'];
 const SKY_SW={twilight:'#3E2569,#9A5470',dawn:'#5A2747,#F2C49B',aurora:'#124E4E,#3FA07A',rose:'#6E1E5A,#D96E86',midnight:'#1E2A55,#F2C46E'};
