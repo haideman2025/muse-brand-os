@@ -1531,7 +1531,7 @@ function renderVideo(b){
   b.innerHTML=`<div class="card">
     <h2>🎬 Bộ prompt Video Omni (Google Flow)</h2>
     <p class="hint" style="margin-top:2px"><b>Biến hình thử đồ × tài năng</b> → prompt EN + ảnh cần chọn trong Flow. Chủ thể để <b>chung chung "cô gái"</b> (né policy người-nổi-tiếng — ảnh tham chiếu lo nhận diện) + <b>chất iPhone thật</b> (hết nhựa) + <b>6-8 quick-cut/10s theo nhịp + hook giữ chân từng giây</b>.</p>
-    ${!hasRef?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④) để mọi clip giữ cùng khuôn mặt.</div>':''}
+    ${!hasRef?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④) để mọi clip giữ cùng khuôn mặt.</div>':'<div class="hint" style="margin:4px 0">🔒 Khi sinh video, AI tự đọc ảnh neo → khoá CHARACTER + STYLE và chèn nguyên văn vào mọi clip (giữ nhân vật/phong cách nhất quán xuyên video, đổ vào flow-pack).</div>'}
     <label>💡 Ý tưởng khởi tạo (cho AI sáng tạo)</label>
     <textarea id="vid_idea" rows="2" placeholder="VD: cô nàng gothic quyền lực thử loạt đầm haute couture trong lâu đài, chơi đàn + catwalk...">${esc(VID.idea||'')}</textarea>
     <label style="margin-top:10px">Tài năng (chọn nhiều)</label>
@@ -1586,22 +1586,52 @@ function collectTalents(){
   if(cust.trim())t.push(['custom','✨ '+cust.trim(),cust.trim(),'trending background music']);
   return t;
 }
-function genVideoClips(){
+async function genVideoClips(){
   if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
   const talents=collectTalents();
   if(!talents.length){toast('Chọn ít nhất 1 tài năng');return;}
   const items=vidOutfitItems();
   const outfits=VID.outfits.map(k=>items.find(x=>x.key===k)).filter(Boolean);
   const n=Math.max(1,Math.round(VID.duration/10));
+  await ensureMuseLock();
   const clips=[];
   for(let i=0;i<n;i++){
     const outfit=outfits.length?outfits[i%outfits.length]:{name:'Look mặc định',imgKey:null};
     const talent=talents[i%talents.length];
-    clips.push({seq:i+1,prompt:videoClipPrompt(i,n,talent[2],talent[3]||'trending background music'),outfit,audio:talent[3]||'trending background music',talentLabel:talent[1]});
+    clips.push({seq:i+1,prompt:withLock(videoClipPrompt(i,n,talent[2],talent[3]||'trending background music')),outfit,audio:talent[3]||'trending background music',talentLabel:talent[1]});
   }
   __vidVideos=[{series:'Biến hình thời trang × '+talents.map(t=>t[1]).join(', '),clips}];
   renderVideoOut();
 }
+/* ==================== KHOÁ NHÂN VẬT/PHONG CÁCH TỪ ẢNH (vision) — học goal2channel-studio ====================
+   Sinh CHARACTER LOCK + STYLE LOCK từ ảnh neo 1 lần (cache theo persona), chèn NGUYÊN VĂN vào MỌI clip.
+   Tách bạch: prompt clip tả HÀNH ĐỘNG/CAMERA, danh tính đến từ lock => nhân vật nhất quán xuyên video. */
+let __museLock=null;
+function museLockPrompt(){
+  return `Bạn là giám đốc nhân vật & phong cách. Nhìn ẢNH nhân vật tham chiếu và trả DUY NHẤT JSON:
+{"character_lock_en":"ENGLISH, 40-60 từ — danh tính vật lý CỐ ĐỊNH phải giữ y hệt mọi khung: hình khuôn mặt, dáng & màu mắt, kiểu & màu tóc, tông da, dáng người, đặc điểm nhận diện, outfit đặc trưng nếu có. Cụ thể, trực quan.","style_lock_en":"ENGLISH, 30-45 từ — phong cách render/màu/ánh sáng/chất liệu/ống kính của ảnh để tái tạo đồng nhất mọi khung."}
+Chỉ tả những gì ảnh thực sự cho thấy, không bịa.`;
+}
+async function ensureMuseLock(force){
+  const ref=await getRef();
+  if(!ref){__museLock=(S.persona&&S.persona.locks)||null;return __museLock;}
+  const sig=ref.length+':'+ref.slice(-24);
+  if(!force&&S.persona.locks&&S.persona.locks.sig===sig){__museLock=S.persona.locks;return __museLock;}
+  try{
+    const o=parseJSON(await geminiVision(museLockPrompt(),ref,true));
+    S.persona.locks={sig,character_lock_en:String(o.character_lock_en||'').trim(),style_lock_en:String(o.style_lock_en||'').trim()};
+    save();__museLock=S.persona.locks;
+  }catch(e){__museLock=(S.persona&&S.persona.locks)||null;}
+  return __museLock;
+}
+function withLock(prompt){
+  if(!__museLock)return prompt;
+  const cl=__museLock.character_lock_en,sl=__museLock.style_lock_en;let add='';
+  if(cl&&prompt.indexOf(cl)<0)add+=' CHARACTER LOCK (identical in every shot): '+cl;
+  if(sl&&prompt.indexOf(sl)<0)add+=' STYLE LOCK (identical in every shot): '+sl;
+  return prompt+add;
+}
+
 /* ==================== VIDEO BÁN HÀNG KHÔNG LỜI (từ bộ ảnh SP + nhân vật) ==================== */
 const SALES_ARC=[
   {t:'HOOK',m:'a slow cinematic push-in on the woman in a quiet, emotional moment of longing or curiosity; the product subtly hinted in the frame',cam:'slow dolly push-in, shallow focus'},
@@ -1629,17 +1659,20 @@ function salesClipPrompt(beat,i,total,outfitName){
     +` Realism: shot on an iPhone 15 Pro, natural handheld motion, true-to-life skin and product texture, subtle film grain — photorealistic, NOT plastic, NOT a 3D render, NOT airbrushed.`
     +` Audio: emotive trending music only, NO voiceover. Tasteful and platform-safe. No text overlay, no watermark, no real or famous person.`;
 }
-function genSalesVideo(){
+async function genSalesVideo(){
   if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
   const items=vidOutfitItems();
   const picked=VID.outfits.map(k=>items.find(x=>x.key===k)).filter(Boolean);
   const n=Math.max(1,Math.round(VID.duration/10));
   const beats=pickBeats(n);
   const prodName=(PSET&&PSET.det&&PSET.det.name)?PSET.det.name:'sản phẩm';
+  const sb=document.getElementById('salesVidBtn');if(sb){sb.disabled=true;sb.innerHTML='<span class="spinner"></span> Đang khoá nhân vật & dựng...';}
+  await ensureMuseLock();
   const clips=beats.map((beat,i)=>{
     const ref=picked.length?picked[i%picked.length]:{name:'Look mặc định',imgKey:null};
-    return {seq:i+1,prompt:salesClipPrompt(beat,i,n,picked.length?ref.name:''),outfit:ref,audio:'emotive trending music (no voiceover)',talentLabel:'Bán hàng · '+beat.t,overlayText:''};
+    return {seq:i+1,prompt:withLock(salesClipPrompt(beat,i,n,picked.length?ref.name:'')),outfit:ref,audio:'emotive trending music (no voiceover)',talentLabel:'Bán hàng · '+beat.t,overlayText:''};
   });
+  if(sb){sb.disabled=false;sb.innerHTML='🛍️ Video bán hàng (không lời)';}
   __vidVideos=[{series:'Video bán hàng · '+prodName,clips}];
   renderVideoOut();
   toast(picked.length?('✓ Đã dựng video bán hàng ('+n+' clip)'):'Mẹo: tick ảnh bộ SP ở lưới để Flow giữ đúng sản phẩm');
@@ -1712,11 +1745,12 @@ async function runAIVideos(nVideos,clipsPerVideo,btnId,btnLabel,mode){
   const wrap=isVlog?vlogPromptSafe:aiPromptSafe;
   const b=document.getElementById(btnId);if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> AI đang dựng...';}
   try{
+    await ensureMuseLock();
     let arr=parseJSON(await geminiText(promptText,true));
     if(!Array.isArray(arr))arr=arr.videos||[arr];
     __vidVideos=arr.slice(0,nVideos).map((v,vi)=>{
-      let clips=(v.clips||[]).map((c,ci)=>({seq:ci+1,prompt:wrap(c.prompt_en||''),audio:c.audio||(isVlog?'warm emotional lo-fi music':'trending background music'),talentLabel:(isVlog?(c.beat||'Vlog'):(c.talent||talentNames||'Sáng tạo')),overlayText:c.overlay||'',outfit:isVlog?{name:'',imgKey:null}:(outfits.length?outfits[(vi+ci)%outfits.length]:{name:'AI concept',imgKey:null})}));
-      if(!clips.length)clips=[{seq:1,prompt:wrap(''),audio:isVlog?'warm emotional lo-fi music':'trending background music',talentLabel:isVlog?'Vlog':'Sáng tạo',overlayText:'',outfit:{name:'',imgKey:null}}];
+      let clips=(v.clips||[]).map((c,ci)=>({seq:ci+1,prompt:withLock(wrap(c.prompt_en||'')),audio:c.audio||(isVlog?'warm emotional lo-fi music':'trending background music'),talentLabel:(isVlog?(c.beat||'Vlog'):(c.talent||talentNames||'Sáng tạo')),overlayText:c.overlay||'',outfit:isVlog?{name:'',imgKey:null}:(outfits.length?outfits[(vi+ci)%outfits.length]:{name:'AI concept',imgKey:null})}));
+      if(!clips.length)clips=[{seq:1,prompt:withLock(wrap('')),audio:isVlog?'warm emotional lo-fi music':'trending background music',talentLabel:isVlog?'Vlog':'Sáng tạo',overlayText:'',outfit:{name:'',imgKey:null}}];
       const people=Array.isArray(v.nhan_vat_phu)?v.nhan_vat_phu.filter(Boolean):(v.nhan_vat_phu?[v.nhan_vat_phu]:[]);
       return {series:v.series||((isVlog?'Vlog ':'Video ')+(vi+1)),place:v.noi_chon||'',people,clips};
     });
@@ -1809,7 +1843,7 @@ async function dlVideoPack(){
       voice:{ngon_ngu:'Vietnamese',ma_ngon_ngu:'vi-VN',phong_cach:'',ghi_chu:'Video KHÔNG voiceover — nhạc + hành động; giữ mặt từ ảnh tham chiếu'},
       y_tuong_goc:(VID.idea||'Video thời trang biến hình thử đồ × tài năng, 6-8 quick-cut cinematic, chất iPhone thật, nhìn ống kính.'),
       anh_nhan_vat_nhung:!!portrait,anh_san_pham_nhung:products.some(p=>p.anh_base64)},
-    characters:[{id:'NV1',ten:S.persona.name||'NV chính',mo_ta:'Nhân vật chính — giữ khuôn mặt nhất quán từ ảnh tham chiếu.',upload_huong_dan:'Upload 1 ảnh nhân vật vào Flow → ingredients (giữ nguyên mọi shot)',xuat_hien_o:nvShots,prompt_anh:'',co_anh:!!portrait,anh_base64:portrait||''}],
+    characters:[{id:'NV1',ten:S.persona.name||'NV chính',mo_ta:'Nhân vật chính — giữ khuôn mặt nhất quán từ ảnh tham chiếu.',upload_huong_dan:'Upload 1 ảnh nhân vật vào Flow → ingredients (giữ nguyên mọi shot)',xuat_hien_o:nvShots,prompt_anh:(__museLock&&__museLock.character_lock_en)||'',style_lock:(__museLock&&__museLock.style_lock_en)||'',co_anh:!!portrait,anh_base64:portrait||''}],
     products:products,
     scenes:[],
     days:days
