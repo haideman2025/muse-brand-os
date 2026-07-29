@@ -587,16 +587,16 @@ const PHASES=[
 ];
 
 const STEP_LIST=[
- {id:"home",title:"⌂ Tổng quan",grp:"BẮT ĐẦU"},
+ {id:"home",title:"Tổng quan",grp:"KHỞI ĐẦU"},
  {id:"idea",title:"Tạo cuộc sống mới"},
  {id:"setup",title:"Thiết lập Gemini"},
- {id:"persona",title:"③ Hồ sơ nhân vật",grp:"NHÂN VẬT"},
- {id:"profile",title:"④ Chân dung & Digital Twin"},
- {id:"studio",title:"⑤ Studio ảnh",grp:"STUDIO"},
- {id:"intake",title:"⑥ Mục tiêu KD & chiến lược",grp:"THƯƠNG HIỆU"},
- ...PHASES.map(p=>({id:p.id,title:p.n+". "+p.title,grp:p.id==="brand"?"PIPELINE 5 GIAI ĐOẠN":""})),
- {id:"content",title:"⑦ Nội dung đa kênh",grp:"NỘI DUNG"},
- {id:"export",title:"Xuất toàn bộ file",grp:"XUẤT BẢN"}
+ {id:"persona",title:"Hồ sơ persona",grp:"NHÂN VẬT"},
+ {id:"profile",title:"Digital Twin"},
+ {id:"studio",title:"Studio ảnh",grp:"SẢN XUẤT"},
+ {id:"content",title:"Nội dung đa kênh"},
+ {id:"intake",title:"Mục tiêu & chiến lược",grp:"THƯƠNG HIỆU"},
+ ...PHASES.map(p=>({id:p.id,title:p.n+". "+p.title,grp:""})),
+ {id:"export",title:"Xuất bộ file",grp:"XUẤT BẢN"}
 ];
 
 /* ---------- GEMINI REST ---------- */
@@ -958,7 +958,7 @@ function renderHome(m){
 
 /* ---------- SETUP ---------- */
 function renderSetup(m){
-  m.innerHTML=`<h1>① Thiết lập Gemini API</h1>
+  m.innerHTML=`<h1>Thiết lập Gemini</h1>
   <p class="lead">App gọi thẳng Google Gemini từ trình duyệt. Key chỉ lưu cục bộ trên máy.</p>
   <div class="card">
     <label>Gemini API Key <span class="req">*</span></label>
@@ -982,7 +982,7 @@ async function testKey(){saveSetup();const r=document.getElementById('testRes');
 
 /* ---------- IDEA ---------- */
 function renderIdea(m){
-  m.innerHTML=`<h1>② Tạo cuộc sống mới</h1>
+  m.innerHTML=`<h1>Tạo cuộc sống mới</h1>
   <p class="lead">Nhanh nhất: <b>upload 1 ảnh, AI dựng hết</b>. Hoặc gõ ý tưởng thô.</p>
   <div class="card" style="border-color:#e05a9c"><div id="ideaUpload">
     <label>⚡ Upload → AI tự phân tích & phát triển</label>
@@ -1070,7 +1070,7 @@ function dnaCardHtml(){
     <textarea placeholder="VD: nốt ruồi cạnh môi, hình xăm nhỏ ở vai" oninput="if(!S.persona.dna)S.persona.dna={};S.persona.dna.customPhysicalDetails=this.value">${cd}</textarea></div>`;
 }
 function renderPersona(m){
-  let html=`<h1>③ Hồ sơ nhân vật</h1>
+  let html=`<h1>Hồ sơ persona</h1>
   <p class="lead">Chỉnh thông tin nhân vật. Có thể để AI hoàn thiện field còn trống.</p>
   <div class="bar"><button class="btn" id="aiPersona" onclick="aiCompletePersona()">✨ AI hoàn thiện persona</button>
     <span class="hint">Điền field trống, giữ phần bạn đã viết.</span></div>
@@ -1096,7 +1096,7 @@ async function aiCompletePersona(){
 /* ---------- PROFILE + DIGITAL TWIN ---------- */
 async function renderProfile(m){
   const p=S.persona;
-  m.innerHTML=`<h1>④ Chân dung &amp; Digital Twin</h1>
+  m.innerHTML=`<h1>Digital Twin</h1>
   <p class="lead">Cách 1: <b>Upload selfie → AI clone</b> thành nhân vật (giữ khuôn mặt nhất quán cho mọi ảnh sau). Cách 2: sinh khuôn mặt từ mô tả.</p>
   ${!personaOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy điền Tên &amp; Niche ở bước ③ trước.</div>':''}
   <div class="card"><div class="pf-grid">
@@ -1161,7 +1161,7 @@ async function useAsRef(id){const u=await mediaGet("g:"+id);if(u){await setRef(u
 function studioTab(t){S._studioTab=t;save();renderStudio(document.getElementById('main'));}
 function renderStudio(m){
   const t=S._studioTab||'photoshoot';
-  m.innerHTML=`<h1>⑤ Studio ảnh</h1>
+  m.innerHTML=`<h1>Studio ảnh</h1>
   <p class="lead">Sản xuất kho ảnh nhân vật: thử makeup/trang phục/pose/bối cảnh — giữ nguyên khuôn mặt Digital Twin.</p>
   ${!personaOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Cần nhân vật (bước ③) trước.</div>':''}
   ${!(S.persona&&(S.persona.hasRef||S.persona.publicDescription))?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Mẹo: tạo Digital Twin ở bước ④ (upload selfie) để mọi ảnh giữ cùng khuôn mặt.</div>':''}
@@ -1538,7 +1538,7 @@ function renderContentList(){
 }
 function renderContent(m){
   const ok=personaOK();
-  m.innerHTML=`<h1>⑦ Nội dung đa kênh</h1>
+  m.innerHTML=`<h1>Nội dung đa kênh</h1>
   <p class="lead">Từ mascot + DNA thương hiệu → bài viral cho nhiều kênh cùng lúc, đúng giọng nhân vật.</p>
   ${!ok?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Cần nhân vật (bước ③) trước.</div>':''}
   <div class="card">
@@ -1907,7 +1907,7 @@ async function dlVideoPack(){
 
 /* ---------- INTAKE ---------- */
 function renderIntake(m){
-  let html=`<h1>⑥ Mục tiêu KD &amp; chiến lược thương hiệu</h1>
+  let html=`<h1>Mục tiêu & chiến lược</h1>
   <p class="lead">Phần input quan trọng nhất. Có thể để AI gợi ý từ nhân vật.</p>
   <div class="bar"><button class="btn" id="aiIntake" onclick="aiIntakeFromPersona()">✨ AI gợi ý từ persona</button>
     <button class="btn ghost" onclick="saveIntake();downloadIntake()">⬇ Tải intake</button></div>
