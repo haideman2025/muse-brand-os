@@ -216,6 +216,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .lp-pipe .chip{background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:20px;padding:6px 12px;color:var(--txt)}
 .lp-pipe .arr{color:var(--acc);font-weight:800}
 .lp-foot{margin-top:48px;text-align:center}
+/* home dashboard */
+.home-hero{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.home-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.hpill{font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px}
+.qa{display:flex;flex-direction:column;gap:10px;padding:20px 18px;border-radius:18px;border:1px solid var(--line);background:var(--panel);color:var(--txt);cursor:pointer;text-align:left;min-height:112px;transition:.2s}
+.qa:hover{border-color:rgba(194,178,255,.4);background:var(--panel2)}
+@media(max-width:820px){.home-hero{grid-template-columns:1fr}.home-quick{grid-template-columns:1fr 1fr}}
 /* mobile chrome (phone-style app bar + bottom nav + drawer) */
 #mtop,#mnav,#mdrawerbg{display:none}
 .gpill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#6FE3D2;background:rgba(111,227,210,.12);padding:5px 10px;border-radius:20px;flex:0 0 auto}
@@ -289,7 +296,7 @@ function migrateWS(r){
     ageOk:!!g.ageOk,_studioTab:g._studioTab||"twin",theme:g.theme||"twilight",
     sound:(g.sound!==undefined?!!g.sound:true),music:(g.music!==undefined?!!g.music:true),
     showLanding:(g.showLanding!==undefined?!!g.showLanding:!g.apiKey),
-    activeId:id,characters:{[id]:ch},stage:g.stage||"setup"};
+    activeId:id,characters:{[id]:ch},stage:g.stage||"home"};
 }
 let S=migrateWS(JSON.parse(localStorage.getItem(LS)||"null"));
 function activeChar(){if(!S.characters[S.activeId])S.activeId=Object.keys(S.characters)[0];const c=S.characters[S.activeId];CHAR_FIELDS.forEach(k=>{const isArr=CHAR_ARRAY_FIELDS.indexOf(k)>=0;/* vá field thiếu, VÀ sửa luôn state cũ đã lưu sai kiểu ({} thay vì []) */if(c[k]==null||(isArr&&!Array.isArray(c[k])))c[k]=(k==='idea'?'':(isArr?[]:{}));});return c;}
@@ -580,8 +587,9 @@ const PHASES=[
 ];
 
 const STEP_LIST=[
- {id:"setup",title:"① Thiết lập Gemini",grp:"BẮT ĐẦU"},
- {id:"idea",title:"② Tạo cuộc sống mới"},
+ {id:"home",title:"⌂ Tổng quan",grp:"BẮT ĐẦU"},
+ {id:"idea",title:"Tạo cuộc sống mới"},
+ {id:"setup",title:"Thiết lập Gemini"},
  {id:"persona",title:"③ Hồ sơ nhân vật",grp:"NHÂN VẬT"},
  {id:"profile",title:"④ Chân dung & Digital Twin"},
  {id:"studio",title:"⑤ Studio ảnh",grp:"STUDIO"},
@@ -895,6 +903,7 @@ function renderSteps(){
 }
 function render(){
   renderCharBar();renderSkyBar();renderSoundBar();renderMobileChrome();renderSteps();const m=document.getElementById('main');const id=S.stage;
+  if(id==='home')return renderHome(m);
   if(id==='setup')return renderSetup(m);
   if(id==='idea')return renderIdea(m);
   if(id==='persona')return renderPersona(m);
@@ -904,6 +913,47 @@ function render(){
   if(id==='content')return renderContent(m);
   if(id==='export')return renderExport(m);
   renderPhase(m,PHASES.find(p=>p.id===id));
+}
+
+/* ---------- HOME (dashboard mặc định) ---------- */
+function renderHome(m){
+  const p=S.persona||{};
+  const nm=p.name||(activeChar()&&activeChar().name)||'Nhân vật của bạn';
+  const twinNeo=!!(p.hasRef||p.hasPortrait);
+  const brandN=(typeof PHASES!=='undefined'?PHASES.filter(x=>S.outputs&&S.outputs[x.id]).length:0);
+  const syncOn=!!(typeof syncCode==='function'&&syncCode());
+  const desc=[p.niche,p.vibe,p.age?p.age+' tuổi':''].filter(Boolean).join(' · ')||'Chưa có mô tả — bắt đầu ở "Tạo cuộc sống mới".';
+  const nextName=brandN>=5?'Xuất bộ file':(twinNeo?('Chạy tiếp pipeline'+(brandN?' · phase '+(brandN+1):' · phase 1')):'Tạo Digital Twin');
+  const nextGo=brandN>=5?"go('export')":(twinNeo?"go('brand')":"go('profile')");
+  m.innerHTML=`<h1>Xin chào 👋</h1>
+  <div class="lead" style="margin:5px 0 22px">Hôm nay dệt tiếp điều gì cho nhân vật của bạn?</div>
+  <div class="home-hero">
+    <div class="card" style="display:flex;gap:18px;align-items:center;padding:22px">
+      <div style="width:104px;height:130px;border-radius:16px;overflow:hidden;flex-shrink:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0 8px,rgba(255,255,255,.02) 8px 16px);border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mut2);font-family:monospace">
+        <img id="homePortrait" alt="" style="width:100%;height:100%;object-fit:cover;display:none">chân dung</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Playfair Display',serif;font-weight:600;font-size:25px">${esc(nm)}</div>
+        <div style="font-size:13.5px;color:var(--mut);margin-top:3px">${esc(desc)}</div>
+        <div style="display:flex;gap:7px;margin-top:12px;flex-wrap:wrap">
+          <span class="hpill" style="background:${twinNeo?'rgba(111,227,210,.14)':'rgba(255,255,255,.06)'};color:${twinNeo?'var(--ok)':'var(--mut2)'}">${twinNeo?'Twin đã neo':'Chưa có Twin'}</span>
+          <span class="hpill" style="background:rgba(242,193,78,.14);color:var(--gold)">Brand ${brandN}/5</span>
+          <span class="hpill" style="background:${syncOn?'rgba(124,156,255,.15)':'rgba(255,255,255,.06)'};color:${syncOn?'var(--blue)':'var(--mut2)'}">${syncOn?'☁ Sync bật':'☾ Offline'}</span>
+        </div>
+      </div>
+    </div>
+    <button onclick="${nextGo}" class="card" style="display:flex;flex-direction:column;justify-content:center;gap:10px;padding:22px;border:1px solid rgba(194,178,255,.3);background:rgba(142,123,255,.1);cursor:pointer;text-align:left">
+      <span style="width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,var(--a1),var(--a2));display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink)">▶</span>
+      <span><b style="font-size:15px;display:block">${esc(nextName)}</b><span style="font-size:12.5px;color:var(--mut)">Bước tiếp theo cho nhân vật</span></span>
+    </button>
+  </div>
+  <div style="font-size:11px;font-weight:700;letter-spacing:1.4px;color:var(--mut2);text-transform:uppercase;margin:26px 2px 12px">Bắt đầu nhanh</div>
+  <div class="home-quick">
+    <button class="qa" onclick="go('idea')"><span style="font-size:22px">✦</span><span><b style="font-size:14px;display:block">Ý tưởng mới</b><span style="font-size:12px;color:var(--mut)">AI dựng persona</span></span></button>
+    <button class="qa" onclick="go('studio')"><span style="font-size:22px">📷</span><span><b style="font-size:14px;display:block">Chụp ảnh</b><span style="font-size:12px;color:var(--mut)">Photoshoot AI</span></span></button>
+    <button class="qa" onclick="go('content')"><span style="font-size:22px">✎</span><span><b style="font-size:14px;display:block">Viết nội dung</b><span style="font-size:12px;color:var(--mut)">Hook đa kênh</span></span></button>
+    <button class="qa" onclick="go('brand')"><span style="font-size:22px">◆</span><span><b style="font-size:14px;display:block">Chiến lược</b><span style="font-size:12px;color:var(--mut)">Pipeline 5 phase</span></span></button>
+  </div>`;
+  if(typeof getRef==='function')getRef().then(u=>{const im=document.getElementById('homePortrait');if(im&&u){im.src=u;im.style.display='block';if(im.parentElement)im.parentElement.style.border='none';}}).catch(()=>{});
 }
 
 /* ---------- SETUP ---------- */
