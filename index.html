@@ -268,7 +268,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
    ========================================================= */
 const LS="muse_state_v1";
 const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content'];
-function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[]};}
+/* Field nào là MẢNG — nguồn sự thật duy nhất. Thêm field mảng mới vào CHAR_FIELDS thì PHẢI thêm vào đây,
+   nếu không activeChar() sẽ khởi tạo nó thành {} và mọi .push/.unshift/.filter sẽ nổ. */
+const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content'];
+function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[],content:[]};}
 let __migratedLegacy=false;
 /* Migration → workspace đa nhân vật (v2). Giữ settings toàn cục ở gốc; mỗi nhân vật 1 gói dna riêng. */
 function migrateWS(r){
@@ -286,7 +289,7 @@ function migrateWS(r){
     activeId:id,characters:{[id]:ch},stage:g.stage||"setup"};
 }
 let S=migrateWS(JSON.parse(localStorage.getItem(LS)||"null"));
-function activeChar(){if(!S.characters[S.activeId])S.activeId=Object.keys(S.characters)[0];const c=S.characters[S.activeId];CHAR_FIELDS.forEach(k=>{if(c[k]==null)c[k]=(k==='idea'?'':(k==='gallery'||k==='wardrobe'||k==='vlogLog'?[]:{}));});return c;}
+function activeChar(){if(!S.characters[S.activeId])S.activeId=Object.keys(S.characters)[0];const c=S.characters[S.activeId];CHAR_FIELDS.forEach(k=>{const isArr=CHAR_ARRAY_FIELDS.indexOf(k)>=0;/* vá field thiếu, VÀ sửa luôn state cũ đã lưu sai kiểu ({} thay vì []) */if(c[k]==null||(isArr&&!Array.isArray(c[k])))c[k]=(k==='idea'?'':(isArr?[]:{}));});return c;}
 /* S.persona / S.intake / S.outputs / S.scores / S.gallery / S.wardrobe / S.idea → trỏ vào nhân vật đang mở (non-enumerable: KHÔNG ghi trùng ra gốc localStorage). */
 CHAR_FIELDS.forEach(prop=>{Object.defineProperty(S,prop,{configurable:true,enumerable:false,
   get(){return activeChar()[prop];},set(v){activeChar()[prop]=v;}});});
