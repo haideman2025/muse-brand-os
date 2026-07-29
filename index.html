@@ -1557,6 +1557,10 @@ function renderVideo(b){
       <button class="btn" id="vidVlogPackBtn" onclick="genVlogPack()" ${personaOK()?'':'disabled'}>📹 Pack 10 vlog</button>
       <span class="hint" style="align-self:center">Vlog = đời thường chân thật, cảm xúc, từ dữ liệu nhân vật · mỗi vlog đủ ${Math.max(1,Math.round(VID.duration/10))} clip theo thời lượng đã chọn</span>
     </div>
+    <div class="bar" style="flex-wrap:wrap;margin-top:8px;border-top:1px solid var(--line,#2a3550);padding-top:12px">
+      <button class="btn gold" id="salesVidBtn" onclick="genSalesVideo()" ${personaOK()?'':'disabled'}>🛍️ Video bán hàng (không lời)</button>
+      <span class="hint" style="align-self:center">Tick ảnh <b>bộ SP</b> ở lưới trên (tạo ở tab 🛍️ Bộ ảnh SP) → video kể chuyện bán hàng theo mạch cảm xúc, chỉ hình ảnh + góc máy + nhân vật, không lời. Xuất flow-pack nhúng sẵn ảnh SP + khuôn mặt.</span>
+    </div>
     ${vlogLogPanelHTML()}
   </div>
   <div id="vidOut"></div>`;
@@ -1594,6 +1598,48 @@ function genVideoClips(){
   }
   __vidVideos=[{series:'Biến hình thời trang × '+talents.map(t=>t[1]).join(', '),clips}];
   renderVideoOut();
+}
+/* ==================== VIDEO BÁN HÀNG KHÔNG LỜI (từ bộ ảnh SP + nhân vật) ==================== */
+const SALES_ARC=[
+  {t:'HOOK',m:'a slow cinematic push-in on the woman in a quiet, emotional moment of longing or curiosity; the product subtly hinted in the frame',cam:'slow dolly push-in, shallow focus'},
+  {t:'DISCOVERY',m:'she notices and picks up the product for the first time, eyes lighting up; a smooth rack-focus reveals the product',cam:'rack focus + gentle handheld reveal'},
+  {t:'PRODUCT HERO',m:'a gorgeous slow-motion beauty shot of the product in her hands, rotating to catch the light; a macro insert of its finest detail',cam:'slow orbit + macro insert, high-end product cinematography'},
+  {t:'IN USE',m:'she confidently uses, wears or applies the product, natural and delighted, in an aspirational setting',cam:'dynamic tracking shot following her movement'},
+  {t:'BENEFIT',m:'a radiant close-up capturing the emotional payoff and satisfaction the product brings',cam:'intimate close-up, soft glow'},
+  {t:'CTA',m:'she presents the product to camera with an inviting, confident smile; a final clean hero frame of the product',cam:'push-in to a clean hero end-frame'}
+];
+function pickBeats(n){
+  if(n>=SALES_ARC.length)return SALES_ARC.slice();
+  if(n<=1)return [SALES_ARC[2]];
+  const out=[SALES_ARC[0]];const mid=SALES_ARC.slice(1,SALES_ARC.length-1);const need=n-2;
+  for(let i=0;i<need;i++)out.push(mid[Math.floor(i*mid.length/need)]);
+  out.push(SALES_ARC[SALES_ARC.length-1]);return out;
+}
+function salesClipPrompt(beat,i,total,outfitName){
+  const cont=i>0?' Continues smoothly from the previous clip — the same woman, the same product, the story progressing.':'';
+  const outfit=outfitName?` She is wearing ${outfitName}.`:'';
+  return `Vertical 9:16 cinematic product SALES film, about 10 seconds, NO voiceover and NO talking — pure visual storytelling that sells.`
+    +` ${beat.t}: ${beat.m}.${outfit}${cont}`
+    +` Featuring the EXACT product and the EXACT same woman defined by the provided reference images — do not alter her face; reproduce the product's shape, color, materials and any label/text exactly.`
+    +` Camera & editing: ${beat.cam}; EXACTLY 6-8 quick cuts within the 10 seconds cut ON the music beat, a scroll-stopping hook in the very first second, every second a fresh angle/motion/product micro-payoff, macro inserts of the product, silky match-cut and morph transitions, high-retention momentum — no dead frames.`
+    +` Look: premium commercial e-commerce film, soft cinematic color grade, flattering light, emotionally compelling and aspirational to drive purchase.`
+    +` Realism: shot on an iPhone 15 Pro, natural handheld motion, true-to-life skin and product texture, subtle film grain — photorealistic, NOT plastic, NOT a 3D render, NOT airbrushed.`
+    +` Audio: emotive trending music only, NO voiceover. Tasteful and platform-safe. No text overlay, no watermark, no real or famous person.`;
+}
+function genSalesVideo(){
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  const items=vidOutfitItems();
+  const picked=VID.outfits.map(k=>items.find(x=>x.key===k)).filter(Boolean);
+  const n=Math.max(1,Math.round(VID.duration/10));
+  const beats=pickBeats(n);
+  const prodName=(PSET&&PSET.det&&PSET.det.name)?PSET.det.name:'sản phẩm';
+  const clips=beats.map((beat,i)=>{
+    const ref=picked.length?picked[i%picked.length]:{name:'Look mặc định',imgKey:null};
+    return {seq:i+1,prompt:salesClipPrompt(beat,i,n,picked.length?ref.name:''),outfit:ref,audio:'emotive trending music (no voiceover)',talentLabel:'Bán hàng · '+beat.t,overlayText:''};
+  });
+  __vidVideos=[{series:'Video bán hàng · '+prodName,clips}];
+  renderVideoOut();
+  toast(picked.length?('✓ Đã dựng video bán hàng ('+n+' clip)'):'Mẹo: tick ảnh bộ SP ở lưới để Flow giữ đúng sản phẩm');
 }
 /* ---- AI sáng tạo + Pack 10 ---- */
 function videoGenPrompt(idea,talentNames,nVideos,clipsPerVideo){
