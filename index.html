@@ -267,7 +267,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
    Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
-const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog'];
+const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content'];
 function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[]};}
 let __migratedLegacy=false;
 /* Migration → workspace đa nhân vật (v2). Giữ settings toàn cục ở gốc; mỗi nhân vật 1 gói dna riêng. */
@@ -581,6 +581,7 @@ const STEP_LIST=[
  {id:"studio",title:"⑤ Studio ảnh",grp:"STUDIO"},
  {id:"intake",title:"⑥ Mục tiêu KD & chiến lược",grp:"THƯƠNG HIỆU"},
  ...PHASES.map(p=>({id:p.id,title:p.n+". "+p.title,grp:p.id==="brand"?"PIPELINE 5 GIAI ĐOẠN":""})),
+ {id:"content",title:"⑦ Nội dung đa kênh",grp:"NỘI DUNG"},
  {id:"export",title:"Xuất toàn bộ file",grp:"XUẤT BẢN"}
 ];
 
@@ -894,6 +895,7 @@ function render(){
   if(id==='profile')return renderProfile(m);
   if(id==='studio')return renderStudio(m);
   if(id==='intake')return renderIntake(m);
+  if(id==='content')return renderContent(m);
   if(id==='export')return renderExport(m);
   renderPhase(m,PHASES.find(p=>p.id===id));
 }
@@ -1406,6 +1408,96 @@ async function runProductSet(){
   if(b){b.disabled=false;b.innerHTML='✨ Tạo bộ 10 ảnh';}
   if(typeof renderSteps==='function')renderSteps();
   const dl=document.createElement('div');dl.className='bar';dl.style.gridColumn='1/-1';dl.innerHTML='<button class="btn ghost" onclick="dlGalleryAll()">⬇ Tải tất cả ảnh trong Thư viện</button>';out.appendChild(dl);
+}
+
+/* ==================== ⑦ NỘI DUNG ĐA KÊNH (mascot + DNA → viral 7 kênh; học Clone Your Mind) ==================== */
+const CH_PLATFORMS=[
+  {key:'fb',label:'Facebook',lim:0,def:true,spec:'"fb": Bài Facebook dài hoàn chỉnh — hook mạnh dòng đầu, kể chuyện liền mạch theo GIỌNG NHÂN VẬT, kết bằng câu hỏi 2 lựa chọn, 5-7 hashtag cuối. KHÔNG emoji. Chỉ trả nội dung bài.'},
+  {key:'tiktok',label:'TikTok / Reels',lim:2200,def:true,spec:'"tiktok": 2 phần trong 1 chuỗi: "TIÊU ĐỀ:" (hook giật 3 giây, ≤100 ký tự) rồi "CAPTION:" (<500 ký tự, 3-5 hashtag).'},
+  {key:'instagram',label:'Instagram',lim:2200,def:true,spec:'"instagram": caption mở bằng hook, thân ngắn có line break dễ đọc, kết CTA nhẹ, 8-15 hashtag cuối. <2200 ký tự.'},
+  {key:'threads',label:'Threads',lim:500,spec:'"threads": post ngắn giọng đời thường sắc; ý dài thì tách 2-3 post đánh dấu "(1/3)"... mỗi post <500 ký tự, 1-2 hashtag.'},
+  {key:'linkedin',label:'LinkedIn',lim:3000,spec:'"linkedin": giọng professional nhưng giữ chất nhân vật — mở bằng insight/nghịch lý, luận điểm gọn, kết câu hỏi mở, tối đa 3 hashtag chuyên môn. <3000 ký tự.'},
+  {key:'youtube',label:'YouTube Shorts',lim:0,spec:'"youtube": kịch bản Shorts ~45-60s: VOICE-OVER theo mốc [0-Xs] + TEXT OVERLAY (từ khóa viết HOA) + GỢI Ý CẢNH QUAY. Hook 3 giây đầu.'},
+  {key:'comment',label:'Comment CTA',lim:0,spec:'"comment": 2-3 mẫu comment ghim đi link (thân tình, CTA rõ, có [Chèn link] nếu chưa có). Đánh số Mẫu 1/2/3.'}
+];
+const CC={angles:[],topic:''};
+function contentDNA(){
+  let s=personaContext();
+  const it=intakeContext();if(it&&it.trim())s+=it+"\n";
+  const brand=S.outputs&&S.outputs.brand;if(brand)s+="\nBRAND DNA / CHIẾN LƯỢC (giữ nhất quán):\n"+JSON.stringify(brand).slice(0,1500)+"\n";
+  const bk=S.outputs&&S.outputs.brandkit;if(bk&&bk.brand)s+="\nTHƯƠNG HIỆU: "+JSON.stringify(bk.brand).slice(0,600)+"\n";
+  s+="\n"+COMPLY+"\n";
+  return s;
+}
+async function ccViralAngles(){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  const t=val('cc_topic').trim();CC.topic=t;
+  const er=document.getElementById('ccErr');if(er)er.style.display='none';
+  const b=document.getElementById('ccAngleBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> ...';}
+  try{
+    const prompt=contentDNA()+`\nNHIỆM VỤ: Đề xuất 6 GÓC VIRAL khác nhau${t?' cho chủ đề: "'+t+'"':' hợp với nhân vật & thương hiệu này'}. Mỗi góc = 1 hook/insight sắc, khơi cảm xúc, khác biệt rõ. Tiếng Việt, ngắn gọn.\nTrả DUY NHẤT JSON: {"angles":["...","...","...","...","...","..."]}`;
+    const o=parseJSON(await geminiText(prompt,true));CC.angles=(o.angles||[]).slice(0,8);renderContent(document.getElementById('main'));toast('Đã gợi ý góc viral');
+  }catch(e){if(er){er.style.display='block';er.textContent=e.message;}}
+  finally{if(b){b.disabled=false;b.innerHTML='✨ AI gợi ý góc viral';}}
+}
+async function ccGenerate(){
+  const topic=val('cc_topic').trim();CC.topic=topic;
+  const chans=CH_PLATFORMS.filter(p=>{const el=document.getElementById('cc_ch_'+p.key);return el&&el.checked;});
+  if(!topic){toast('Nhập chủ đề/góc đã');return;}
+  if(!chans.length){toast('Chọn ít nhất 1 kênh');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const er=document.getElementById('ccErr');if(er)er.style.display='none';
+  const b=document.getElementById('ccGenBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang viết...';}
+  try{
+    const specs=chans.map(c=>c.spec).join('\n');
+    const keys=chans.map(c=>c.key).join(', ');
+    const prompt=contentDNA()+`\nNHIỆM VỤ: Viết nội dung social VIRAL theo ĐÚNG giọng & góc nhìn nhân vật cho chủ đề/góc: "${topic}".\nSinh cho các kênh: ${keys}. Mỗi kênh 1 key JSON đúng spec:\n${specs}\nMọi nội dung phải nhất quán DNA & tuân thủ ràng buộc trên. Trả DUY NHẤT JSON gồm đúng các key: {${chans.map(c=>'"'+c.key+'":"..."').join(',')}}`;
+    const o=parseJSON(await geminiText(prompt,true));
+    const set={id:uid(),topic:topic,ts:Date.now(),outputs:o,chans:chans.map(c=>c.key)};
+    S.content=S.content||[];S.content.unshift(set);if(S.content.length>50)S.content=S.content.slice(0,50);save();
+    renderContent(document.getElementById('main'));toast('✓ Đã tạo nội dung đa kênh');
+  }catch(e){if(er){er.style.display='block';er.textContent=e.message;}}
+  finally{if(b){b.disabled=false;b.innerHTML='📝 Tạo nội dung đa kênh';}}
+}
+function ccCopy(id,k){const set=(S.content||[]).find(s=>s.id===id);if(!set)return;const t=String((set.outputs||{})[k]||'');if(navigator.clipboard)navigator.clipboard.writeText(t);toast('Đã copy '+k);}
+function ccDel(id){S.content=(S.content||[]).filter(s=>s.id!==id);save();renderContent(document.getElementById('main'));}
+function renderContentList(){
+  const list=S.content||[];if(!list.length)return '<div class="note" style="text-align:center;opacity:.6;margin-top:14px">Chưa có nội dung — nhập chủ đề rồi bấm Tạo.</div>';
+  return list.map(set=>{
+    const chans=(set.chans&&set.chans.length)?set.chans:Object.keys(set.outputs||{});
+    return `<div class="card" style="margin-top:14px">
+      <div style="font-weight:700;color:var(--gold)">📝 ${esc(set.topic||'(không tên)')}<button class="btn ghost sm" style="float:right" onclick="ccDel('${set.id}')">🗑 Xoá</button></div>
+      ${chans.map(k=>{const meta=CH_PLATFORMS.find(p=>p.key===k)||{label:k,lim:0};const txt=String((set.outputs||{})[k]||'');const over=meta.lim&&txt.length>meta.lim;
+        return `<div style="border:1px solid var(--line,#2a3550);border-radius:8px;padding:10px;margin-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(meta.label)}</b>
+            <span style="font-size:11px;${over?'color:var(--coral)':'opacity:.55'}">${txt.length}${meta.lim?'/'+meta.lim:''} ký tự</span></div>
+          <div style="white-space:pre-wrap;font-size:13px;margin-top:6px;line-height:1.5">${esc(txt)}</div>
+          <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="ccCopy('${set.id}','${k}')">📋 Copy</button>
+            <button class="btn ghost sm" disabled title="Cần cấu hình Zernio API — sắp có">📤 Publish (Zernio) · sắp có</button></div>
+        </div>`;}).join('')}
+    </div>`;
+  }).join('');
+}
+function renderContent(m){
+  const ok=personaOK();
+  m.innerHTML=`<h1>⑦ Nội dung đa kênh</h1>
+  <p class="lead">Từ mascot + DNA thương hiệu → bài viral cho nhiều kênh cùng lúc, đúng giọng nhân vật.</p>
+  ${!ok?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Cần nhân vật (bước ③) trước.</div>':''}
+  <div class="card">
+    <label>Chủ đề / góc nội dung</label>
+    <textarea id="cc_topic" style="min-height:70px" placeholder="VD: vì sao đốt tiền quảng cáo mà vẫn không ai nhớ thương hiệu">${esc(CC.topic||'')}</textarea>
+    <div class="bar" style="margin-top:6px"><button class="btn gold sm" id="ccAngleBtn" onclick="ccViralAngles()">✨ AI gợi ý góc viral</button></div>
+    ${CC.angles&&CC.angles.length?`<label style="margin-top:8px">Chọn 1 góc</label><div>${CC.angles.map(a=>`<span class="chip" onclick="document.getElementById('cc_topic').value=${JSON.stringify(a).replace(/"/g,'&quot;')};CC.topic=${JSON.stringify(a).replace(/"/g,'&quot;')};toast('Đã chọn góc')">${esc(String(a).slice(0,90))}</span>`).join(' ')}</div>`:''}
+    <label style="margin-top:12px">Kênh</label>
+    <div>${CH_PLATFORMS.map(p=>`<label class="chip" style="cursor:pointer;display:inline-flex;align-items:center"><input type="checkbox" id="cc_ch_${p.key}" ${p.def?'checked':''} style="width:auto;margin-right:6px">${esc(p.label)}</label>`).join(' ')}</div>
+    <div class="bar" style="margin-top:12px"><button class="btn" id="ccGenBtn" onclick="ccGenerate()" ${ok?'':'disabled'}>📝 Tạo nội dung đa kênh</button></div>
+    <div class="err" id="ccErr"></div>
+  </div>
+  <div id="ccList">${renderContentList()}</div>
+  <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('intake')">← Chiến lược</button><button class="btn blue" onclick="go('export')">Tiếp: Xuất bản →</button></div>`;
+  const tb=document.getElementById('cc_topic');if(tb)tb.addEventListener('input',()=>{CC.topic=tb.value;});
 }
 
 /* --- 🎬 VIDEO OMNI (bộ prompt cho Google Flow — biến hình × tài năng) --- */
