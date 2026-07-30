@@ -1610,17 +1610,16 @@ function renderVideo(b){
     <h2>🎬 Bộ prompt Video Omni (Google Flow)</h2>
     <p class="hint" style="margin-top:2px"><b>Biến hình thử đồ × tài năng</b> → prompt EN + ảnh cần chọn trong Flow. Chủ thể để <b>chung chung "cô gái"</b> (né policy người-nổi-tiếng — ảnh tham chiếu lo nhận diện) + <b>chất iPhone thật</b> (hết nhựa) + <b>6-8 quick-cut/10s theo nhịp + hook giữ chân từng giây</b>.</p>
     ${!hasRef?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④) để mọi clip giữ cùng khuôn mặt.</div>':'<div class="hint" style="margin:4px 0">🔒 Khi sinh video, AI tự đọc ảnh neo → khoá CHARACTER + STYLE và chèn nguyên văn vào mọi clip (giữ nhân vật/phong cách nhất quán xuyên video, đổ vào flow-pack).</div>'}
-    <label>💡 Ý tưởng khởi tạo (cho AI sáng tạo)</label>
-    <textarea id="vid_idea" rows="2" placeholder="VD: cô nàng gothic quyền lực thử loạt đầm haute couture trong lâu đài, chơi đàn + catwalk...">${esc(VID.idea||'')}</textarea>
-    <label style="margin-top:10px">Tài năng (chọn nhiều)</label>
+    <label>💡 Ý tưởng phim — nhân vật diễn bất kỳ câu chuyện nào (AI sáng tạo)</label>
+    <textarea id="vid_idea" rows="2" placeholder="VD: cô nàng cướp biển đối đầu kẻ thù trên boong tàu lúc bình minh · nữ điệp viên phá kho báu trong bảo tàng · cô gái lạc vào thế giới thần tiên...">${esc(VID.idea||'')}</textarea>
+    <div class="hint" style="margin:4px 0">Nhập ý tưởng phim bất kỳ (mọi thể loại) → AI dựng thành thước phim cuốn cho nhân vật của bạn. Để trống thì AI tự sáng tạo concept.</div>
+    <label style="margin-top:10px">Tài năng / diễn xuất đặc biệt <span style="color:var(--mut2);font-weight:400">(tuỳ chọn — để trống thì AI tự sáng tạo hợp ý tưởng)</span></label>
     <div>${VID_TALENTS.map(t=>`<span class="chip" style="${VID.talents.includes(t[0])?'border-color:var(--gold);color:var(--gold)':''}" onclick="vidTalent('${t[0]}')">${VID.talents.includes(t[0])?'✓ ':''}${t[1]}</span>`).join('')}</div>
-    <input id="vid_custom" value="${esc(VID.custom)}" placeholder="Tài năng khác (tự nhập)" style="margin-top:8px">
+    <input id="vid_custom" value="${esc(VID.custom)}" placeholder="Tài năng / hành động khác (tự nhập, cách nhau dấu phẩy): kiếm đạo, bắn cung, lái mô tô, ma thuật..." style="margin-top:8px">
     <div class="row" style="margin-top:10px">
       <div><label>Thời lượng → số clip 10s</label><select id="vid_dur" onchange="VID.duration=parseInt(this.value)">
-        <option value="10" ${VID.duration==10?'selected':''}>10s · 1 clip</option>
-        <option value="20" ${VID.duration==20?'selected':''}>20s · 2 clip</option>
-        <option value="30" ${VID.duration==30?'selected':''}>30s · 3 clip</option>
-        <option value="60" ${VID.duration==60?'selected':''}>60s · 6 clip (vlog dài)</option></select></div>
+        ${[10,20,30,40,50,60,80,100,120].map(s=>`<option value="${s}" ${VID.duration==s?'selected':''}>${s}s · ${s/10} clip${s>=60?(s>=100?' (phim dài)':' (dài)'):''}</option>`).join('')}
+      </select></div>
       <div><label>Đã chọn</label><input value="${VID.talents.length} tài năng · ${VID.outfits.length} outfit" readonly></div>
     </div>
     <label style="margin-top:12px">👗 Tủ đồ / thư viện — tick outfit biến hình (theo thứ tự)</label>
@@ -1630,7 +1629,7 @@ function renderVideo(b){
       :'<div class="hint">Chưa có ảnh outfit (không bắt buộc — sinh với look mặc định vẫn được).</div>'}
     <div class="bar" style="flex-wrap:wrap">
       <button class="btn blue" onclick="genVideoClips()" ${personaOK()?'':'disabled'}>🎬 Sinh từ outfit</button>
-      <button class="btn gold" id="vidAiBtn" onclick="genVideoAI()" ${personaOK()?'':'disabled'}>✨ AI sáng tạo (từ ý tưởng)</button>
+      <button class="btn gold" id="vidAiBtn" onclick="genVideoAI()" ${personaOK()?'':'disabled'}>🎬 Dựng phim từ ý tưởng</button>
       <button class="btn" id="vidPackBtn" onclick="genVideoPack()" ${personaOK()?'':'disabled'}>🎁 Pack 10 video</button>
     </div>
     <div class="bar" style="flex-wrap:wrap;margin-top:6px">
@@ -1757,22 +1756,24 @@ async function genSalesVideo(){
 }
 /* ---- AI sáng tạo + Pack 10 ---- */
 function videoGenPrompt(idea,talentNames,nVideos,clipsPerVideo){
-  return `Bạn là ĐẠO DIỄN video ngắn viral TikTok cho Google Flow (Omni). Sáng tạo ${nVideos} concept VIDEO thời trang biến hình KHÁC NHAU${clipsPerVideo>1?(' (mỗi video '+clipsPerVideo+' clip 10s nối nhau)'):' (mỗi video 1 clip 10s)'} — mỗi video 1 hook riêng, cuốn hút, khác concept/bối cảnh.
-Ý TƯỞNG GỐC: "${idea||'thời trang biến hình thử đồ, tài năng, trending TikTok'}". Tài năng: ${talentNames||'catwalk, nhảy trending, tạo dáng biểu cảm'}.
-MỖI clip = 1 prompt TIẾNG ANH cho Omni, theo CÔNG THỨC AN TOÀN (tránh 100% policy — đã kiểm chứng qua hàng trăm video):
-- Chủ thể CHUNG CHUNG "a stylish young woman" — TUYỆT ĐỐI KHÔNG mô tả khuôn mặt, KHÔNG "real/famous person", KHÔNG "reference image", KHÔNG tên riêng.
-- KHÔNG dùng từ lingerie/underwear/sleepwear/sexual/nude — chỉ "elegant outfit / outfit-change transformation".
-- BẮT BUỘC có: biến hình thử đồ, hiệu ứng điện ảnh, chuyển cảnh mượt, tài năng (${talentNames||'catwalk/nhảy'}), EXACTLY 6-8 quick cuts trong 10s cắt theo nhịp nhạc, đổi góc máy, nhìn ống kính cuốn hút, HOOK giây đầu + giữ chân từng giây (no dead frames).
-- Chất máy quay THẬT: shot on iPhone, natural real skin with pores, subtle film grain, NOT plastic/CGI/over-sharpened.
-- Vertical 9:16, ~10s, no voiceover (nhạc + hành động).
-Trả DUY NHẤT JSON mảng ${nVideos} phần tử: [{"series":"tên video ngắn tiếng Việt","clips":[{"prompt_en":"prompt tiếng Anh đầy đủ","audio":"english music/sound","talent":"tài năng tiếng Việt"}]}]`;
+  const hasIdea=(idea||'').trim();const hasTal=(talentNames||'').trim();
+  return `Bạn là ĐẠO DIỄN điện ảnh cho video ngắn dọc (Google Flow / Omni). Từ Ý TƯỞNG của người dùng, biến nhân vật thành DIỄN VIÊN CHÍNH trong một thước phim hấp dẫn — BẤT KỲ thể loại nào (hành động, tình cảm, phiêu lưu, cổ trang, viễn tưởng, kinh dị nhẹ, đời thường, kịch tính, hài...). Sáng tạo ${nVideos} concept VIDEO KHÁC NHAU${clipsPerVideo>1?(' (mỗi video '+clipsPerVideo+' clip 10s nối nhau thành 1 mạch phim liền)'):' (mỗi video 1 clip 10s)'} — mỗi video 1 hook riêng, cuốn hút, khác bối cảnh/diễn biến.
+Ý TƯỞNG GỐC: "${hasIdea||'(người dùng để trống — TỰ sáng tạo một concept phim ngắn thật cuốn cho nhân vật)'}".
+${hasTal?('TÀI NĂNG / hành động ĐẶC BIỆT muốn nhân vật thể hiện (lồng vào phim thật tự nhiên, đúng mạch): '+talentNames+'.'):'Người dùng KHÔNG chỉ định tài năng — TỰ nghĩ ra diễn xuất, hành động, kỹ năng phù hợp nhất với ý tưởng để phim cuốn nhất.'}
+MỖI clip = 1 prompt TIẾNG ANH cho Omni, theo NGUYÊN TẮC AN TOÀN + CHẤT LƯỢNG:
+- Chủ thể CHUNG CHUNG "a stylish young woman" — KHÔNG mô tả khuôn mặt, KHÔNG "real/famous person", KHÔNG tên riêng (danh tính do ảnh tham chiếu + CHARACTER LOCK lo, hệ thống chèn sau).
+- BÁM SÁT Ý TƯỞNG: dựng bối cảnh, hành động, cảm xúc, đạo cụ, trang phục HỢP với thể loại phim — KHÔNG ép "biến hình thử đồ" trừ khi ý tưởng đúng là về thời trang.
+- Điện ảnh: EXACTLY 6-8 quick cuts trong 10s cắt theo nhịp nhạc, góc máy đa dạng, chuyển cảnh mượt, HOOK giây đầu + giữ chân từng giây (no dead frames), khung hình đẹp cuốn.
+- Chất máy quay THẬT: shot on iPhone / cinematic, natural real skin with pores, subtle film grain, NOT plastic/CGI/over-sharpened.
+- Vertical 9:16, ~10s/clip, no voiceover (nhạc + hành động + hình ảnh kể chuyện). An toàn nền tảng, tinh tế, KHÔNG nội dung nhạy cảm.
+Trả DUY NHẤT JSON mảng ${nVideos} phần tử: [{"series":"tên phim ngắn tiếng Việt","clips":[{"prompt_en":"prompt tiếng Anh đầy đủ, giàu hình ảnh, đúng thể loại","audio":"english music/sound hợp thể loại","talent":"hành động/diễn xuất chính tiếng Việt"}]}]`;
 }
 function aiPromptSafe(p){
   p=(p||'').trim();
-  const guard=' Vertical 9:16, about 10s, trending TikTok. Subject is a generic stylish young woman — NO face description, NO real or famous person, NO reference-image mention. EXACTLY 6-8 quick cuts on the music beat, a hook in the very first second, a fresh angle or motion every second, no dead frames. Shot on an iPhone, natural real skin with pores and subtle film grain — NOT plastic, NOT CGI, NOT over-sharpened, NOT airbrushed. Elegant outfit-change transformation, platform-safe and tasteful, no voiceover.';
-  return (p||'A stylish young woman does a cinematic fashion transformation trying on an elegant outfit, catwalk and playful posing.')+guard;
+  const guard=' Vertical 9:16, about 10s, no voiceover. Subject is a generic stylish young woman — NO face description, NO real or famous person, NO reference-image mention. EXACTLY 6-8 quick cuts on the music beat, a hook in the very first second, a fresh angle or motion every second, no dead frames, cinematic and captivating. Shot on an iPhone / cinematic camera, natural real skin with pores and subtle film grain — NOT plastic, NOT CGI, NOT over-sharpened, NOT airbrushed. Platform-safe and tasteful, no sensitive content.';
+  return (p||'A stylish young woman as the lead in a captivating cinematic short, dynamic camera work and expressive acting.')+guard;
 }
-async function genVideoAI(){await runAIVideos(1,Math.max(1,Math.round(VID.duration/10)),'vidAiBtn','✨ AI sáng tạo (từ ý tưởng)','fashion');}
+async function genVideoAI(){await runAIVideos(1,Math.max(1,Math.round(VID.duration/10)),'vidAiBtn','🎬 Dựng phim từ ý tưởng','fashion');}
 async function genVideoPack(){await runAIVideos(10,Math.max(1,Math.round(VID.duration/10)),'vidPackBtn','🎁 Pack 10 video','fashion');}
 async function genVlog(){await runAIVideos(1,Math.max(1,Math.round(VID.duration/10)),'vidVlogBtn','📹 Vlog liền mạch','vlog');}
 async function genVlogPack(){await runAIVideos(10,Math.max(1,Math.round(VID.duration/10)),'vidVlogPackBtn','📹 Pack 10 vlog','vlog');}
