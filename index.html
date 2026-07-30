@@ -243,6 +243,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .badge18{font-size:10px;font-weight:800;color:#E68AA0;border:1px solid rgba(230,138,160,.5);border-radius:20px;padding:1px 7px;vertical-align:middle;font-family:'Plus Jakarta Sans',sans-serif}
 .dna-meta{font-size:11px;color:var(--mut);font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;flex-shrink:0}
 .dna-arrow{color:var(--mut2);margin-left:2px}
+.libchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 /* redesigned shell — sidebar + icon nav + character card */
 aside{display:flex;flex-direction:column;gap:13px}
 .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
@@ -796,6 +797,23 @@ const BG_LIB=[['Penthouse đêm','a luxurious penthouse with floor-to-ceiling wi
 const OUTFIT_LIB=[['Đầm dạ hội','an elegant floor-length sequined evening gown'],['Đồ công sở','a sharp tailored pantsuit with a silk blouse'],['Streetwear','oversized jacket, crop top, baggy jeans and chunky sneakers'],['Đồ da edgy','a black leather jacket, leather pants and combat boots'],['Bohemian','a boho maxi skirt, crochet top and layered jewelry'],['Đầm cocktail','a sophisticated little black cocktail dress'],['Váy hè hoa','a light flowy floral sundress'],['Cutout dạ hội','a high-fashion gown with dramatic cutouts and sheer panels'],['Latex couture','a glossy latex haute-couture bodysuit, editorial'],['Kimono','a traditional Japanese kimono with intricate patterns'],['Nữ thần fantasy','ornate goddess armor with flowing fabric and metallic accents'],['Áo len oversize','a cozy oversized knit sweater, autumn vibe']];
 const COSPLAY_LIB=[['Sailor Moon','cosplaying as Sailor Moon in the white-blue-red sailor fuku with a golden tiara'],['2B Nier','cosplaying as 2B from Nier Automata, elegant black gothic dress with a blindfold'],['Tifa FF7','cosplaying as Tifa Lockhart, white crop top, black miniskirt and red boots'],['Raiden Shogun','cosplaying as the Raiden Shogun from Genshin Impact, ornate purple kimono, long braid'],['Zelda BOTW','cosplaying as Princess Zelda, royal blue and gold champion tunic'],['Hatsune Miku','cosplaying as Hatsune Miku with turquoise twintails and a futuristic idol outfit'],['Elf công chúa','an elegant elf princess in a sheer layered gown with a jewelled bodice and pointed ears'],['Chiến binh gothic','a gothic warrior in ornate dark armor with a flowing cape']];
 function studioChips(arr,inputId){return arr.map(function(o){return `<span class="chip" onclick="var e=document.getElementById('${inputId}');e.value=${JSON.stringify(o[1]).replace(/"/g,'&quot;')};toast('Đã chọn: ${o[0].replace(/'/g,"\\'")}')">${esc(o[0])}</span>`;}).join(' ');}
+const MAKEUP_LIB=[['Natural glam','natural glam makeup, dewy skin, soft nude lips'],['Dewy trong trẻo','fresh dewy no-makeup look, glowing skin, light flush'],['Smoky tối','smoky eye makeup, defined lashes, matte nude lips'],['Đỏ classic','classic red lips, clean base, subtle winged liner'],['Y2K nhũ','y2k glittery eyeshadow, glossy lips, frosted highlight'],['Ngọt Hàn Quốc','korean gradient lips, straight brows, soft pink blush'],['Editorial đậm','bold editorial makeup, graphic liner, striking color'],['No-makeup','barely-there makeup, natural brows, tinted lip balm']];
+const PS_LIBS={
+  makeup:{t:'💄 Thư viện Makeup',field:'ps_makeup',get items(){return MAKEUP_LIB;}},
+  outfit:{t:'👗 Trang phục & Cosplay',field:'ps_outfit',get items(){return OUTFIT_LIB.concat(COSPLAY_LIB);}},
+  pose:{t:'💃 Thư viện Pose',field:'ps_pose',get items(){return POSE_LIB;}},
+  bg:{t:'🏙️ Thư viện Bối cảnh',field:'ps_background',get items(){return BG_LIB;}}
+};
+function openLibSheet(kind){
+  const cfg=PS_LIBS[kind];if(!cfg)return;
+  const chips=cfg.items.map((o,i)=>`<span class="chip" onclick="pickLib('${kind}',${i})">${esc(o[0])}</span>`).join(' ');
+  const el=document.createElement('div');el.className='overlay';el.id='libSheet';
+  el.onclick=e=>{if(e.target===el)closeLibSheet();};
+  el.innerHTML=`<div class="ovbox"><div class="bar" style="justify-content:space-between;margin-top:0;align-items:center"><h2 style="margin:0">${cfg.t}</h2><button class="btn ghost sm" onclick="closeLibSheet()">✕</button></div><div class="libchips">${chips}</div></div>`;
+  document.body.appendChild(el);
+}
+function pickLib(kind,i){const cfg=PS_LIBS[kind];if(!cfg)return;const o=cfg.items[i];const e=document.getElementById(cfg.field);if(e)e.value=o[1];closeLibSheet();toast('Đã chọn: '+o[0]);}
+function closeLibSheet(){const d=document.getElementById('libSheet');if(d)d.remove();}
 function dnaDesc(){
   const p=S.persona,d=(p&&p.dna)||{},parts=[];
   if(d.ethnicity)parts.push(dnaLabel('ethnicity',d.ethnicity));
@@ -1277,10 +1295,13 @@ function renderPhotoshoot(b){
       <div><label>Số ảnh</label><select id="ps_shots"><option value="1" ${PS.shots==1?'selected':''}>1 ảnh</option><option value="4" ${PS.shots==4?'selected':''}>4 góc máy</option></select></div>
     </div>
     ${S.wardrobe.length?`<label>Hoặc chọn nhanh từ Tủ đồ</label><div>${S.wardrobe.map(w=>`<span class="chip" onclick="document.getElementById('ps_outfit').value=${JSON.stringify(w.masterPrompt).replace(/"/g,'&quot;')};toast('Đã chọn ${esc(w.name)}')">👗 ${esc(w.name)}</span>`).join('')}</div>`:''}
-    <label style="margin-top:12px">👗 Outfit gợi ý</label><div>${studioChips(OUTFIT_LIB,'ps_outfit')}</div>
-    <label style="margin-top:8px">🎭 Cosplay / anime</label><div>${studioChips(COSPLAY_LIB,'ps_outfit')}</div>
-    <label style="margin-top:8px">💃 Pose</label><div>${studioChips(POSE_LIB,'ps_pose')}</div>
-    <label style="margin-top:8px">🏙️ Bối cảnh</label><div>${studioChips(BG_LIB,'ps_background')}</div>
+    <label style="margin-top:12px">Thư viện gợi ý — mở để chọn nhanh</label>
+    <div class="bar" style="flex-wrap:wrap;margin-top:4px">
+      <button class="btn ghost sm" type="button" onclick="openLibSheet('makeup')">💄 Makeup</button>
+      <button class="btn ghost sm" type="button" onclick="openLibSheet('outfit')">👗 Outfit &amp; Cosplay</button>
+      <button class="btn ghost sm" type="button" onclick="openLibSheet('pose')">💃 Pose</button>
+      <button class="btn ghost sm" type="button" onclick="openLibSheet('bg')">🏙️ Bối cảnh</button>
+    </div>
     <label style="margin-top:12px"><input type="checkbox" id="ps_ref" ${PS.useRef?'checked':''} style="width:auto;margin-right:6px">Giữ khuôn mặt Digital Twin (image-to-image)</label>
     <div class="bar"><button class="btn" id="shootBtn" onclick="runShoot()" ${personaOK()?'':'disabled'}>📸 Chụp</button></div>
   </div>
