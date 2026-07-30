@@ -2099,12 +2099,17 @@ function renderIntake(m){
   <p class="lead">Phần input quan trọng nhất. Có thể để AI gợi ý từ nhân vật.</p>
   <div class="bar"><button class="btn" id="aiIntake" onclick="aiIntakeFromPersona()">✨ AI gợi ý từ persona</button>
     <button class="btn ghost" onclick="saveIntake();downloadIntake()">⬇ Tải intake</button></div>
-  <div class="err" id="iErr"></div><div class="card">`;
+  <div class="err" id="iErr"></div>`;
+  const missN=INTAKE_FIELDS.filter(f=>f.req&&f.type!=='select'&&!(S.intake[f.k]&&String(S.intake[f.k]).trim())).length;
+  if(missN)html+=`<div class="note" style="border-color:rgba(232,91,91,.4);color:#ffb3b3">⚠ Còn ${missN} field bắt buộc (*) chưa điền — viền đỏ bên dưới.</div>`;
+  html+=`<div class="card">`;
   INTAKE_FIELDS.forEach(f=>{const v=esc(S.intake[f.k]||"");
+    const miss=f.req&&f.type!=='select'&&!(S.intake[f.k]&&String(S.intake[f.k]).trim());
+    const rb=miss?' style="border-color:rgba(232,91,91,.55)"':'';
     html+=`<label>${f.label} ${f.req?'<span class="req">*</span>':''}</label>`;
-    if(f.type==='textarea')html+=`<textarea data-k="${f.k}" placeholder="${esc(f.ph||'')}">${v}</textarea>`;
+    if(f.type==='textarea')html+=`<textarea data-k="${f.k}"${rb} placeholder="${esc(f.ph||'')}">${v}</textarea>`;
     else if(f.type==='select')html+=`<select data-k="${f.k}">${f.opts.map(o=>`<option ${S.intake[f.k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
-    else html+=`<input data-k="${f.k}" value="${v}" placeholder="${esc(f.ph||'')}">`;});
+    else html+=`<input data-k="${f.k}"${rb} value="${v}" placeholder="${esc(f.ph||'')}">`;});
   html+=`</div><div class="bar"><button class="btn ghost" onclick="saveIntake()">Lưu Intake</button>
     <button class="btn blue" onclick="startAutoPipeline()">⚡ Chạy pipeline AI tự động →</button>
     <button class="btn ghost" onclick="saveIntake();go('brand')">Hoặc làm thủ công từng bước</button></div>
