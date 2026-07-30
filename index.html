@@ -223,6 +223,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .qa{display:flex;flex-direction:column;gap:10px;padding:20px 18px;border-radius:18px;border:1px solid var(--line);background:var(--panel);color:var(--txt);cursor:pointer;text-align:left;min-height:112px;transition:.2s}
 .qa:hover{border-color:rgba(194,178,255,.4);background:var(--panel2)}
 @media(max-width:820px){.home-hero{grid-template-columns:1fr}.home-quick{grid-template-columns:1fr 1fr}}
+/* video mode cards */
+.vmodes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0 4px}
+.vmode{display:flex;flex-direction:column;gap:6px;padding:14px 13px;border-radius:16px;border:1px solid var(--line);background:var(--panel);color:var(--txt);cursor:pointer;text-align:left;transition:.18s}
+.vmode:hover{border-color:rgba(194,178,255,.4);background:var(--panel2)}
+.vmode.on{border-color:rgba(194,178,255,.5);background:rgba(142,123,255,.16)}
+.vmode .vi{font-size:20px;line-height:1}
+.vmode b{font-size:13.5px}
+.vmode span{font-size:11px;color:var(--mut);line-height:1.45}
+.vmode.on b{color:var(--acc)}
+@media(max-width:820px){.vmodes{grid-template-columns:1fr 1fr}}
 /* redesigned shell — sidebar + icon nav + character card */
 aside{display:flex;flex-direction:column;gap:13px}
 .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
@@ -1721,7 +1731,30 @@ const VID_TALENTS=[
   ['catwalk','🚶‍♀️ Catwalk','walking a runway catwalk with confident elegant poise','a stylish fashion runway beat'],
   ['pose','✨ Tạo dáng biểu cảm','striking cute, expressive, attractive poses','soft cinematic background music']
 ];
-const VID={talents:['guitar','pose'],outfits:[],duration:20,custom:''};
+const VID={talents:['guitar','pose'],outfits:[],duration:20,custom:'',mode:'idea'};
+const VID_MODES=[
+  ['idea','🎬','Từ ý tưởng','1 phim liền mạch — nhân vật diễn bất kỳ câu chuyện nào'],
+  ['pack','🎁','Pack video','sản xuất hàng loạt 10 video một lần'],
+  ['vlog','📹','Vlog','kể chuyện đời thường, chân thật, cảm xúc'],
+  ['sales','🛍️','Bán hàng','video không lời từ bộ ảnh sản phẩm']
+];
+function vidMode(m){VID.mode=m;renderVideo(document.getElementById('studioBody'));}
+function vidModeCTA(){
+  const d=personaOK()?'':'disabled', n=Math.max(1,Math.round(VID.duration/10));
+  const wrap=(btns,hint)=>`<div class="bar" style="flex-wrap:wrap;margin-top:10px;border-top:1px solid var(--line);padding-top:12px">${btns}${hint?`<span class="hint" style="align-self:center">${hint}</span>`:''}</div>`;
+  if(VID.mode==='pack')return wrap(
+    `<button class="btn" id="vidPackBtn" onclick="genVideoPack()" ${d}>🎁 Pack 10 video</button><button class="btn ghost" id="vidVlogPackBtn" onclick="genVlogPack()" ${d}>📹 Pack 10 vlog</button>`,
+    `Sản xuất hàng loạt — mỗi video ${n} clip theo thời lượng đã chọn.`);
+  if(VID.mode==='vlog')return wrap(
+    `<button class="btn gold" id="vidVlogBtn" onclick="genVlog()" ${d}>📹 Dựng vlog liền mạch</button><button class="btn ghost" id="vidVlogPackBtn" onclick="genVlogPack()" ${d}>📹 Pack 10 vlog</button>`,
+    `Đời thường chân thật, cảm xúc, từ dữ liệu nhân vật · ${n} clip.`);
+  if(VID.mode==='sales')return wrap(
+    `<button class="btn gold" id="salesVidBtn" onclick="genSalesVideo()" ${d}>🛍️ Dựng video bán hàng (không lời)</button>`,
+    `Tick ảnh <b>bộ SP</b> ở lưới trên (tab 🛍️ Bộ ảnh SP) → video kể chuyện bán hàng theo mạch cảm xúc, chỉ hình ảnh + góc máy, không lời. Flow-pack nhúng sẵn ảnh SP + khuôn mặt.`);
+  return wrap(
+    `<button class="btn gold" id="vidAiBtn" onclick="genVideoAI()" ${d}>🎬 Dựng phim từ ý tưởng</button><button class="btn blue" onclick="genVideoClips()" ${d}>🎬 Sinh từ outfit đã tick</button>`,
+    `Nhập ý tưởng phim bất kỳ → AI dựng ${n} clip. Để trống thì AI tự sáng tạo concept.`);
+}
 let __vidVideos=[]; // [{series, clips:[{seq,prompt,audio,talentLabel,outfit:{name,imgKey}}]}]
 function vidOutfitItems(){
   const items=[];
@@ -1737,9 +1770,10 @@ function renderVideo(b){
   VID.custom=document.getElementById('vid_custom')?document.getElementById('vid_custom').value:VID.custom;
   VID.idea=document.getElementById('vid_idea')?document.getElementById('vid_idea').value:(VID.idea||'');
   b.innerHTML=`<div class="card">
-    <h2>🎬 Bộ prompt Video Omni (Google Flow)</h2>
-    <p class="hint" style="margin-top:2px"><b>Biến hình thử đồ × tài năng</b> → prompt EN + ảnh cần chọn trong Flow. Chủ thể để <b>chung chung "cô gái"</b> (né policy người-nổi-tiếng — ảnh tham chiếu lo nhận diện) + <b>chất iPhone thật</b> (hết nhựa) + <b>6-8 quick-cut/10s theo nhịp + hook giữ chân từng giây</b>.</p>
-    ${!hasRef?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④) để mọi clip giữ cùng khuôn mặt.</div>':'<div class="hint" style="margin:4px 0">🔒 Khi sinh video, AI tự đọc ảnh neo → khoá CHARACTER + STYLE và chèn nguyên văn vào mọi clip (giữ nhân vật/phong cách nhất quán xuyên video, đổ vào flow-pack).</div>'}
+    <h2>🎬 Video Omni — prompt cho Google Flow</h2>
+    <p class="hint" style="margin-top:2px">Chọn <b>chế độ dựng</b>, prompt EN chất iPhone thật · 6-8 quick-cut/10s theo nhịp · hook giữ chân từng giây.</p>
+    <div class="vmodes">${VID_MODES.map(m=>`<button class="vmode ${VID.mode===m[0]?'on':''}" onclick="vidMode('${m[0]}')"><span class="vi">${m[1]}</span><b>${m[2]}</b><span>${m[3]}</span></button>`).join('')}</div>
+    ${!hasRef?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④) để mọi clip giữ cùng khuôn mặt.</div>':'<div class="hint" style="margin:4px 0">🔒 AI tự đọc ảnh neo → khoá CHARACTER + STYLE, chèn nguyên văn vào mọi clip (nhất quán xuyên video, đổ vào flow-pack).</div>'}
     <label>💡 Ý tưởng phim — nhân vật diễn bất kỳ câu chuyện nào (AI sáng tạo)</label>
     <textarea id="vid_idea" rows="2" placeholder="VD: cô nàng cướp biển đối đầu kẻ thù trên boong tàu lúc bình minh · nữ điệp viên phá kho báu trong bảo tàng · cô gái lạc vào thế giới thần tiên...">${esc(VID.idea||'')}</textarea>
     <div class="hint" style="margin:4px 0">Nhập ý tưởng phim bất kỳ (mọi thể loại) → AI dựng thành thước phim cuốn cho nhân vật của bạn. Để trống thì AI tự sáng tạo concept.</div>
@@ -1757,20 +1791,7 @@ function renderVideo(b){
       ${it.imgKey?`<img data-ik="${it.imgKey}" style="aspect-ratio:3/4;object-fit:cover" alt="">`:`<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:26px">👗</div>`}
       <div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.6))"><span style="font-size:10px;padding:3px 5px">${ord>=0?('#'+(ord+1)+' '):''}${esc(it.name)}</span></div></div>`;}).join('')}</div>`
       :'<div class="hint">Chưa có ảnh outfit (không bắt buộc — sinh với look mặc định vẫn được).</div>'}
-    <div class="bar" style="flex-wrap:wrap">
-      <button class="btn blue" onclick="genVideoClips()" ${personaOK()?'':'disabled'}>🎬 Sinh từ outfit</button>
-      <button class="btn gold" id="vidAiBtn" onclick="genVideoAI()" ${personaOK()?'':'disabled'}>🎬 Dựng phim từ ý tưởng</button>
-      <button class="btn" id="vidPackBtn" onclick="genVideoPack()" ${personaOK()?'':'disabled'}>🎁 Pack 10 video</button>
-    </div>
-    <div class="bar" style="flex-wrap:wrap;margin-top:6px">
-      <button class="btn gold" id="vidVlogBtn" onclick="genVlog()" ${personaOK()?'':'disabled'}>📹 Vlog liền mạch (từ persona)</button>
-      <button class="btn" id="vidVlogPackBtn" onclick="genVlogPack()" ${personaOK()?'':'disabled'}>📹 Pack 10 vlog</button>
-      <span class="hint" style="align-self:center">Vlog = đời thường chân thật, cảm xúc, từ dữ liệu nhân vật · mỗi vlog đủ ${Math.max(1,Math.round(VID.duration/10))} clip theo thời lượng đã chọn</span>
-    </div>
-    <div class="bar" style="flex-wrap:wrap;margin-top:8px;border-top:1px solid var(--line,#2a3550);padding-top:12px">
-      <button class="btn gold" id="salesVidBtn" onclick="genSalesVideo()" ${personaOK()?'':'disabled'}>🛍️ Video bán hàng (không lời)</button>
-      <span class="hint" style="align-self:center">Tick ảnh <b>bộ SP</b> ở lưới trên (tạo ở tab 🛍️ Bộ ảnh SP) → video kể chuyện bán hàng theo mạch cảm xúc, chỉ hình ảnh + góc máy + nhân vật, không lời. Xuất flow-pack nhúng sẵn ảnh SP + khuôn mặt.</span>
-    </div>
+    ${vidModeCTA()}
     ${vlogLogPanelHTML()}
   </div>
   ${vidHistoryPanelHTML()}
