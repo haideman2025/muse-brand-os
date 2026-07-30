@@ -244,6 +244,19 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .dna-meta{font-size:11px;color:var(--mut);font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;flex-shrink:0}
 .dna-arrow{color:var(--mut2);margin-left:2px}
 .libchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+/* rubric bars + weights preview */
+.rubprev{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 4px}
+.gatepill{font-size:11px;font-weight:800;color:var(--gold);background:rgba(242,193,78,.13);border:1px solid rgba(242,193,78,.35);border-radius:20px;padding:4px 11px}
+.wchip{font-size:11px;color:var(--soft);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:20px;padding:4px 10px}
+.wchip b{color:var(--acc);margin-left:3px}
+.rubric{margin-top:10px;display:flex;flex-direction:column;gap:11px}
+.rubrow{display:flex;flex-direction:column;gap:3px}
+.rubtop{display:flex;align-items:center;gap:11px}
+.rubtop .rk{flex:1;font-size:12.5px;color:var(--soft2);line-height:1.35}
+.rubtop .rbar{width:60px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);flex-shrink:0;overflow:hidden;display:flex}
+.rubtop .rfill{height:100%;border-radius:3px}
+.rubtop .rv{font-size:12px;font-weight:800;width:46px;text-align:right;flex-shrink:0}
+.rly{font-size:11px;color:var(--mut);line-height:1.5;padding-left:1px}
 /* redesigned shell — sidebar + icon nav + character card */
 aside{display:flex;flex-direction:column;gap:13px}
 .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
@@ -2203,6 +2216,7 @@ async function aiIntakeFromPersona(){
 function renderPhase(m,p){
   const out=S.outputs[p.id];const sc=S.scores[p.id];
   m.innerHTML=`<h1>${p.n}. ${p.title}</h1><p class="lead">${p.desc}</p>
+  <div class="rubprev"><span class="gatepill">Gate ${p.gate}/100</span>${p.rubric.map(r=>`<span class="wchip">${esc(r[0])} <b>${r[1]}</b></span>`).join('')}</div>
   ${!intakeOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy hoàn tất Intake (mục bắt buộc) trước.</div>':''}
   <div class="bar">
     <button class="btn" id="genBtn" onclick="runGen('${p.id}')" ${intakeOK()?'':'disabled'}><span id="genTxt">${out?'Tạo lại bằng AI':'Tạo bằng AI'}</span></button>
@@ -2223,10 +2237,16 @@ function renderPhase(m,p){
 }
 function renderScore(sc,p){
   const c=sc.ket_luan==='SHIP'?'var(--ok)':sc.ket_luan==='REVISE'?'var(--gold)':'var(--coral)';
-  let h=`<div class="card"><div class="scorehead"><span class="total" style="color:${c}">${sc.tong}</span><span class="hint">/100 · Gate ${p.gate} · <b style="color:${c}">${sc.ket_luan}</b></span></div>
-  <table class="score-tbl"><tr><th>Yếu tố</th><th>Điểm</th><th>Lý do</th></tr>`;
-  (sc.factors||[]).forEach(f=>h+=`<tr><td>${esc(f.ten)}</td><td>${esc(f.diem)}/${esc(f.trong_so)}</td><td>${esc(f.ly_do)}</td></tr>`);
-  h+=`</table>${sc.ket_luan!=='SHIP'?'<div class="note">Điểm dưới chuẩn → sửa rồi chấm lại.</div>':''}</div>`;
+  const pass=sc.tong>=p.gate;
+  let h=`<div class="card"><div class="scorehead"><span class="total" style="color:${c}">${sc.tong}</span><span class="hint">/100 · Gate ${p.gate} · <b style="color:${c}">${sc.ket_luan}</b> · ${pass?'<span style="color:var(--ok)">đạt gate ✓</span>':'<span style="color:var(--gold)">chưa đạt gate</span>'}</span></div>
+  <div class="rubric">`;
+  (sc.factors||[]).forEach(f=>{
+    const max=Number(f.trong_so)||0, got=Number(f.diem)||0;
+    const pct=max?Math.max(0,Math.min(100,Math.round(got/max*100))):0;
+    const col=pct>=85?'var(--ok)':pct>=70?'var(--gold)':'var(--coral)';
+    h+=`<div class="rubrow"><div class="rubtop"><span class="rk">${esc(f.ten)}</span><span class="rbar"><span class="rfill" style="width:${pct}%;background:${col}"></span></span><span class="rv" style="color:${col}">${esc(f.diem)}/${esc(f.trong_so)}</span></div>${f.ly_do?`<div class="rly">${esc(f.ly_do)}</div>`:''}</div>`;
+  });
+  h+=`</div>${sc.ket_luan!=='SHIP'?'<div class="note">Điểm dưới chuẩn → sửa rồi chấm lại.</div>':''}</div>`;
   document.getElementById('scoreBox').innerHTML=h;
 }
 function busy(btnId,txtId,on,label){const b=document.getElementById(btnId);if(!b)return;b.disabled=on;if(txtId){document.getElementById(txtId).innerHTML=on?'<span class="spinner"></span> '+label:label;}}
