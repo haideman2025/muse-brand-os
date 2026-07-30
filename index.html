@@ -223,6 +223,25 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .qa{display:flex;flex-direction:column;gap:10px;padding:20px 18px;border-radius:18px;border:1px solid var(--line);background:var(--panel);color:var(--txt);cursor:pointer;text-align:left;min-height:112px;transition:.2s}
 .qa:hover{border-color:rgba(194,178,255,.4);background:var(--panel2)}
 @media(max-width:820px){.home-hero{grid-template-columns:1fr}.home-quick{grid-template-columns:1fr 1fr}}
+/* redesigned shell — sidebar + icon nav + character card */
+aside{display:flex;flex-direction:column;gap:13px}
+.side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
+.grp{font-size:10px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mut2);margin:12px 6px 4px}
+.steps{margin-top:0!important;gap:2px}
+.step{border-radius:11px;padding:9px 11px;font-weight:600;color:var(--mut);border:1px solid transparent}
+.step .nic{width:20px;text-align:center;font-size:15px;flex-shrink:0}
+.step.active{background:rgba(142,123,255,.14);border-color:rgba(194,178,255,.4);color:var(--txt)}
+.step .badge{margin-left:auto;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px}
+.charcard{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:var(--panel)}
+.charcard .charav{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#E68AA0,var(--a2));flex-shrink:0}
+.charcard select{border:none;background:none;color:var(--txt);font-weight:700;font-size:13px;padding:0;height:auto;flex:1;min-width:0}
+.charcard select:focus{box-shadow:none;outline:none}
+.charcount{font-size:10.5px;color:var(--mut2);margin:2px 2px 7px}
+.charbtns{display:flex;gap:6px;margin-top:8px}
+.charbtns button{flex:1;height:32px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--txt);cursor:pointer;font-size:13px}
+.charbtns button:hover{background:var(--panel2)}
+#gConnPill{position:fixed;top:18px;right:24px;z-index:60}
+@media(max-width:820px){#gConnPill{display:none}}
 /* mobile chrome (phone-style app bar + bottom nav + drawer) */
 #mtop,#mnav,#mdrawerbg{display:none}
 .gpill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#6FE3D2;background:rgba(111,227,210,.12);padding:5px 10px;border-radius:20px;flex:0 0 auto}
@@ -257,15 +276,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
       <div class="brandtxt"><div class="brandname">Muse</div><small>Digital Twin Studio</small></div>
     </div>
     <div id="charbar"></div>
-    <div id="skybar"></div>
-    <div id="soundbar"></div>
-    <button class="btn gold" style="width:100%;margin-top:14px;justify-content:center" onclick="openDojoDialog()">🚀 Gửi sang Viral Dojo</button>
     <div class="steps" id="steps"></div>
-    <div class="ovr">Overall<br><span class="big" id="ovrScore">—</span><div id="ovrNote">Hoàn thành các giai đoạn để xem điểm tổng.</div></div>
-    <div class="hint" style="margin-top:14px">Key &amp; dữ liệu lưu cục bộ; ảnh lưu IndexedDB. Chỉ gọi tới Google Gemini.</div>
+    <div class="side-bottom">
+      <button class="btn gold" style="width:100%;justify-content:center" onclick="openDojoDialog()">🚀 Gửi sang Viral Dojo</button>
+      <div class="ovr">Overall<br><span class="big" id="ovrScore">—</span><div id="ovrNote">Hoàn thành các giai đoạn để xem điểm tổng.</div></div>
+      <div id="skybar"></div>
+      <div id="soundbar"></div>
+      <div class="hint">Key &amp; dữ liệu lưu cục bộ; ảnh lưu IndexedDB. Chỉ gọi tới Google Gemini.</div>
+    </div>
   </aside>
   <main id="main"></main>
 </div>
+<div id="gConnPill" class="gpill"><span class="dot"></span>Gemini đã kết nối</div>
 <div id="mtop"></div>
 <div id="mdrawerbg" onclick="closeDrawer()"></div>
 <div id="mnav"></div>
@@ -491,15 +513,14 @@ function closeDrawer(){document.body.classList.remove('drawer-open');}
 
 function renderCharBar(){const el=document.getElementById('charbar');if(!el)return;
   const opts=charList().map(c=>`<option value="${c.id}" ${c.id===S.activeId?'selected':''}>${esc(c.name||'(chưa đặt tên)')}</option>`).join('');
-  el.innerHTML=`<div class="charbar">
-    <div class="charcount">👥 ${charList().length} nhân vật · mỗi nhân vật 1 không gian riêng</div>
-    <select id="charSel" onchange="charSwitch(this.value)">${opts}</select>
+  el.innerHTML=`<div class="charcard"><span class="charav"></span><select id="charSel" onchange="charSwitch(this.value)">${opts}</select></div>
+    <div class="charcount">${charList().length} nhân vật · mỗi nhân vật 1 không gian riêng</div>
     <div class="charbtns">
       <button title="Nhân vật mới" onclick="charNew()">＋ Mới</button>
       <button title="Đổi tên" onclick="charRename()">✎</button>
       <button title="Nhân bản" onclick="charDuplicate()">⎘</button>
       <button title="Xoá" onclick="charDelete()">🗑</button>
-    </div></div>`;}
+    </div>`;}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500);try{if(typeof Sound!=='undefined')Sound.sfx('success');}catch(e){}}
 function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
@@ -891,8 +912,11 @@ function renderSteps(){
     else done=!!S.outputs[st.id];
     const sc=S.scores[st.id];
     let badge='';if(sc){const c=sc.ket_luan==='SHIP'?'b-ok':sc.ket_luan==='REVISE'?'b-rev':'b-bad';badge=`<span class="badge ${c}">${sc.tong}</span>`;}
+    else if(st.id==='profile'&&done)badge='<span class="badge b-ok">neo</span>';
+    const NAV_IC={home:'⌂',idea:'✦',setup:'⚙',persona:'☺',profile:'✧',studio:'▣',content:'✎',intake:'◎',brand:'◆',comms:'◆',product:'◆',insight:'◆',brandkit:'◆',export:'⬇'};
+    const ic=NAV_IC[st.id]||'◆';
     const d=document.createElement('div');d.className='step'+(S.stage===st.id?' active':'')+(done?' done':'');
-    d.innerHTML=`<span class="num">${done?'✓':(i+1)}</span><span>${st.title}</span>${badge}`;
+    d.innerHTML=`<span class="nic">${ic}</span><span style="flex:1">${st.title}</span>${badge}`;
     d.onclick=()=>go(st.id);el.appendChild(d);
   });
   const ph=PHASES.filter(p=>S.scores[p.id]);
@@ -900,6 +924,7 @@ function renderSteps(){
   if(ph.length){const ov=Math.round(ph.reduce((a,p)=>a+S.scores[p.id].tong,0)/ph.length);
     os.textContent=ov;on.textContent=(ov>=82?"Sẵn sàng xây kênh ✓":"Cần cải thiện để ≥82.")+` (${ph.length}/5 giai đoạn)`;
   }else{os.textContent="—";on.textContent="Hoàn thành các giai đoạn để xem điểm tổng.";}
+  const gp=document.getElementById('gConnPill');if(gp)gp.style.display=S.apiKey?'inline-flex':'none';
 }
 function render(){
   renderCharBar();renderSkyBar();renderSoundBar();renderMobileChrome();renderSteps();const m=document.getElementById('main');const id=S.stage;
