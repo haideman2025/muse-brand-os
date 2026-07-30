@@ -1511,7 +1511,8 @@ const CH_PLATFORMS=[
   {key:'youtube',label:'YouTube Shorts',lim:0,spec:'"youtube": kịch bản Shorts ~45-60s: VOICE-OVER theo mốc [0-Xs] + TEXT OVERLAY (từ khóa viết HOA) + GỢI Ý CẢNH QUAY. Hook 3 giây đầu.'},
   {key:'comment',label:'Comment CTA',lim:0,spec:'"comment": 2-3 mẫu comment ghim đi link (thân tình, CTA rõ, có [Chèn link] nếu chưa có). Đánh số Mẫu 1/2/3.'}
 ];
-const CC={angles:[],topic:'',ratio:'4:5',nimg:2,outfitKey:''};
+const CC={angles:[],topic:'',ratio:'4:5',nimg:2,outfitKey:'',lang:'vi'};
+function ccLangName(){return CC.lang==='en'?'English':'Tiếng Việt';}
 function contentDNA(){
   let s=personaContext();
   const it=intakeContext();if(it&&it.trim())s+=it+"\n";
@@ -1527,7 +1528,7 @@ async function ccViralAngles(){
   const er=document.getElementById('ccErr');if(er)er.style.display='none';
   const b=document.getElementById('ccAngleBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> ...';}
   try{
-    const prompt=contentDNA()+`\nNHIỆM VỤ: Đề xuất 6 GÓC VIRAL khác nhau${t?' cho chủ đề: "'+t+'"':' hợp với nhân vật & thương hiệu này'}. Mỗi góc = 1 hook/insight sắc, khơi cảm xúc, khác biệt rõ. Tiếng Việt, ngắn gọn.\nTrả DUY NHẤT JSON: {"angles":["...","...","...","...","...","..."]}`;
+    const prompt=contentDNA()+`\nNHIỆM VỤ: Đề xuất 6 GÓC VIRAL khác nhau${t?' cho chủ đề: "'+t+'"':' hợp với nhân vật & thương hiệu này'}. Mỗi góc = 1 hook/insight sắc, khơi cảm xúc, khác biệt rõ. Viết bằng ${ccLangName()}, ngắn gọn.\nTrả DUY NHẤT JSON: {"angles":["...","...","...","...","...","..."]}`;
     const o=parseJSON(await geminiText(prompt,true));CC.angles=(o.angles||[]).slice(0,8);renderContent(document.getElementById('main'));toast('Đã gợi ý góc viral');
   }catch(e){if(er){er.style.display='block';er.textContent=e.message;}}
   finally{if(b){b.disabled=false;b.innerHTML='✨ AI gợi ý góc viral';}}
@@ -1544,13 +1545,41 @@ async function ccGenerate(){
   try{
     const specs=chans.map(c=>c.spec).join('\n');
     const keys=chans.map(c=>c.key).join(', ');
-    const prompt=contentDNA()+`\nNHIỆM VỤ: Viết nội dung social VIRAL theo ĐÚNG giọng & góc nhìn nhân vật cho chủ đề/góc: "${topic}".\nSinh cho các kênh: ${keys}. Mỗi kênh 1 key JSON đúng spec:\n${specs}\nMọi nội dung phải nhất quán DNA & tuân thủ ràng buộc trên. MỖI giá trị là 1 CHUỖI văn bản thuần (string) — KHÔNG lồng object/mảng (vd TikTok gộp cả "TIÊU ĐỀ:" và "CAPTION:" trong 1 chuỗi). Trả DUY NHẤT JSON gồm đúng các key: {${chans.map(c=>'"'+c.key+'":"..."').join(',')}}`;
+    const prompt=contentDNA()+`\nNHIỆM VỤ: Viết nội dung social VIRAL theo ĐÚNG giọng & góc nhìn nhân vật cho chủ đề/góc: "${topic}".\nSinh cho các kênh: ${keys}. Mỗi kênh 1 key JSON đúng spec:\n${specs}\nNGÔN NGỮ ĐẦU RA: viết TOÀN BỘ nội dung bằng ${ccLangName()} (kể cả hashtag phù hợp ngôn ngữ đó). Mọi nội dung phải nhất quán DNA & tuân thủ ràng buộc trên. MỖI giá trị là 1 CHUỖI văn bản thuần (string) — KHÔNG lồng object/mảng (vd TikTok gộp cả "TIÊU ĐỀ:" và "CAPTION:" trong 1 chuỗi). Trả DUY NHẤT JSON gồm đúng các key: {${chans.map(c=>'"'+c.key+'":"..."').join(',')}}`;
     const o=parseJSON(await geminiText(prompt,true));
     const set={id:uid(),topic:topic,ts:Date.now(),outputs:o,chans:chans.map(c=>c.key)};
     S.content=S.content||[];S.content.unshift(set);if(S.content.length>50)S.content=S.content.slice(0,50);save();
     renderContent(document.getElementById('main'));toast('✓ Đã tạo nội dung đa kênh');
   }catch(e){if(er){er.style.display='block';er.textContent=e.message;}}
   finally{if(b){b.disabled=false;b.innerHTML='📝 Tạo nội dung đa kênh';}}
+}
+/* ---- Zernio: đăng thẳng lên Facebook (qua worker proxy — né CORS, ảnh host R2) ---- */
+function zGet(k){return localStorage.getItem('muse_zernio_'+k)||'';}
+function zSet(k,v){if(v)localStorage.setItem('muse_zernio_'+k,v);else localStorage.removeItem('muse_zernio_'+k);}
+function zernioSave(){zSet('key',(val('z_key')||'').trim());zSet('account',(val('z_account')||'').trim());zSet('page',(val('z_page')||'').trim());toast('Đã lưu cấu hình Zernio');}
+async function zernioPages(){
+  zernioSave();
+  if(!zGet('key')||!zGet('account')){toast('Cần Zernio API key + Account ID');return;}
+  const st=document.getElementById('zStatus');if(st)st.textContent='Đang lấy danh sách Page...';
+  try{const r=await fetch(SYNC_URL+'/zernio/pages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account')})});const d=await r.json();
+    if(st)st.innerHTML='<b>Kết quả:</b> <span style="font-family:ui-monospace,monospace;font-size:11px">'+esc(JSON.stringify(d.data||d).slice(0,500))+'</span>';
+  }catch(e){if(st)st.textContent='Lỗi: '+(e.message||e);}
+}
+async function zernioPublishFB(setId){
+  const set=(S.content||[]).find(s=>s.id===setId);if(!set)return;
+  if(!zGet('key')||!zGet('account')){toast('Nhập Zernio API key + Account ID ở "Kết nối Zernio" trước');return;}
+  const content=ccText((set.outputs||{}).fb||Object.values(set.outputs||{})[0]);
+  if(!content){toast('Không có nội dung FB để đăng');return;}
+  let imageBase64='',mime='image/jpeg';
+  if(set.imgIds&&set.imgIds.length){const u=await mediaGet('g:'+set.imgIds[0]);if(u){imageBase64=u;const mm=u.match(/^data:([^;]+);/);if(mm)mime=mm[1];}}
+  const btn=document.getElementById('zpub_'+setId);if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Đang đăng...';}
+  try{
+    const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account'),pageId:zGet('page'),content,imageBase64,mime,publishNow:true})});
+    const d=await r.json().catch(()=>({}));
+    if(d.ok){toast('✓ Đã gửi bài lên Facebook qua Zernio');}
+    else{toast('Zernio: '+esc(JSON.stringify(d.data||d).slice(0,140)));}
+  }catch(e){toast('Lỗi mạng: '+(e.message||e));}
+  finally{if(btn){btn.disabled=false;btn.innerHTML='📤 Đăng lên FB (Zernio)';}}
 }
 // Chuẩn hoá output kênh về CHUỖI (AI đôi khi trả object → tránh "[object Object]")
 function ccText(v){
@@ -1616,7 +1645,7 @@ function renderContentList(){
             <span style="font-size:11px;${over?'color:var(--coral)':'opacity:.55'}">${txt.length}${meta.lim?'/'+meta.lim:''} ký tự</span></div>
           <div style="white-space:pre-wrap;font-size:13px;margin-top:6px;line-height:1.5">${esc(txt)}</div>
           <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="ccCopy('${set.id}','${k}')">📋 Copy</button>
-            <button class="btn ghost sm" disabled title="Cần cấu hình Zernio API — sắp có">📤 Publish (Zernio) · sắp có</button></div>
+            ${k==='fb'?`<button class="btn ghost sm" id="zpub_${set.id}" onclick="zernioPublishFB('${set.id}')">📤 Đăng lên FB (Zernio)</button>`:`<button class="btn ghost sm" disabled title="Zernio: đang ưu tiên FB trước">📤 Publish · sắp có</button>`}</div>
         </div>`;}).join('')}
       <div class="bar" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
         <button class="btn gold sm" id="ccimg_${set.id}" onclick="ccImages('${set.id}')">🖼 Tạo ảnh cho bài</button>
@@ -1632,7 +1661,12 @@ function renderContent(m){
   <p class="lead">Từ mascot + DNA thương hiệu → bài viral cho nhiều kênh cùng lúc, đúng giọng nhân vật.</p>
   ${!ok?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Cần nhân vật (bước ③) trước.</div>':''}
   <div class="card">
-    <label>Chủ đề / góc nội dung</label>
+    <div class="bar" style="margin-top:0;justify-content:flex-start;gap:8px;align-items:center">
+      <span style="font-size:12.5px;color:var(--soft)">🌐 Ngôn ngữ nội dung:</span>
+      <button class="chip" style="${CC.lang==='vi'?'border-color:var(--acc);color:var(--acc)':''}" onclick="CC.lang='vi';renderContent(document.getElementById('main'))">Tiếng Việt</button>
+      <button class="chip" style="${CC.lang==='en'?'border-color:var(--acc);color:var(--acc)':''}" onclick="CC.lang='en';renderContent(document.getElementById('main'))">English</button>
+    </div>
+    <label style="margin-top:10px">Chủ đề / góc nội dung</label>
     <textarea id="cc_topic" style="min-height:70px" placeholder="VD: vì sao đốt tiền quảng cáo mà vẫn không ai nhớ thương hiệu">${esc(CC.topic||'')}</textarea>
     <div class="bar" style="margin-top:6px"><button class="btn gold sm" id="ccAngleBtn" onclick="ccViralAngles()">✨ AI gợi ý góc viral</button></div>
     ${CC.angles&&CC.angles.length?`<label style="margin-top:8px">Chọn 1 góc</label><div>${CC.angles.map(a=>`<span class="chip" onclick="document.getElementById('cc_topic').value=${JSON.stringify(a).replace(/"/g,'&quot;')};CC.topic=${JSON.stringify(a).replace(/"/g,'&quot;')};toast('Đã chọn góc')">${esc(String(a).slice(0,90))}</span>`).join(' ')}</div>`:''}
@@ -1650,6 +1684,19 @@ function renderContent(m){
       <div><label>Số ảnh</label><select id="cc_nimg" onchange="CC.nimg=parseInt(this.value);renderContent(document.getElementById('main'))">${[1,2,4,6].map(n=>`<option ${CC.nimg==n?'selected':''}>${n} ảnh</option>`).join('')}</select></div>
     </div>
   </div>
+  <details class="card" style="margin-top:12px"><summary style="cursor:pointer;font-weight:700;color:var(--gold)">📤 Kết nối Zernio — đăng thẳng lên Facebook</summary>
+    <div style="margin-top:10px">
+      <div class="hint" style="margin-bottom:8px">Lấy API key tại <b>zernio.com</b> → kết nối trang Facebook trong dashboard Zernio để có <b>Account ID</b>. Bài đăng đi qua server (né CORS, ảnh tự host). Ưu tiên FB trước.</div>
+      <div class="row3">
+        <div><label>Zernio API key</label><input id="z_key" type="password" value="${esc(zGet('key'))}" placeholder="zk_..."></div>
+        <div><label>Account ID</label><input id="z_account" value="${esc(zGet('account'))}" placeholder="acc_..."></div>
+        <div><label>Page ID (tuỳ chọn)</label><input id="z_page" value="${esc(zGet('page'))}" placeholder="nếu tài khoản có nhiều page"></div>
+      </div>
+      <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="zernioSave()">💾 Lưu</button><button class="btn ghost sm" onclick="zernioPages()">📄 Lấy danh sách Page</button></div>
+      <div class="hint" id="zStatus" style="margin-top:6px"></div>
+      <div class="hint" style="margin-top:6px">Sau khi có nội dung bên dưới → bấm <b>📤 Đăng lên FB (Zernio)</b> ở kênh Facebook của bài (kèm ảnh đầu tiên nếu đã tạo).</div>
+    </div>
+  </details>
   <div id="ccList">${renderContentList()}</div>
   <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('intake')">← Chiến lược</button><button class="btn blue" onclick="go('export')">Tiếp: Xuất bản →</button></div>`;
   const tb=document.getElementById('cc_topic');if(tb)tb.addEventListener('input',()=>{CC.topic=tb.value;});

@@ -63,6 +63,46 @@ export default {
 
     const path = url.pathname;
     try {
+      // ---------- ZERNIO PUBLISH (proxy — không cần access code, dùng Zernio key của user; né CORS) ----------
+      if (path === '/pub' && req.method === 'GET') {
+        if (!env.IMG) return json({ error: 'R2 chưa cấu hình.' }, 500);
+        const k = url.searchParams.get('k') || '';
+        if (!/^pub\/[A-Za-z0-9_.\-]{1,80}$/.test(k)) return json({ error: 'key' }, 400);
+        const obj = await env.IMG.get(k);
+        if (!obj) return new Response('', { status: 404, headers: CORS });
+        return new Response(obj.body, { status: 200, headers: { ...CORS, 'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'image/jpeg', 'Cache-Control': 'public, max-age=86400' } });
+      }
+      if (path === '/zernio/pages' && req.method === 'POST') {
+        const b = await req.json().catch(() => ({}));
+        if (!b.zernioKey || !b.accountId) return json({ error: 'Thiếu zernioKey/accountId.' }, 400);
+        const r = await fetch('https://zernio.com/api/v1/accounts/' + encodeURIComponent(b.accountId) + '/facebook-page', { headers: { 'Authorization': 'Bearer ' + b.zernioKey } });
+        const d = await r.json().catch(() => ({}));
+        return json({ status: r.status, ok: r.ok, data: d });
+      }
+      if (path === '/zernio/publish' && req.method === 'POST') {
+        if (!env.IMG) return json({ error: 'R2 chưa cấu hình.' }, 500);
+        const b = await req.json().catch(() => ({}));
+        if (!b.zernioKey || !b.accountId || !b.content) return json({ error: 'Thiếu zernioKey/accountId/content.' }, 400);
+        let mediaItems = [];
+        if (b.imageBase64) {
+          const clean = String(b.imageBase64).replace(/^data:[^;]+;base64,/, '');
+          const bytes = Uint8Array.from(atob(clean), c => c.charCodeAt(0));
+          if (bytes.byteLength > 6 * 1024 * 1024) return json({ error: 'Ảnh quá lớn (>6MB).' }, 413);
+          const mime = b.mime || 'image/jpeg';
+          const ext = mime.indexOf('png') >= 0 ? 'png' : 'jpg';
+          const key = 'pub/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + ext;
+          await env.IMG.put(key, bytes, { httpMetadata: { contentType: mime } });
+          mediaItems = [{ type: 'image', url: url.origin + '/pub?k=' + encodeURIComponent(key) }];
+        }
+        const psd = {}; if (b.pageId) psd.pageId = String(b.pageId);
+        const payload = { content: String(b.content).slice(0, 63000), platforms: [{ platform: 'facebook', accountId: String(b.accountId), platformSpecificData: psd }] };
+        if (mediaItems.length) payload.mediaItems = mediaItems;
+        if (b.scheduledAt) payload.scheduledAt = b.scheduledAt; else payload.publishNow = true;
+        const r = await fetch('https://zernio.com/api/v1/posts', { method: 'POST', headers: { 'Authorization': 'Bearer ' + b.zernioKey, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const d = await r.json().catch(() => ({}));
+        return json({ status: r.status, ok: r.ok, data: d });
+      }
+
       // ---------- ADMIN ----------
       if (path.startsWith('/admin/')) {
         const adm = (req.headers.get('x-admin-token') || '').trim();
