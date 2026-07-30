@@ -257,6 +257,21 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .rubtop .rfill{height:100%;border-radius:3px}
 .rubtop .rv{font-size:12px;font-weight:800;width:46px;text-align:right;flex-shrink:0}
 .rly{font-size:11px;color:var(--mut);line-height:1.5;padding-left:1px}
+/* pipeline overview */
+.pipe-ring{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pipe-ring span{width:52px;height:52px;border-radius:50%;background:#141034;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:600;font-size:21px;color:var(--acc)}
+.pipe-list{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+.pipe-card{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:14px 15px;border-radius:16px;border:1px solid var(--line);background:var(--panel);color:var(--txt);cursor:pointer;transition:.18s;margin-top:9px;font-family:inherit}
+.pipe-list .pipe-card{margin-top:0}
+.pipe-card:hover{border-color:rgba(194,178,255,.4);background:var(--panel2)}
+.pc-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.pc-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pc-body b{font-size:14px}
+.pc-body .hint{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-side{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.pc-gate{font-size:9.5px;color:var(--mut2)}
+.pc-score{font-size:14px;font-weight:800}
+.pc-arr{color:var(--mut2);flex-shrink:0}
 /* redesigned shell — sidebar + icon nav + character card */
 aside{display:flex;flex-direction:column;gap:13px}
 .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
@@ -534,7 +549,7 @@ const MNAV=[
  {g:'char',go:'persona',ic:'☺',t:'Nhân vật'},
  {g:'studio',go:'studio',ic:'📷',t:'Studio'},
  {g:'content',go:'content',ic:'✎',t:'Nội dung'},
- {g:'brand',go:'intake',ic:'◆',t:'Brand'}
+ {g:'brand',go:'pipeline',ic:'◆',t:'Brand'}
 ];
 function renderMobileChrome(){
   const top=document.getElementById('mtop');
@@ -670,7 +685,7 @@ const STEP_LIST=[
  {id:"studio",title:"Studio ảnh",grp:"SẢN XUẤT"},
  {id:"content",title:"Nội dung đa kênh"},
  {id:"intake",title:"Mục tiêu & chiến lược",grp:"THƯƠNG HIỆU"},
- ...PHASES.map(p=>({id:p.id,title:p.n+". "+p.title,grp:""})),
+ {id:"pipeline",title:"Pipeline 5 phase",grp:""},
  {id:"export",title:"Xuất bộ file",grp:"XUẤT BẢN"}
 ];
 
@@ -980,13 +995,16 @@ function renderSteps(){
     else if(st.id==='studio')done=!!(S.gallery&&S.gallery.length);
     else if(st.id==='intake')done=intakeOK();
     else if(st.id==='export')done=false;
+    else if(st.id==='pipeline')done=PHASES.every(p=>!!S.outputs[p.id]);
     else done=!!S.outputs[st.id];
     const sc=S.scores[st.id];
     let badge='';if(sc){const c=sc.ket_luan==='SHIP'?'b-ok':sc.ket_luan==='REVISE'?'b-rev':'b-bad';badge=`<span class="badge ${c}">${sc.tong}</span>`;}
     else if(st.id==='profile'&&done)badge='<span class="badge b-ok">neo</span>';
-    const NAV_IC={home:'⌂',idea:'✦',setup:'⚙',persona:'☺',profile:'✧',studio:'▣',content:'✎',intake:'◎',brand:'◆',comms:'◆',product:'◆',insight:'◆',brandkit:'◆',export:'⬇'};
+    else if(st.id==='pipeline'){const ph=PHASES.filter(p=>S.scores[p.id]);if(ph.length){const ov=Math.round(ph.reduce((a,p)=>a+S.scores[p.id].tong,0)/ph.length);const pass=ph.filter(p=>S.scores[p.id].tong>=p.gate).length===PHASES.length;badge=`<span class="badge ${pass?'b-ok':'b-rev'}">${ov}</span>`;}}
+    const activeStep=S.stage===st.id||(st.id==='pipeline'&&PHASES.some(p=>p.id===S.stage));
+    const NAV_IC={home:'⌂',idea:'✦',setup:'⚙',persona:'☺',profile:'✧',studio:'▣',content:'✎',intake:'◎',pipeline:'◆',brand:'◆',comms:'◆',product:'◆',insight:'◆',brandkit:'◆',export:'⬇'};
     const ic=NAV_IC[st.id]||'◆';
-    const d=document.createElement('div');d.className='step'+(S.stage===st.id?' active':'')+(done?' done':'');
+    const d=document.createElement('div');d.className='step'+(activeStep?' active':'')+(done?' done':'');
     d.innerHTML=`<span class="nic">${ic}</span><span style="flex:1">${st.title}</span>${badge}`;
     d.onclick=()=>go(st.id);el.appendChild(d);
   });
@@ -1008,7 +1026,33 @@ function render(){
   if(id==='intake')return renderIntake(m);
   if(id==='content')return renderContent(m);
   if(id==='export')return renderExport(m);
+  if(id==='pipeline')return renderPipeline(m);
   renderPhase(m,PHASES.find(p=>p.id===id));
+}
+function renderPipeline(m){
+  const scored=PHASES.filter(p=>S.scores[p.id]);
+  const overall=scored.length?Math.round(scored.reduce((a,p)=>a+S.scores[p.id].tong,0)/scored.length):0;
+  const passed=scored.filter(p=>S.scores[p.id].tong>=p.gate).length;
+  const doneCount=PHASES.filter(p=>S.outputs[p.id]).length;
+  const next=PHASES.find(p=>!S.outputs[p.id]);
+  let h=`<h1>Pipeline thương hiệu</h1><p class="lead">5 phase · AI tự chấm điểm theo rubric &amp; gate riêng từng phase.</p>
+  <div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div class="pipe-ring" style="background:conic-gradient(var(--acc) ${overall*3.6}deg, rgba(255,255,255,.08) 0)"><span>${overall||'—'}</span></div>
+    <div style="min-width:120px"><div style="font-weight:700">Overall Quality</div><div class="hint">${passed}/5 phase đạt gate · ${doneCount}/5 đã tạo</div></div>
+    ${next?`<button class="btn" style="margin-left:auto" onclick="go('${next.id}')">▶ Chạy tiếp phase ${next.n}</button>`:`<button class="btn blue" style="margin-left:auto" onclick="go('export')">⬇ Xuất bộ file</button>`}
+  </div>
+  <button class="pipe-card" onclick="go('intake')"><span class="pc-num" style="background:${intakeOK()?'var(--ok)':'rgba(242,193,78,.9)'};color:#0c0a1e">◎</span><span class="pc-body"><b>Mục tiêu &amp; chiến lược (Intake)</b><span class="hint">${intakeOK()?'Đã đủ mục bắt buộc ✓':'Còn thiếu mục bắt buộc *'}</span></span><span class="pc-arr">→</span></button>
+  <div class="pipe-list">`;
+  PHASES.forEach(p=>{
+    const out=!!S.outputs[p.id], sc=S.scores[p.id];
+    const state=sc?(sc.tong>=p.gate?'ok':'rev'):(out?'draft':'todo');
+    const numcol=state==='ok'?'var(--ok)':state==='rev'?'var(--gold)':state==='draft'?'var(--blue)':'rgba(255,255,255,.08)';
+    const badge=sc?`<span class="pc-score" style="color:${state==='ok'?'var(--ok)':'var(--gold)'}">${sc.tong}</span>`:(out?'<span class="pc-score" style="color:var(--blue)">nháp</span>':'<span class="pc-score" style="color:var(--mut2)">—</span>');
+    h+=`<button class="pipe-card" onclick="go('${p.id}')"><span class="pc-num" style="background:${numcol};color:${state==='todo'?'var(--mut)':'#0c0a1e'}">${p.n}</span><span class="pc-body"><b>${esc(p.title)}</b><span class="hint">${esc(p.desc)}</span></span><span class="pc-side"><span class="pc-gate">gate ${p.gate}</span>${badge}</span></button>`;
+  });
+  h+=`</div>
+  <div class="bar" style="margin-top:16px"><button class="btn gold" onclick="startAutoPipeline()">⚡ Chạy tự động cả 5 phase</button><button class="btn ghost" onclick="go('export')">⬇ Xuất bộ file</button></div>`;
+  m.innerHTML=h;
 }
 
 /* ---------- HOME (dashboard mặc định) ---------- */
@@ -1020,7 +1064,7 @@ function renderHome(m){
   const syncOn=!!(typeof syncCode==='function'&&syncCode());
   const desc=[p.niche,p.vibe,p.age?p.age+' tuổi':''].filter(Boolean).join(' · ')||'Chưa có mô tả — bắt đầu ở "Tạo cuộc sống mới".';
   const nextName=brandN>=5?'Xuất bộ file':(twinNeo?('Chạy tiếp pipeline'+(brandN?' · phase '+(brandN+1):' · phase 1')):'Tạo Digital Twin');
-  const nextGo=brandN>=5?"go('export')":(twinNeo?"go('brand')":"go('profile')");
+  const nextGo=brandN>=5?"go('export')":(twinNeo?"go('pipeline')":"go('profile')");
   m.innerHTML=`<h1>Xin chào 👋</h1>
   <div class="lead" style="margin:5px 0 22px">Hôm nay dệt tiếp điều gì cho nhân vật của bạn?</div>
   <div class="home-hero">
@@ -1049,7 +1093,7 @@ function renderHome(m){
     <button class="qa" onclick="go('idea')"><span style="font-size:22px">✦</span><span><b style="font-size:14px;display:block">Ý tưởng mới</b><span style="font-size:12px;color:var(--mut)">AI dựng persona</span></span></button>
     <button class="qa" onclick="go('studio')"><span style="font-size:22px">📷</span><span><b style="font-size:14px;display:block">Chụp ảnh</b><span style="font-size:12px;color:var(--mut)">Photoshoot AI</span></span></button>
     <button class="qa" onclick="go('content')"><span style="font-size:22px">✎</span><span><b style="font-size:14px;display:block">Viết nội dung</b><span style="font-size:12px;color:var(--mut)">Hook đa kênh</span></span></button>
-    <button class="qa" onclick="go('brand')"><span style="font-size:22px">◆</span><span><b style="font-size:14px;display:block">Chiến lược</b><span style="font-size:12px;color:var(--mut)">Pipeline 5 phase</span></span></button>
+    <button class="qa" onclick="go('pipeline')"><span style="font-size:22px">◆</span><span><b style="font-size:14px;display:block">Chiến lược</b><span style="font-size:12px;color:var(--mut)">Pipeline 5 phase</span></span></button>
   </div>`;
   if(typeof getRef==='function')getRef().then(u=>{const im=document.getElementById('homePortrait');if(im&&u){im.src=u;im.style.display='block';if(im.parentElement)im.parentElement.style.border='none';}}).catch(()=>{});
 }
@@ -2197,7 +2241,7 @@ function renderIntake(m){
     else html+=`<input data-k="${f.k}"${rb} value="${v}" placeholder="${esc(f.ph||'')}">`;});
   html+=`</div><div class="bar"><button class="btn ghost" onclick="saveIntake()">Lưu Intake</button>
     <button class="btn blue" onclick="startAutoPipeline()">⚡ Chạy pipeline AI tự động →</button>
-    <button class="btn ghost" onclick="saveIntake();go('brand')">Hoặc làm thủ công từng bước</button></div>
+    <button class="btn ghost" onclick="saveIntake();go('pipeline')">Hoặc làm thủ công từng bước</button></div>
   <div class="note">Mục tiêu KD càng định lượng (số + mốc) → điểm &amp; chất lượng output càng cao.</div>`;
   m.innerHTML=html;
   m.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('input',()=>{S.intake[el.dataset.k]=el.value;}));
@@ -2215,7 +2259,11 @@ async function aiIntakeFromPersona(){
 /* ---------- PHASE ---------- */
 function renderPhase(m,p){
   const out=S.outputs[p.id];const sc=S.scores[p.id];
-  m.innerHTML=`<h1>${p.n}. ${p.title}</h1><p class="lead">${p.desc}</p>
+  m.innerHTML=`<div class="bar" style="margin-top:0;justify-content:space-between;align-items:center">
+    <button class="btn ghost sm" onclick="go('pipeline')">← Pipeline</button>
+    <span style="display:flex;gap:6px">${p.n>1?`<button class="btn ghost sm" onclick="go('${PHASES[p.n-2].id}')">← Phase ${p.n-1}</button>`:''}${p.n<5?`<button class="btn ghost sm" onclick="go('${PHASES[p.n].id}')">Phase ${p.n+1} →</button>`:''}</span>
+  </div>
+  <h1>${p.n}. ${p.title}</h1><p class="lead">${p.desc}</p>
   <div class="rubprev"><span class="gatepill">Gate ${p.gate}/100</span>${p.rubric.map(r=>`<span class="wchip">${esc(r[0])} <b>${r[1]}</b></span>`).join('')}</div>
   ${!intakeOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy hoàn tất Intake (mục bắt buộc) trước.</div>':''}
   <div class="bar">
