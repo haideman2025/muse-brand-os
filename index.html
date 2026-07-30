@@ -233,6 +233,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .vmode span{font-size:11px;color:var(--mut);line-height:1.45}
 .vmode.on b{color:var(--acc)}
 @media(max-width:820px){.vmodes{grid-template-columns:1fr 1fr}}
+/* persona groups + DNA card */
+.pgrp{display:flex;align-items:center;justify-content:space-between;margin:16px 0 4px;padding-top:13px;border-top:1px solid var(--line)}
+.pgrp:first-child{border-top:none;padding-top:2px;margin-top:2px}
+.pgrp b{font-size:13.5px;font-weight:700}
+.pgcount{font-size:11px;font-weight:800;letter-spacing:.3px}
+.dna-card{border-color:rgba(230,138,160,.32)!important}
+.dna-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:none;border:none;color:var(--txt);font-weight:600;font-size:16px;cursor:pointer;padding:0;font-family:'Playfair Display',serif;text-align:left}
+.badge18{font-size:10px;font-weight:800;color:#E68AA0;border:1px solid rgba(230,138,160,.5);border-radius:20px;padding:1px 7px;vertical-align:middle;font-family:'Plus Jakarta Sans',sans-serif}
+.dna-meta{font-size:11px;color:var(--mut);font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;flex-shrink:0}
+.dna-arrow{color:var(--mut2);margin-left:2px}
 /* redesigned shell — sidebar + icon nav + character card */
 aside{display:flex;flex-direction:column;gap:13px}
 .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
@@ -583,6 +593,20 @@ const PERSONA_FIELDS=[
  {k:"signaturePhrases",label:"Câu cửa miệng (cách nhau dấu phẩy)"},
  {k:"visualStyle",label:"Phong cách hình ảnh kênh",type:"textarea",ph:"tông màu, bối cảnh, ánh sáng quay video"}
 ];
+const PERSONA_GROUPS=[
+ {t:"Cơ bản",keys:["name","age","gender","niche","occupation"]},
+ {t:"Ngoại hình & thần thái",keys:["ethnicityLook","vibe","visualStyle"]},
+ {t:"Tính cách & giọng nói",keys:["mbti","personality","voiceTone","signaturePhrases"]},
+ {t:"Câu chuyện & góc nhìn",keys:["pov","backstory"]}
+];
+function pgCount(keys){let n=0;keys.forEach(k=>{const v=S.persona&&S.persona[k];if(v!=null&&String(v).trim()!=='')n++;});return n;}
+function personaFieldHtml(f){const v=esc(S.persona[f.k]||"");
+  let inp;
+  if(f.type==='textarea')inp=`<textarea data-pk="${f.k}" placeholder="${esc(f.ph||'')}">${v}</textarea>`;
+  else if(f.type==='select')inp=`<select data-pk="${f.k}"><option value="">—</option>${f.opts.map(o=>`<option ${S.persona[f.k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
+  else inp=`<input data-pk="${f.k}" type="${f.type||'text'}" value="${v}" placeholder="${esc(f.ph||'')}">`;
+  return `<label>${f.label} ${f.req?'<span class="req">*</span>':''}</label>`+inp;
+}
 const INTAKE_FIELDS=[
  {k:"loai",label:"Loại thương hiệu",type:"select",opts:["doanh nghiệp","sản phẩm","cá nhân"],req:true},
  {k:"ten",label:"Tên thương hiệu / kênh",req:true},
@@ -1103,12 +1127,18 @@ function normPersona(o){const p={};PERSONA_FIELDS.forEach(f=>{if(o[f.k]!=null)p[
 /* ---- DNA picker (chip) ---- */
 function setDna(cat,val){document.querySelectorAll('#main [data-pk]').forEach(el=>S.persona[el.dataset.pk]=el.value);if(!S.persona.dna)S.persona.dna={};S.persona.dna[cat]=(S.persona.dna[cat]===val?'':val);save();render();}
 function dnaChips(cat){const cur=(S.persona.dna||{})[cat]||'';return DNA_LIB[cat].map(function(o){const lab=o[0],on=cur===lab,sty=on?'style="background:#e05a9c;color:#fff;border-color:transparent"':'';return `<span class="chip" ${sty} onclick="setDna('${cat}','${lab.replace(/'/g,"\\'")}')">${esc(lab)}</span>`;}).join(' ');}
+const DNA_ROWS=[['ethnicity','Sắc tộc'],['skinTone','Tông da'],['bodyType','Vóc dáng'],['breastSize','Vòng 1 (18+)'],['buttSize','Vòng 3 (18+)'],['hairColor','Màu tóc'],['hairStyle','Kiểu tóc'],['eyeColor','Màu mắt']];
+let __dnaOpen=false;
+function toggleDnaCard(){document.querySelectorAll('#main [data-pk]').forEach(el=>{if(S.persona)S.persona[el.dataset.pk]=el.value;});__dnaOpen=!__dnaOpen;render();}
 function dnaCardHtml(){
-  const rows=[['ethnicity','Sắc tộc'],['skinTone','Tông da'],['bodyType','Vóc dáng'],['breastSize','Vòng 1 (18+)'],['buttSize','Vòng 3 (18+)'],['hairColor','Màu tóc'],['hairStyle','Kiểu tóc'],['eyeColor','Màu mắt']];
-  const cd=esc((S.persona.dna||{}).customPhysicalDetails||'');
-  return `<div class="card"><h2>🧬 Ngoại hình DNA</h2>
-    <p class="hint" style="margin-top:0">Chọn đặc điểm ngoại hình để mọi ảnh giữ nhất quán. Tông gợi cảm/trưởng thành, an toàn nền tảng (không khiêu dâm).</p>
-    ${rows.map(function(r){return `<label style="margin-top:10px;display:block">${r[1]}</label><div>${dnaChips(r[0])}</div>`;}).join('')}
+  const d=S.persona.dna||{};
+  const done=DNA_ROWS.filter(r=>d[r[0]]).length;
+  const cd=esc(d.customPhysicalDetails||'');
+  const head=`<button class="dna-head" onclick="toggleDnaCard()"><span>🧬 DNA ngoại hình <span class="badge18">18+</span></span><span class="dna-meta">${done}/${DNA_ROWS.length}${d.customPhysicalDetails?' · +ghi chú':''} <span class="dna-arrow">${__dnaOpen?'▾':'▸'}</span></span></button>`;
+  if(!__dnaOpen)return `<div class="card dna-card">${head}<p class="hint" style="margin:6px 0 0">Khoá đặc điểm cơ thể để mọi ảnh nhất quán — bấm để mở & chọn.</p></div>`;
+  return `<div class="card dna-card">${head}
+    <p class="hint" style="margin-top:6px">Tông gợi cảm/trưởng thành, an toàn nền tảng (không khiêu dâm).</p>
+    ${DNA_ROWS.map(function(r){return `<label style="margin-top:10px;display:block">${r[1]}</label><div>${dnaChips(r[0])}</div>`;}).join('')}
     <label style="margin-top:10px;display:block">Chi tiết riêng (nốt ruồi, hình xăm, sẹo...)</label>
     <textarea placeholder="VD: nốt ruồi cạnh môi, hình xăm nhỏ ở vai" oninput="if(!S.persona.dna)S.persona.dna={};S.persona.dna.customPhysicalDetails=this.value">${cd}</textarea></div>`;
 }
@@ -1118,11 +1148,11 @@ function renderPersona(m){
   <div class="bar"><button class="btn" id="aiPersona" onclick="aiCompletePersona()">✨ AI hoàn thiện persona</button>
     <span class="hint">Điền field trống, giữ phần bạn đã viết.</span></div>
   <div class="err" id="pErr"></div><div class="card">`;
-  PERSONA_FIELDS.forEach(f=>{const v=esc(S.persona[f.k]||"");
-    html+=`<label>${f.label} ${f.req?'<span class="req">*</span>':''}</label>`;
-    if(f.type==='textarea')html+=`<textarea data-pk="${f.k}" placeholder="${esc(f.ph||'')}">${v}</textarea>`;
-    else if(f.type==='select')html+=`<select data-pk="${f.k}"><option value="">—</option>${f.opts.map(o=>`<option ${S.persona[f.k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
-    else html+=`<input data-pk="${f.k}" type="${f.type||'text'}" value="${v}" placeholder="${esc(f.ph||'')}">`;});
+  PERSONA_GROUPS.forEach(g=>{
+    const done=pgCount(g.keys),tot=g.keys.length,full=done>=tot;
+    html+=`<div class="pgrp"><b>${g.t}</b><span class="pgcount" style="color:${full?'var(--ok)':'var(--gold)'}">${done}/${tot}</span></div>`;
+    g.keys.forEach(k=>{const f=PERSONA_FIELDS.find(x=>x.k===k);if(f)html+=personaFieldHtml(f);});
+  });
   html+=`</div>`+dnaCardHtml()+`<div class="bar"><button class="btn ghost" onclick="savePersona()">Lưu nhân vật</button>
     <button class="btn blue" onclick="savePersona();go('profile')">Tiếp: Chân dung →</button></div>`;
   m.innerHTML=html;
