@@ -1245,7 +1245,7 @@ async function aiCompletePersona(){
 async function renderProfile(m){
   const p=S.persona;
   m.innerHTML=`<h1>Digital Twin</h1>
-  <p class="lead">Cách 1: <b>Upload selfie → AI clone</b> thành nhân vật (giữ khuôn mặt nhất quán cho mọi ảnh sau). Cách 2: sinh khuôn mặt từ mô tả.</p>
+  <p class="lead"><b>Upload selfie → AI clone</b> giữ khuôn mặt nhất quán cho mọi ảnh sau. Hoặc sinh từ mô tả.</p>
   ${!personaOK()?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Hãy điền Tên &amp; Niche ở bước ③ trước.</div>':''}
   <div class="card"><div class="pf-grid">
     <div>
@@ -2225,7 +2225,7 @@ async function dlVideoPack(){
 /* ---------- INTAKE ---------- */
 function renderIntake(m){
   let html=`<h1>Mục tiêu & chiến lược</h1>
-  <p class="lead">Phần input quan trọng nhất. Có thể để AI gợi ý từ nhân vật.</p>
+  <p class="lead">Nền tảng cho cả pipeline — điền kỹ. AI có thể gợi ý từ nhân vật.</p>
   <div class="bar"><button class="btn" id="aiIntake" onclick="aiIntakeFromPersona()">✨ AI gợi ý từ persona</button>
     <button class="btn ghost" onclick="saveIntake();downloadIntake()">⬇ Tải intake</button></div>
   <div class="err" id="iErr"></div>`;
