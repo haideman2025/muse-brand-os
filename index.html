@@ -1501,7 +1501,7 @@ const CH_PLATFORMS=[
   {key:'youtube',label:'YouTube Shorts',lim:0,spec:'"youtube": kịch bản Shorts ~45-60s: VOICE-OVER theo mốc [0-Xs] + TEXT OVERLAY (từ khóa viết HOA) + GỢI Ý CẢNH QUAY. Hook 3 giây đầu.'},
   {key:'comment',label:'Comment CTA',lim:0,spec:'"comment": 2-3 mẫu comment ghim đi link (thân tình, CTA rõ, có [Chèn link] nếu chưa có). Đánh số Mẫu 1/2/3.'}
 ];
-const CC={angles:[],topic:''};
+const CC={angles:[],topic:'',ratio:'4:5',nimg:2,outfitKey:''};
 function contentDNA(){
   let s=personaContext();
   const it=intakeContext();if(it&&it.trim())s+=it+"\n";
@@ -1534,7 +1534,7 @@ async function ccGenerate(){
   try{
     const specs=chans.map(c=>c.spec).join('\n');
     const keys=chans.map(c=>c.key).join(', ');
-    const prompt=contentDNA()+`\nNHIỆM VỤ: Viết nội dung social VIRAL theo ĐÚNG giọng & góc nhìn nhân vật cho chủ đề/góc: "${topic}".\nSinh cho các kênh: ${keys}. Mỗi kênh 1 key JSON đúng spec:\n${specs}\nMọi nội dung phải nhất quán DNA & tuân thủ ràng buộc trên. Trả DUY NHẤT JSON gồm đúng các key: {${chans.map(c=>'"'+c.key+'":"..."').join(',')}}`;
+    const prompt=contentDNA()+`\nNHIỆM VỤ: Viết nội dung social VIRAL theo ĐÚNG giọng & góc nhìn nhân vật cho chủ đề/góc: "${topic}".\nSinh cho các kênh: ${keys}. Mỗi kênh 1 key JSON đúng spec:\n${specs}\nMọi nội dung phải nhất quán DNA & tuân thủ ràng buộc trên. MỖI giá trị là 1 CHUỖI văn bản thuần (string) — KHÔNG lồng object/mảng (vd TikTok gộp cả "TIÊU ĐỀ:" và "CAPTION:" trong 1 chuỗi). Trả DUY NHẤT JSON gồm đúng các key: {${chans.map(c=>'"'+c.key+'":"..."').join(',')}}`;
     const o=parseJSON(await geminiText(prompt,true));
     const set={id:uid(),topic:topic,ts:Date.now(),outputs:o,chans:chans.map(c=>c.key)};
     S.content=S.content||[];S.content.unshift(set);if(S.content.length>50)S.content=S.content.slice(0,50);save();
@@ -1542,15 +1542,65 @@ async function ccGenerate(){
   }catch(e){if(er){er.style.display='block';er.textContent=e.message;}}
   finally{if(b){b.disabled=false;b.innerHTML='📝 Tạo nội dung đa kênh';}}
 }
-function ccCopy(id,k){const set=(S.content||[]).find(s=>s.id===id);if(!set)return;const t=String((set.outputs||{})[k]||'');if(navigator.clipboard)navigator.clipboard.writeText(t);toast('Đã copy '+k);}
+// Chuẩn hoá output kênh về CHUỖI (AI đôi khi trả object → tránh "[object Object]")
+function ccText(v){
+  if(v==null)return '';
+  if(typeof v==='string')return v;
+  if(Array.isArray(v))return v.map(ccText).filter(Boolean).join('\n');
+  if(typeof v==='object')return Object.entries(v).map(([k,x])=>{const t=ccText(x);return t?(/^\d+$/.test(k)?t:(k.toUpperCase().replace(/_/g,' ')+': '+t)):'';}).filter(Boolean).join('\n');
+  return String(v);
+}
+function ccCopy(id,k){const set=(S.content||[]).find(s=>s.id===id);if(!set)return;const t=ccText((set.outputs||{})[k]);if(navigator.clipboard)navigator.clipboard.writeText(t);toast('Đã copy '+k);}
 function ccDel(id){S.content=(S.content||[]).filter(s=>s.id!==id);save();renderContent(document.getElementById('main'));}
+/* ---- Ảnh cho bài (khuôn mặt + trang phục nhân vật, tỉ lệ/số lượng tuỳ chọn) ---- */
+const CC_RATIOS={'1:1':'square 1:1 format','4:5':'vertical 4:5 portrait format','9:16':'vertical 9:16 story format','16:9':'horizontal 16:9 format','3:4':'vertical 3:4 portrait format'};
+function ccImagePrompt(topic,outfitName,ratio){
+  const m=moodProfile(S.persona);const rt=CC_RATIOS[ratio]||CC_RATIOS['4:5'];const PT=PHOTO_TOKENS.replace(', vertical 3:4','');
+  return `medium shot of ${visualBase()}. Expression & mood: ${m.expression}.${outfitName?(' Wearing: '+outfitName+' (match the outfit reference image).'):''} A scroll-stopping social-media photo that illustrates this post idea: "${topic}". Setting, action, props and vibe fit the idea naturally, aspirational and emotionally engaging. Lighting: ${m.lighting}. Composition: ${m.lens}, rule-of-thirds, shallow depth of field, ${rt}. Style & mood: ${m.styleMood}. Color palette: ${m.palette}.
+CHARACTER CONSISTENCY: preserve the EXACT same facial identity as the character reference image — same face shape, eyes, nose, lips and proportions; unmistakably the same person; do not beautify or alter the face.
+${PT} Tasteful and platform-safe: no nudity, no sexual content. No text overlay, no watermark.`;
+}
+async function ccImages(id){
+  const set=(S.content||[]).find(s=>s.id===id);if(!set)return;
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const ratio=CC.ratio||'4:5';const n=Math.max(1,Math.min(8,parseInt(CC.nimg)||2));
+  const items=(typeof vidOutfitItems==='function')?vidOutfitItems():[];
+  const outfit=items.find(x=>x.key===CC.outfitKey);
+  const face=await getRef();
+  const outfitImg=(outfit&&outfit.imgKey)?await mediaGet(outfit.imgKey):null;
+  const refs=[face,outfitImg].filter(Boolean);
+  const prompt=ccImagePrompt(set.topic||'',outfit?outfit.name:'',ratio);
+  set.imgIds=set.imgIds||[];
+  const btn=document.getElementById('ccimg_'+id);if(btn)btn.disabled=true;
+  const box=document.getElementById('ccimgs_'+id);
+  for(let i=0;i<n;i++){
+    if(btn)btn.innerHTML=`<span class="spinner"></span> Ảnh ${i+1}/${n}...`;
+    try{
+      const img=refs.length?await geminiImageMulti(prompt,refs):await geminiImage(prompt,{});
+      const gid=await addToGallery(img,'content: '+(set.topic||'').slice(0,40),'content');
+      set.imgIds.push(gid);save();
+      if(box){const c=document.createElement('div');c.className='imgcard';c.innerHTML=`<img src="${img}" alt=""><div class="ov"><button title="Tải">⬇</button><button title="Xoá">✕</button></div>`;const bs=c.querySelectorAll('button');bs[0].onclick=()=>dlDataUrl('muse-post-'+gid+'.png',img);bs[1].onclick=()=>{delGallery(gid);set.imgIds=set.imgIds.filter(x=>x!==gid);save();c.remove();};box.appendChild(c);}
+    }catch(e){toast('Ảnh lỗi: '+(e.message||e).slice(0,80));}
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='🖼 Tạo ảnh cho bài';}
+  toast('✓ Đã tạo '+n+' ảnh cho bài');
+}
+function loadCCImages(){
+  (S.content||[]).forEach(set=>{const box=document.getElementById('ccimgs_'+set.id);if(!box||!set.imgIds)return;
+    set.imgIds.forEach(gid=>{if(box.querySelector('img[data-cg="'+gid+'"]'))return;
+      mediaGet('g:'+gid).then(u=>{if(!u)return;const c=document.createElement('div');c.className='imgcard';c.innerHTML=`<img data-cg="${gid}" src="${u}" alt=""><div class="ov"><button title="Tải">⬇</button><button title="Xoá">✕</button></div>`;const bs=c.querySelectorAll('button');bs[0].onclick=()=>dlDataUrl('muse-post-'+gid+'.png',u);bs[1].onclick=()=>{delGallery(gid);set.imgIds=set.imgIds.filter(x=>x!==gid);save();c.remove();};box.appendChild(c);});
+    });
+  });
+}
 function renderContentList(){
   const list=S.content||[];if(!list.length)return '<div class="note" style="text-align:center;opacity:.6;margin-top:14px">Chưa có nội dung — nhập chủ đề rồi bấm Tạo.</div>';
   return list.map(set=>{
     const chans=(set.chans&&set.chans.length)?set.chans:Object.keys(set.outputs||{});
+    const nimg=(set.imgIds&&set.imgIds.length)||0;
     return `<div class="card" style="margin-top:14px">
       <div style="font-weight:700;color:var(--gold)">📝 ${esc(set.topic||'(không tên)')}<button class="btn ghost sm" style="float:right" onclick="ccDel('${set.id}')">🗑 Xoá</button></div>
-      ${chans.map(k=>{const meta=CH_PLATFORMS.find(p=>p.key===k)||{label:k,lim:0};const txt=String((set.outputs||{})[k]||'');const over=meta.lim&&txt.length>meta.lim;
+      ${chans.map(k=>{const meta=CH_PLATFORMS.find(p=>p.key===k)||{label:k,lim:0};const txt=ccText((set.outputs||{})[k]);const over=meta.lim&&txt.length>meta.lim;
         return `<div style="border:1px solid var(--line,#2a3550);border-radius:8px;padding:10px;margin-top:8px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(meta.label)}</b>
             <span style="font-size:11px;${over?'color:var(--coral)':'opacity:.55'}">${txt.length}${meta.lim?'/'+meta.lim:''} ký tự</span></div>
@@ -1558,6 +1608,11 @@ function renderContentList(){
           <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="ccCopy('${set.id}','${k}')">📋 Copy</button>
             <button class="btn ghost sm" disabled title="Cần cấu hình Zernio API — sắp có">📤 Publish (Zernio) · sắp có</button></div>
         </div>`;}).join('')}
+      <div class="bar" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+        <button class="btn gold sm" id="ccimg_${set.id}" onclick="ccImages('${set.id}')">🖼 Tạo ảnh cho bài</button>
+        <span class="hint" style="align-self:center">Dùng khuôn mặt + trang phục nhân vật · tỉ lệ ${CC.ratio} · ${CC.nimg} ảnh (chỉnh ở khung trên)</span>
+      </div>
+      <div class="imgrid" id="ccimgs_${set.id}" style="margin-top:8px">${nimg?'':''}</div>
     </div>`;
   }).join('');
 }
@@ -1575,10 +1630,20 @@ function renderContent(m){
     <div>${CH_PLATFORMS.map(p=>`<label class="chip" style="cursor:pointer;display:inline-flex;align-items:center"><input type="checkbox" id="cc_ch_${p.key}" ${p.def?'checked':''} style="width:auto;margin-right:6px">${esc(p.label)}</label>`).join(' ')}</div>
     <div class="bar" style="margin-top:12px"><button class="btn" id="ccGenBtn" onclick="ccGenerate()" ${ok?'':'disabled'}>📝 Tạo nội dung đa kênh</button></div>
     <div class="err" id="ccErr"></div>
+    <label style="margin-top:14px">🖼 Ảnh cho bài — dùng khuôn mặt + trang phục nhân vật (bấm "Tạo ảnh cho bài" ở mỗi bài bên dưới)</label>
+    <div class="row3" style="margin-top:6px">
+      <div><label>Trang phục (Tủ đồ / Thư viện)</label><select id="cc_outfit" onchange="CC.outfitKey=this.value;renderContent(document.getElementById('main'))">
+        <option value="">— Không / mặc định —</option>
+        ${(typeof vidOutfitItems==='function'?vidOutfitItems():[]).map(it=>`<option value="${it.key}" ${CC.outfitKey===it.key?'selected':''}>${esc(it.name)}</option>`).join('')}
+      </select></div>
+      <div><label>Tỉ lệ</label><select id="cc_ratio" onchange="CC.ratio=this.value;renderContent(document.getElementById('main'))">${Object.keys(CC_RATIOS).map(r=>`<option ${CC.ratio===r?'selected':''}>${r}</option>`).join('')}</select></div>
+      <div><label>Số ảnh</label><select id="cc_nimg" onchange="CC.nimg=parseInt(this.value);renderContent(document.getElementById('main'))">${[1,2,4,6].map(n=>`<option ${CC.nimg==n?'selected':''}>${n} ảnh</option>`).join('')}</select></div>
+    </div>
   </div>
   <div id="ccList">${renderContentList()}</div>
   <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('intake')">← Chiến lược</button><button class="btn blue" onclick="go('export')">Tiếp: Xuất bản →</button></div>`;
   const tb=document.getElementById('cc_topic');if(tb)tb.addEventListener('input',()=>{CC.topic=tb.value;});
+  if(typeof loadCCImages==='function')loadCCImages();
 }
 
 /* --- 🎬 VIDEO OMNI (bộ prompt cho Google Flow — biến hình × tài năng) --- */
