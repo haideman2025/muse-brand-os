@@ -299,11 +299,11 @@ aside{display:flex;flex-direction:column;gap:13px}
    Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
-const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content'];
+const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory'];
 /* Field nào là MẢNG — nguồn sự thật duy nhất. Thêm field mảng mới vào CHAR_FIELDS thì PHẢI thêm vào đây,
    nếu không activeChar() sẽ khởi tạo nó thành {} và mọi .push/.unshift/.filter sẽ nổ. */
-const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content'];
-function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[],content:[]};}
+const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content','vidHistory'];
+function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[],content:[],vidHistory:[]};}
 let __migratedLegacy=false;
 /* Migration → workspace đa nhân vật (v2). Giữ settings toàn cục ở gốc; mỗi nhân vật 1 gói dna riêng. */
 function migrateWS(r){
@@ -1176,7 +1176,7 @@ function exportPersona(){const pp=Object.assign({},S.persona);dl("persona.json",
 async function addToGallery(dataUrl,prompt,kind){
   const id=uid();await mediaPut("g:"+id,dataUrl);
   S.gallery.unshift({id,prompt:prompt||"",kind:kind||"shot",ts:Date.now()});
-  if(S.gallery.length>120){const drop=S.gallery.splice(120);for(const d of drop){await mediaDel("g:"+d.id);}}
+  if(S.gallery.length>600){const drop=S.gallery.splice(600);for(const d of drop){await mediaDel("g:"+d.id);}}
   save();return id;
 }
 async function delGallery(id){await mediaDel("g:"+id);S.gallery=S.gallery.filter(g=>g.id!==id);save();if(S.stage==='studio')renderStudio(document.getElementById('main'));}
@@ -1352,15 +1352,25 @@ async function onOutfitFile(ev){
 }
 
 /* --- Gallery --- */
+let __galShow=30,__galKind='all';
+const GAL_KINDS=[['all','Tất cả'],['shot','Photoshoot'],['product','Bộ ảnh SP'],['content','Ảnh bài'],['wardrobe','Outfit']];
+function galFilter(k){__galKind=k;__galShow=30;renderStudio(document.getElementById('main'));}
+function galMore(){__galShow+=30;renderStudio(document.getElementById('main'));}
 async function renderGallery(b){
-  if(!S.gallery.length){b.innerHTML='<div class="note">Chưa có ảnh. Tạo ở tab Photoshoot / Tủ đồ.</div>';return;}
-  b.innerHTML=`<div class="bar" style="margin-top:6px"><button class="btn ghost sm" onclick="dlGalleryAll()">⬇ Tải tất cả ảnh</button>
-    <span class="hint">${S.gallery.length} ảnh · lưu IndexedDB trên máy bạn</span></div><div class="imgrid" id="galGrid"></div>`;
+  if(!S.gallery.length){b.innerHTML='<div class="note">Chưa có ảnh. Tạo ở tab Photoshoot / Bộ ảnh SP / Tủ đồ.</div>';return;}
+  const list=__galKind==='all'?S.gallery:S.gallery.filter(g=>(g.kind||'shot')===__galKind);
+  const total=list.length,show=Math.min(__galShow,total);
+  b.innerHTML=`<div class="bar" style="margin-top:6px;flex-wrap:wrap">
+      ${GAL_KINDS.map(k=>`<button class="chip" style="${__galKind===k[0]?'border-color:var(--acc);color:var(--acc)':''}" onclick="galFilter('${k[0]}')">${k[1]}</button>`).join('')}
+      <button class="btn ghost sm" onclick="dlGalleryAll()">⬇ Tải tất cả</button></div>
+    <div class="hint" style="margin:6px 0">${S.gallery.length} ảnh tổng · lọc: ${total} · hiển thị ${show} · lưu IndexedDB trên máy (tối đa 600)</div>
+    <div class="imgrid" id="galGrid"></div>
+    ${show<total?`<div class="bar" style="justify-content:center;margin-top:12px"><button class="btn ghost" onclick="galMore()">Xem thêm (còn ${total-show})</button></div>`:''}`;
   const grid=document.getElementById('galGrid');
-  for(const g of S.gallery){
+  for(let i=0;i<show;i++){const g=list[i];
     const u=await mediaGet("g:"+g.id);if(!u)continue;
     const c=document.createElement('div');c.className='imgcard';
-    c.innerHTML=`<img src="${u}" title="${esc(g.prompt)}" alt=""><div class="ov">
+    c.innerHTML=`<img loading="lazy" src="${u}" title="${esc(g.prompt)}" alt=""><div class="ov">
       <button title="Tải">⬇</button><button title="Đặt làm khuôn mặt neo">📌</button><button title="Xoá">✕</button></div>`;
     const bs=c.querySelectorAll('button');
     bs[0].onclick=()=>dlDataUrl("muse-"+g.id+".png",u);
@@ -1708,6 +1718,7 @@ function renderVideo(b){
     </div>
     ${vlogLogPanelHTML()}
   </div>
+  ${vidHistoryPanelHTML()}
   <div id="vidOut"></div>`;
   items.forEach(async it=>{if(it.imgKey){const u=await mediaGet(it.imgKey);const im=b.querySelector(`img[data-ik="${it.imgKey}"]`);if(im&&u)im.src=u;}});
   if(__vidVideos.length)renderVideoOut();
@@ -1743,6 +1754,7 @@ async function genVideoClips(){
     clips.push({seq:i+1,prompt:withLock(videoClipPrompt(i,n,talent[2],talent[3]||'trending background music')),outfit,audio:talent[3]||'trending background music',talentLabel:talent[1]});
   }
   __vidVideos=[{series:'Biến hình thời trang × '+talents.map(t=>t[1]).join(', '),clips}];
+  logVidPack('Biến hình thời trang');
   renderVideoOut();
 }
 /* ==================== KHOÁ NHÂN VẬT/PHONG CÁCH TỪ ẢNH (vision) — học goal2channel-studio ====================
@@ -1816,6 +1828,7 @@ async function genSalesVideo(){
   });
   if(sb){sb.disabled=false;sb.innerHTML='🛍️ Video bán hàng (không lời)';}
   __vidVideos=[{series:'Video bán hàng · '+prodName,clips}];
+  logVidPack('Video bán hàng · '+prodName);
   renderVideoOut();
   toast(picked.length?('✓ Đã dựng video bán hàng ('+n+' clip)'):'Mẹo: tick ảnh bộ SP ở lưới để Flow giữ đúng sản phẩm');
 }
@@ -1899,6 +1912,7 @@ async function runAIVideos(nVideos,clipsPerVideo,btnId,btnLabel,mode){
       return {series:v.series||((isVlog?'Vlog ':'Video ')+(vi+1)),place:v.noi_chon||'',people,clips};
     });
     if(isVlog)logVlogHistory(__vidVideos);
+    logVidPack(isVlog?'Vlog từ persona':'Phim từ ý tưởng');
     renderVideoOut();toast('✓ AI tạo '+__vidVideos.length+(isVlog?' vlog':' video'));
   }catch(e){toast('Lỗi AI: '+(e.message||e));}
   finally{if(b){b.disabled=false;b.innerHTML=btnLabel;}}
@@ -1938,6 +1952,34 @@ function clearVlogLog(){
   S.vlogLog=[];save();
   const p=document.getElementById('vlogLogPanel');if(p)p.outerHTML=vlogLogPanelHTML();
   toast('Đã xoá nhật ký');
+}
+/* ---- Lịch sử ý tưởng + prompt pack video (xem lại / tái dùng) ---- */
+function logVidPack(label){
+  if(!__vidVideos||!__vidVideos.length)return;
+  S.vidHistory=S.vidHistory||[];
+  const clips=__vidVideos.reduce((a,v)=>a+((v.clips&&v.clips.length)||0),0);
+  S.vidHistory.unshift({id:uid(),date:_today10(),label:label||'Video',idea:(VID.idea||'').slice(0,220),dur:VID.duration,nvid:__vidVideos.length,nclip:clips,videos:JSON.parse(JSON.stringify(__vidVideos))});
+  if(S.vidHistory.length>40)S.vidHistory=S.vidHistory.slice(0,40);
+  save();
+}
+function vidReplay(id){const e=(S.vidHistory||[]).find(x=>x.id===id);if(!e||!e.videos)return;__vidVideos=JSON.parse(JSON.stringify(e.videos));renderVideoOut();toast('Đã mở lại prompt pack cũ');const o=document.getElementById('vidOut');if(o)o.scrollIntoView({behavior:'smooth',block:'start'});}
+function vidHistDel(id){S.vidHistory=(S.vidHistory||[]).filter(x=>x.id!==id);save();renderVideo(document.getElementById('studioBody'));}
+function clearVidHistory(){if(!confirm('Xoá toàn bộ lịch sử ý tưởng & prompt pack video của nhân vật này?'))return;S.vidHistory=[];save();renderVideo(document.getElementById('studioBody'));}
+function vidHistoryPanelHTML(){
+  const log=S.vidHistory||[];if(!log.length)return '';
+  return `<div class="card" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">📚 Lịch sử ý tưởng & prompt pack · ${log.length}</b>
+      <button class="btn ghost sm" onclick="clearVidHistory()">🗑 Xoá hết</button></div>
+    <div class="hint" style="font-size:11px;margin:4px 0">Mỗi lần dựng video đều được lưu — bấm "Xem lại" để mở lại prompt pack & tái dùng ý tưởng cũ.</div>
+    ${log.slice(0,25).map(e=>`<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid rgba(255,255,255,.06)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px"><b>${esc(e.label||'Video')}</b> <span class="hint">· ${esc(e.date||'')} · ${e.nvid} video · ${e.nclip} clip${e.dur?(' · '+e.dur+'s'):''}</span></div>
+        ${e.idea?`<div class="hint" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">💡 ${esc(e.idea)}</div>`:''}
+      </div>
+      <button class="btn ghost sm" onclick="vidReplay('${e.id}')">Xem lại</button>
+      <button class="btn ghost sm" onclick="vidHistDel('${e.id}')">🗑</button>
+    </div>`).join('')}
+  </div>`;
 }
 function renderVideoOut(){
   const o=document.getElementById('vidOut');if(!o)return;
