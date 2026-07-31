@@ -272,6 +272,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .pc-gate{font-size:9.5px;color:var(--mut2)}
 .pc-score{font-size:14px;font-weight:800}
 .pc-arr{color:var(--mut2);flex-shrink:0}
+/* content image select toggle */
+.imgcard{position:relative}
+.ccsel{position:absolute;top:6px;left:6px;z-index:2;width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.55);background:rgba(11,8,30,.62);color:#fff;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.ccsel.on{background:var(--acc);color:#1A1140;border-color:transparent}
 /* redesigned shell — sidebar + icon nav + character card */
 aside{display:flex;flex-direction:column;gap:13px}
 .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
@@ -1679,10 +1683,63 @@ async function ccGenerate(){
   }catch(e){if(er){er.style.display='block';er.textContent=e.message;}}
   finally{if(b){b.disabled=false;b.innerHTML='📝 Tạo nội dung đa kênh';}}
 }
-/* ---- Zernio: đăng thẳng lên Facebook (qua worker proxy — né CORS, ảnh host R2) ---- */
+/* ---- Zernio: đăng & lên lịch lên Facebook (qua worker proxy — né CORS, ảnh host R2) ---- */
 function zGet(k){return localStorage.getItem('muse_zernio_'+k)||'';}
 function zSet(k,v){if(v)localStorage.setItem('muse_zernio_'+k,v);else localStorage.removeItem('muse_zernio_'+k);}
-function zernioSave(){zSet('key',(val('z_key')||'').trim());zSet('account',(val('z_account')||'').trim());zSet('page',(val('z_page')||'').trim());toast('Đã lưu cấu hình Zernio');}
+function zConnected(){return !!(zGet('key')&&zGet('account'));}
+function zernioSave(){zSet('key',(val('z_key')||'').trim());zSet('account',(val('z_account')||'').trim());zSet('page',(val('z_page')||'').trim());toast('Đã lưu kết nối Zernio');renderContent(document.getElementById('main'));}
+function zernioCard(){
+  const on=zConnected();
+  return `<div class="card" style="margin-top:0">
+    <div class="bar" style="margin-top:0;justify-content:space-between;align-items:center">
+      <b style="color:var(--gold)">📤 Kết nối Zernio — đăng &amp; lên lịch tự động lên Facebook</b>
+      <span class="hpill" style="background:${on?'rgba(111,227,210,.14)':'rgba(242,193,78,.14)'};color:${on?'var(--ok)':'var(--gold)'}">${on?'✓ Đã kết nối':'⚠ Chưa nhập key'}</span>
+    </div>
+    <div class="hint" style="margin:6px 0 8px">Lấy <b>API key</b> + <b>Account ID</b> tại zernio.com (kết nối Facebook Page trong dashboard Zernio). Đăng qua server (né CORS, ảnh tự host).</div>
+    <div class="row3">
+      <div><label>Zernio API key</label><input id="z_key" type="password" value="${esc(zGet('key'))}" placeholder="zk_..."></div>
+      <div><label>Account ID</label><input id="z_account" value="${esc(zGet('account'))}" placeholder="acc_..."></div>
+      <div><label>Page ID (tuỳ chọn)</label><input id="z_page" value="${esc(zGet('page'))}" placeholder="nếu có nhiều page"></div>
+    </div>
+    <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="zernioSave()">💾 Lưu kết nối</button><button class="btn ghost sm" onclick="zernioPages()">📄 Lấy danh sách Page</button></div>
+    <div class="hint" id="zStatus" style="margin-top:6px"></div>
+  </div>`;
+}
+function ccToggleSel(setId,gid,btn){const set=(S.content||[]).find(s=>s.id===setId);if(!set)return;set.pubSel=set.pubSel||[];const i=set.pubSel.indexOf(gid);if(i<0)set.pubSel.push(gid);else set.pubSel.splice(i,1);save();const on=set.pubSel.includes(gid);if(btn){btn.classList.toggle('on',on);btn.textContent=on?'✓':'○';}}
+function ccImgCard(setId,gid,url){
+  const set=(S.content||[]).find(s=>s.id===setId);const sel=!!(set&&set.pubSel&&set.pubSel.includes(gid));
+  const c=document.createElement('div');c.className='imgcard';
+  c.innerHTML=`<img data-cg="${gid}" src="${url}" alt=""><button class="ccsel${sel?' on':''}" title="Chọn ảnh đăng kèm">${sel?'✓':'○'}</button><div class="ov"><button title="Tải">⬇</button><button title="Xoá">✕</button></div>`;
+  const selb=c.querySelector('.ccsel');selb.onclick=()=>ccToggleSel(setId,gid,selb);
+  const bs=c.querySelectorAll('.ov button');bs[0].onclick=()=>dlDataUrl('muse-post-'+gid+'.png',url);
+  bs[1].onclick=()=>{delGallery(gid);if(set){set.imgIds=(set.imgIds||[]).filter(x=>x!==gid);set.pubSel=(set.pubSel||[]).filter(x=>x!==gid);save();}c.remove();};
+  return c;
+}
+async function ccPubImages(set){
+  let ids=(set.pubSel&&set.pubSel.length)?set.pubSel:((set.imgIds&&set.imgIds.length)?[set.imgIds[0]]:[]);
+  const out=[];
+  for(const gid of ids.slice(0,10)){const u=await mediaGet('g:'+gid);if(!u)continue;const mm=(u.match(/^data:([^;]+);/)||[])[1]||'image/jpeg';out.push({base64:u,mime:mm});}
+  return out;
+}
+async function zernioPublish(setId,mode){
+  const set=(S.content||[]).find(s=>s.id===setId);if(!set)return;
+  if(!zConnected()){toast('Nhập Zernio API key + Account ID ở "Kết nối Zernio" trên cùng');return;}
+  const content=ccText((set.outputs||{}).fb||Object.values(set.outputs||{})[0]);
+  if(!content){toast('Không có nội dung FB để đăng');return;}
+  let scheduledAt='';
+  if(mode==='schedule'){const v=val('sch_'+setId);if(!v){toast('Chọn thời gian lên lịch đã');return;}const dt=new Date(v);if(isNaN(dt.getTime())||dt.getTime()<Date.now()+60000){toast('Thời gian phải ở tương lai');return;}scheduledAt=dt.toISOString();}
+  const btn=document.getElementById((mode==='schedule'?'zsch_':'zpub_')+setId);const old=btn?btn.innerHTML:'';if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> ...';}
+  try{
+    const imagesBase64=await ccPubImages(set);
+    const body={zernioKey:zGet('key'),accountId:zGet('account'),pageId:zGet('page'),content,imagesBase64};
+    if(scheduledAt)body.scheduledAt=scheduledAt;else body.publishNow=true;
+    const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json().catch(()=>({}));
+    if(d.ok){toast(scheduledAt?('✓ Đã lên lịch '+new Date(scheduledAt).toLocaleString('vi')):'✓ Đã đăng lên Facebook');}
+    else{toast('Zernio: '+esc(JSON.stringify(d.data||d).slice(0,140)));}
+  }catch(e){toast('Lỗi mạng: '+(e.message||e));}
+  finally{if(btn){btn.disabled=false;btn.innerHTML=old;}}
+}
 async function zernioPages(){
   zernioSave();
   if(!zGet('key')||!zGet('account')){toast('Cần Zernio API key + Account ID');return;}
@@ -1690,22 +1747,6 @@ async function zernioPages(){
   try{const r=await fetch(SYNC_URL+'/zernio/pages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account')})});const d=await r.json();
     if(st)st.innerHTML='<b>Kết quả:</b> <span style="font-family:ui-monospace,monospace;font-size:11px">'+esc(JSON.stringify(d.data||d).slice(0,500))+'</span>';
   }catch(e){if(st)st.textContent='Lỗi: '+(e.message||e);}
-}
-async function zernioPublishFB(setId){
-  const set=(S.content||[]).find(s=>s.id===setId);if(!set)return;
-  if(!zGet('key')||!zGet('account')){toast('Nhập Zernio API key + Account ID ở "Kết nối Zernio" trước');return;}
-  const content=ccText((set.outputs||{}).fb||Object.values(set.outputs||{})[0]);
-  if(!content){toast('Không có nội dung FB để đăng');return;}
-  let imageBase64='',mime='image/jpeg';
-  if(set.imgIds&&set.imgIds.length){const u=await mediaGet('g:'+set.imgIds[0]);if(u){imageBase64=u;const mm=u.match(/^data:([^;]+);/);if(mm)mime=mm[1];}}
-  const btn=document.getElementById('zpub_'+setId);if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Đang đăng...';}
-  try{
-    const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account'),pageId:zGet('page'),content,imageBase64,mime,publishNow:true})});
-    const d=await r.json().catch(()=>({}));
-    if(d.ok){toast('✓ Đã gửi bài lên Facebook qua Zernio');}
-    else{toast('Zernio: '+esc(JSON.stringify(d.data||d).slice(0,140)));}
-  }catch(e){toast('Lỗi mạng: '+(e.message||e));}
-  finally{if(btn){btn.disabled=false;btn.innerHTML='📤 Đăng lên FB (Zernio)';}}
 }
 // Chuẩn hoá output kênh về CHUỖI (AI đôi khi trả object → tránh "[object Object]")
 function ccText(v){
@@ -1745,7 +1786,7 @@ async function ccImages(id){
       const img=refs.length?await geminiImageMulti(prompt,refs):await geminiImage(prompt,{});
       const gid=await addToGallery(img,'content: '+(set.topic||'').slice(0,40),'content');
       set.imgIds.push(gid);save();
-      if(box){const c=document.createElement('div');c.className='imgcard';c.innerHTML=`<img src="${img}" alt=""><div class="ov"><button title="Tải">⬇</button><button title="Xoá">✕</button></div>`;const bs=c.querySelectorAll('button');bs[0].onclick=()=>dlDataUrl('muse-post-'+gid+'.png',img);bs[1].onclick=()=>{delGallery(gid);set.imgIds=set.imgIds.filter(x=>x!==gid);save();c.remove();};box.appendChild(c);}
+      if(box)box.appendChild(ccImgCard(id,gid,img));
     }catch(e){toast('Ảnh lỗi: '+(e.message||e).slice(0,80));}
   }
   if(btn){btn.disabled=false;btn.innerHTML='🖼 Tạo ảnh cho bài';}
@@ -1754,7 +1795,7 @@ async function ccImages(id){
 function loadCCImages(){
   (S.content||[]).forEach(set=>{const box=document.getElementById('ccimgs_'+set.id);if(!box||!set.imgIds)return;
     set.imgIds.forEach(gid=>{if(box.querySelector('img[data-cg="'+gid+'"]'))return;
-      mediaGet('g:'+gid).then(u=>{if(!u)return;const c=document.createElement('div');c.className='imgcard';c.innerHTML=`<img data-cg="${gid}" src="${u}" alt=""><div class="ov"><button title="Tải">⬇</button><button title="Xoá">✕</button></div>`;const bs=c.querySelectorAll('button');bs[0].onclick=()=>dlDataUrl('muse-post-'+gid+'.png',u);bs[1].onclick=()=>{delGallery(gid);set.imgIds=set.imgIds.filter(x=>x!==gid);save();c.remove();};box.appendChild(c);});
+      mediaGet('g:'+gid).then(u=>{if(!u)return;box.appendChild(ccImgCard(set.id,gid,u));});
     });
   });
 }
@@ -1770,23 +1811,29 @@ function renderContentList(){
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(meta.label)}</b>
             <span style="font-size:11px;${over?'color:var(--coral)':'opacity:.55'}">${txt.length}${meta.lim?'/'+meta.lim:''} ký tự</span></div>
           <div style="white-space:pre-wrap;font-size:13px;margin-top:6px;line-height:1.5">${esc(txt)}</div>
-          <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="ccCopy('${set.id}','${k}')">📋 Copy</button>
-            ${k==='fb'?`<button class="btn ghost sm" id="zpub_${set.id}" onclick="zernioPublishFB('${set.id}')">📤 Đăng lên FB (Zernio)</button>`:`<button class="btn ghost sm" disabled title="Zernio: đang ưu tiên FB trước">📤 Publish · sắp có</button>`}</div>
+          <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="ccCopy('${set.id}','${k}')">📋 Copy</button></div>
         </div>`;}).join('')}
       <div class="bar" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
         <button class="btn gold sm" id="ccimg_${set.id}" onclick="ccImages('${set.id}')">🖼 Tạo ảnh cho bài</button>
-        <span class="hint" style="align-self:center">Dùng khuôn mặt + trang phục nhân vật · tỉ lệ ${CC.ratio} · ${CC.nimg} ảnh (chỉnh ở khung trên)</span>
+        <span class="hint" style="align-self:center">Khuôn mặt + trang phục nhân vật · ${CC.ratio} · ${CC.nimg} ảnh (chỉnh khung trên). Tích ✓ trên ảnh để chọn ảnh đăng kèm.</span>
       </div>
       <div class="imgrid" id="ccimgs_${set.id}" style="margin-top:8px">${nimg?'':''}</div>
+      <div class="bar" style="margin-top:10px;flex-wrap:wrap;align-items:center">
+        <input type="datetime-local" id="sch_${set.id}" style="width:auto;min-width:180px">
+        <button class="btn sm" id="zpub_${set.id}" onclick="zernioPublish('${set.id}','now')">📤 Đăng ngay (FB)</button>
+        <button class="btn blue sm" id="zsch_${set.id}" onclick="zernioPublish('${set.id}','schedule')">🗓 Lên lịch</button>
+        ${zConnected()?'':'<span class="hint" style="align-self:center;color:var(--gold)">⚠ Nhập key Zernio ở khung trên để đăng</span>'}
+      </div>
     </div>`;
   }).join('');
 }
 function renderContent(m){
   const ok=personaOK();
   m.innerHTML=`<h1>Nội dung đa kênh</h1>
-  <p class="lead">Từ mascot + DNA thương hiệu → bài viral cho nhiều kênh cùng lúc, đúng giọng nhân vật.</p>
+  <p class="lead">Từ mascot + DNA thương hiệu → bài viral nhiều kênh, đúng giọng nhân vật. Đăng &amp; lên lịch thẳng qua Zernio.</p>
   ${!ok?'<div class="note" style="border-color:var(--coral);color:#ffb3b3">⚠ Cần nhân vật (bước ③) trước.</div>':''}
-  <div class="card">
+  ${zernioCard()}
+  <div class="card" style="margin-top:12px">
     <div class="bar" style="margin-top:0;justify-content:flex-start;gap:8px;align-items:center">
       <span style="font-size:12.5px;color:var(--soft)">🌐 Ngôn ngữ nội dung:</span>
       <button class="chip" style="${CC.lang==='vi'?'border-color:var(--acc);color:var(--acc)':''}" onclick="CC.lang='vi';renderContent(document.getElementById('main'))">Tiếng Việt</button>
@@ -1810,19 +1857,6 @@ function renderContent(m){
       <div><label>Số ảnh</label><select id="cc_nimg" onchange="CC.nimg=parseInt(this.value);renderContent(document.getElementById('main'))">${[1,2,4,6].map(n=>`<option ${CC.nimg==n?'selected':''}>${n} ảnh</option>`).join('')}</select></div>
     </div>
   </div>
-  <details class="card" style="margin-top:12px"><summary style="cursor:pointer;font-weight:700;color:var(--gold)">📤 Kết nối Zernio — đăng thẳng lên Facebook</summary>
-    <div style="margin-top:10px">
-      <div class="hint" style="margin-bottom:8px">Lấy API key tại <b>zernio.com</b> → kết nối trang Facebook trong dashboard Zernio để có <b>Account ID</b>. Bài đăng đi qua server (né CORS, ảnh tự host). Ưu tiên FB trước.</div>
-      <div class="row3">
-        <div><label>Zernio API key</label><input id="z_key" type="password" value="${esc(zGet('key'))}" placeholder="zk_..."></div>
-        <div><label>Account ID</label><input id="z_account" value="${esc(zGet('account'))}" placeholder="acc_..."></div>
-        <div><label>Page ID (tuỳ chọn)</label><input id="z_page" value="${esc(zGet('page'))}" placeholder="nếu tài khoản có nhiều page"></div>
-      </div>
-      <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="zernioSave()">💾 Lưu</button><button class="btn ghost sm" onclick="zernioPages()">📄 Lấy danh sách Page</button></div>
-      <div class="hint" id="zStatus" style="margin-top:6px"></div>
-      <div class="hint" style="margin-top:6px">Sau khi có nội dung bên dưới → bấm <b>📤 Đăng lên FB (Zernio)</b> ở kênh Facebook của bài (kèm ảnh đầu tiên nếu đã tạo).</div>
-    </div>
-  </details>
   <div id="ccList">${renderContentList()}</div>
   <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('intake')">← Chiến lược</button><button class="btn blue" onclick="go('export')">Tiếp: Xuất bản →</button></div>`;
   const tb=document.getElementById('cc_topic');if(tb)tb.addEventListener('input',()=>{CC.topic=tb.value;});

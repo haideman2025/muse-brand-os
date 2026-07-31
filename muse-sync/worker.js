@@ -84,15 +84,19 @@ export default {
         const b = await req.json().catch(() => ({}));
         if (!b.zernioKey || !b.accountId || !b.content) return json({ error: 'Thiếu zernioKey/accountId/content.' }, 400);
         let mediaItems = [];
-        if (b.imageBase64) {
-          const clean = String(b.imageBase64).replace(/^data:[^;]+;base64,/, '');
+        const imgs = Array.isArray(b.imagesBase64) ? b.imagesBase64
+          : (b.imageBase64 ? [{ base64: b.imageBase64, mime: b.mime }] : []);
+        for (const it of imgs.slice(0, 10)) {
+          const raw = it && (it.base64 || it);
+          if (!raw) continue;
+          const clean = String(raw).replace(/^data:[^;]+;base64,/, '');
           const bytes = Uint8Array.from(atob(clean), c => c.charCodeAt(0));
-          if (bytes.byteLength > 6 * 1024 * 1024) return json({ error: 'Ảnh quá lớn (>6MB).' }, 413);
-          const mime = b.mime || 'image/jpeg';
+          if (bytes.byteLength > 6 * 1024 * 1024) continue; // bỏ ảnh quá lớn thay vì fail cả bài
+          const mime = (it && it.mime) || b.mime || 'image/jpeg';
           const ext = mime.indexOf('png') >= 0 ? 'png' : 'jpg';
           const key = 'pub/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + ext;
           await env.IMG.put(key, bytes, { httpMetadata: { contentType: mime } });
-          mediaItems = [{ type: 'image', url: url.origin + '/pub?k=' + encodeURIComponent(key) }];
+          mediaItems.push({ type: 'image', url: url.origin + '/pub?k=' + encodeURIComponent(key) });
         }
         const psd = {}; if (b.pageId) psd.pageId = String(b.pageId);
         const payload = { content: String(b.content).slice(0, 63000), platforms: [{ platform: 'facebook', accountId: String(b.accountId), platformSpecificData: psd }] };
