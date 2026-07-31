@@ -276,6 +276,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .imgcard{position:relative}
 .ccsel{position:absolute;top:6px;left:6px;z-index:2;width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.55);background:rgba(11,8,30,.62);color:#fff;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
 .ccsel.on{background:var(--acc);color:#1A1140;border-color:transparent}
+/* 30-day calendar grid */
+.calgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px}
+.calday{border:1px solid var(--line);border-radius:14px;padding:11px;background:var(--panel);display:flex;flex-direction:column;gap:6px}
+.calday.sched{border-color:rgba(111,227,210,.4);background:rgba(111,227,210,.05)}
+.cd-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.cd-head b{font-size:13px}
+.cd-date{font-size:10px;color:var(--mut2);white-space:nowrap}
+.cd-angle{font-size:11.5px;color:var(--acc);font-weight:600;line-height:1.35}
+.cd-cap{font-size:11px;color:var(--soft);line-height:1.45;max-height:66px;overflow:hidden}
+.cd-row{display:flex;gap:8px;align-items:center;margin-top:2px}
+.cd-thumb{width:52px;height:66px;border-radius:8px;overflow:hidden;flex-shrink:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0 8px,rgba(255,255,255,.02) 8px 16px);display:flex;align-items:center;justify-content:center;text-align:center}
+.cd-btns{display:flex;gap:6px;flex-wrap:wrap}
 /* redesigned shell — sidebar + icon nav + character card */
 aside{display:flex;flex-direction:column;gap:13px}
 .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
@@ -354,7 +366,7 @@ aside{display:flex;flex-direction:column;gap:13px}
    Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
-const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory'];
+const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory','calendar'];
 /* Field nào là MẢNG — nguồn sự thật duy nhất. Thêm field mảng mới vào CHAR_FIELDS thì PHẢI thêm vào đây,
    nếu không activeChar() sẽ khởi tạo nó thành {} và mọi .push/.unshift/.filter sẽ nổ. */
 const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content','vidHistory'];
@@ -1799,6 +1811,140 @@ function loadCCImages(){
     });
   });
 }
+/* ==================== 📅 LỊCH 30 NGÀY TỰ ĐỘNG (DNA/mục tiêu → 30 bài → ảnh → lịch Zernio) ==================== */
+const CAL={source:'goal',idea:'',time:'19:00',startDate:''};
+let __calStop=false;
+function calDefaultStart(){const d=new Date(Date.now()+86400000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function calDayIso(cal,i){const p=(cal.time||'19:00').split(':');const base=cal.startDate?new Date(cal.startDate+'T00:00:00'):new Date();return new Date(base.getFullYear(),base.getMonth(),base.getDate()+i,parseInt(p[0])||19,parseInt(p[1])||0,0);}
+function calStop(){__calStop=true;toast('Sẽ dừng sau bước hiện tại');}
+async function calGenerate(){
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  CAL.source=(document.querySelector('input[name=calsrc]:checked')||{}).value||'goal';
+  CAL.idea=val('cal_idea')||'';CAL.startDate=val('cal_start')||CAL.startDate;CAL.time=val('cal_time')||CAL.time;
+  let dir='';
+  if(CAL.source==='idea'){if(!CAL.idea.trim()){toast('Nhập ý tưởng truyền thông chính');return;}dir='Ý TƯỞNG TRUYỀN THÔNG CHÍNH: '+CAL.idea.trim();}
+  else{const goal=(S.intake&&(S.intake.muc_tieu||''))||'';dir='MỤC TIÊU KINH DOANH: '+(goal||'(chưa nhập — bám DNA & niche nhân vật)');}
+  const btn=document.getElementById('calGenBtn');if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Đang lập lịch 30 ngày...';}
+  const er=document.getElementById('calErr');if(er)er.style.display='none';
+  try{
+    const prompt=contentDNA()+`\nNHIỆM VỤ: Lập LỊCH NỘI DUNG 30 NGÀY cho Facebook, viral, đúng giọng & DNA nhân vật.\n${dir}\nMỗi ngày 1 bài KHÁC nhau, đa dạng cơ chế (giáo dục/kể chuyện/hậu trường/tương tác/bán hàng nhẹ), tăng dần thân thiết & CTA theo thời gian; bám mục tiêu/ý tưởng ở trên.\nMỗi ngày trả: "angle" (góc/hook 1 dòng), "caption" (bài FB hoàn chỉnh: hook mạnh dòng đầu, kể liền mạch theo GIỌNG nhân vật, kết câu hỏi/CTA, 4-6 hashtag cuối; không emoji thừa), "image_prompt" (mô tả CẢNH bằng tiếng Anh ngắn gọn để minh hoạ bài — bối cảnh/hành động/đạo cụ hợp nội dung; KHÔNG mô tả khuôn mặt).\nNgôn ngữ angle & caption: ${ccLangName()}.\nTrả DUY NHẤT JSON: {"days":[{"day":1,"angle":"...","caption":"...","image_prompt":"..."}]} gồm ĐÚNG 30 phần tử.`;
+    const o=parseJSON(await geminiText(prompt,true));
+    const days=(o.days||[]).slice(0,30).map((x,i)=>({day:i+1,angle:ccText(x.angle),caption:ccText(x.caption),image_prompt:ccText(x.image_prompt),imgId:null,status:'draft'}));
+    if(!days.length)throw new Error('AI không trả lịch hợp lệ');
+    S.calendar={createdTs:Date.now(),startDate:CAL.startDate,time:CAL.time,source:CAL.source,idea:CAL.idea,days};save();
+    renderContent(document.getElementById('main'));toast('✓ Đã lập lịch '+days.length+' ngày');
+  }catch(e){if(er){er.style.display='block';er.textContent=e.message;}}
+  finally{if(btn){btn.disabled=false;btn.innerHTML='✨ Lập lịch 30 ngày (AI)';}}
+}
+async function calImageOne(i,btn){
+  const cal=S.calendar;if(!cal||!cal.days[i])return;
+  if(!personaOK()){toast('Cần nhân vật');return;}if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const day=cal.days[i];
+  const items=(typeof vidOutfitItems==='function')?vidOutfitItems():[];
+  const outfit=items.find(x=>x.key===CC.outfitKey);
+  const face=await getRef();const outfitImg=(outfit&&outfit.imgKey)?await mediaGet(outfit.imgKey):null;
+  const refs=[face,outfitImg].filter(Boolean);
+  const prompt=ccImagePrompt(day.image_prompt||day.angle||cal.idea||'',outfit?outfit.name:'',CC.ratio||'4:5');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
+  try{
+    const img=refs.length?await geminiImageMulti(prompt,refs):await geminiImage(prompt,{});
+    const gid=await addToGallery(img,'lịch: '+(day.angle||'').slice(0,40),'content');
+    day.imgId=gid;save();
+    const th=document.getElementById('calimg_'+i);if(th)th.innerHTML=`<img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+  }catch(e){toast('Ảnh lỗi: '+(e.message||e).slice(0,80));}
+  finally{if(btn){btn.disabled=false;btn.innerHTML='🖼';}}
+}
+async function calImagesAll(){
+  const cal=S.calendar;if(!cal)return;
+  const todo=cal.days.filter(d=>!d.imgId).length;
+  if(!todo){toast('Tất cả ngày đã có ảnh');return;}
+  if(!confirm('Tạo ảnh cho '+todo+' ngày chưa có ảnh? Mất vài phút và dùng nhiều lượt Gemini.'))return;
+  __calStop=false;const btn=document.getElementById('calImgAllBtn');if(btn)btn.disabled=true;
+  for(let i=0;i<cal.days.length;i++){
+    if(__calStop)break;if(cal.days[i].imgId)continue;
+    if(btn)btn.innerHTML='<span class="spinner"></span> Ảnh '+(i+1)+'/'+cal.days.length;
+    await calImageOne(i,null);
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='🖼 Tạo ảnh tất cả';}
+  toast(__calStop?'Đã dừng tạo ảnh':'✓ Xong ảnh cả tháng');renderContent(document.getElementById('main'));
+}
+async function calScheduleOne(i,btn){
+  const cal=S.calendar;if(!cal||!cal.days[i])return false;
+  if(!zConnected()){toast('Nhập key Zernio ở khung trên');return false;}
+  const day=cal.days[i];const dt=calDayIso(cal,i);
+  if(dt.getTime()<Date.now()+60000){toast('Ngày '+(i+1)+' đã ở quá khứ — đổi ngày bắt đầu');return false;}
+  const imagesBase64=[];if(day.imgId){const u=await mediaGet('g:'+day.imgId);if(u)imagesBase64.push({base64:u,mime:(u.match(/^data:([^;]+);/)||[])[1]||'image/jpeg'});}
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
+  try{
+    const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account'),pageId:zGet('page'),content:day.caption||'',imagesBase64,scheduledAt:dt.toISOString()})});
+    const d=await r.json().catch(()=>({}));
+    if(d.ok){day.status='scheduled';save();if(btn){btn.innerHTML='✓';}return true;}
+    toast('Zernio ngày '+(i+1)+': '+esc(JSON.stringify(d.data||d).slice(0,120)));if(btn){btn.disabled=false;btn.innerHTML='🗓';}return false;
+  }catch(e){toast('Lỗi mạng: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='🗓';}return false;}
+}
+async function calScheduleAll(){
+  const cal=S.calendar;if(!cal)return;
+  if(!zConnected()){toast('Nhập key Zernio ở khung trên trước');return;}
+  const pending=cal.days.filter(d=>d.status!=='scheduled').length;
+  if(!pending){toast('Tất cả đã lên lịch');return;}
+  if(!confirm('Lên lịch '+pending+' bài (mỗi ngày 1 bài, lúc '+cal.time+') lên Facebook qua Zernio?'))return;
+  __calStop=false;const btn=document.getElementById('calSchAllBtn');if(btn)btn.disabled=true;let ok=0;
+  for(let i=0;i<cal.days.length;i++){
+    if(__calStop)break;if(cal.days[i].status==='scheduled')continue;
+    if(btn)btn.innerHTML='<span class="spinner"></span> Lên lịch '+(i+1)+'/'+cal.days.length;
+    if(await calScheduleOne(i,null))ok++;
+    await new Promise(res=>setTimeout(res,400));
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='🗓 Lên lịch tất cả qua Zernio';}
+  toast('✓ Đã lên lịch '+ok+' bài');renderContent(document.getElementById('main'));
+}
+function calLoadImages(){const cal=S.calendar;if(!cal||!cal.days)return;cal.days.forEach((d,i)=>{if(!d.imgId)return;const th=document.getElementById('calimg_'+i);if(!th||th.querySelector('img'))return;mediaGet('g:'+d.imgId).then(u=>{if(u)th.innerHTML=`<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`;});});}
+function renderCalendarSection(){
+  const cal=S.calendar;
+  const start=(cal&&cal.startDate)||CAL.startDate||calDefaultStart();
+  const time=(cal&&cal.time)||CAL.time||'19:00';
+  let h=`<div class="card" style="margin-top:12px">
+    <div class="bar" style="margin-top:0;justify-content:space-between;align-items:center"><b style="color:var(--acc)">📅 Lịch 30 ngày tự động</b>${cal?`<span class="hpill" style="background:rgba(194,178,255,.14);color:var(--acc)">${cal.days.filter(d=>d.status==='scheduled').length}/${cal.days.length} đã lên lịch</span>`:''}</div>
+    <div class="hint" style="margin:6px 0 8px">Từ mục tiêu KD hoặc ý tưởng chính + DNA nhân vật → 30 bài + ảnh + lên lịch tự động qua Zernio.</div>
+    <div class="bar" style="gap:14px;flex-wrap:wrap">
+      <label class="chip" style="cursor:pointer"><input type="radio" name="calsrc" value="goal" ${(!cal||cal.source!=='idea')?'checked':''} style="width:auto;margin-right:6px">Từ mục tiêu KD</label>
+      <label class="chip" style="cursor:pointer"><input type="radio" name="calsrc" value="idea" ${(cal&&cal.source==='idea')?'checked':''} style="width:auto;margin-right:6px">Từ ý tưởng chính</label>
+    </div>
+    <textarea id="cal_idea" style="min-height:54px;margin-top:8px" placeholder="Ý tưởng truyền thông chính (nếu chọn 'Từ ý tưởng'). VD: định vị chuyên gia skincare tối giản, xây niềm tin bằng câu chuyện da thật">${esc((cal&&cal.idea)||CAL.idea||'')}</textarea>
+    <div class="row3" style="margin-top:8px">
+      <div><label>Ngày bắt đầu</label><input type="date" id="cal_start" value="${start}"></div>
+      <div><label>Giờ đăng mỗi ngày</label><input type="time" id="cal_time" value="${time}"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn gold" id="calGenBtn" onclick="calGenerate()" style="width:100%">✨ Lập lịch 30 ngày (AI)</button></div>
+    </div>
+    <div class="err" id="calErr"></div>`;
+  if(cal&&cal.days&&cal.days.length){
+    h+=`<div class="bar" style="margin-top:10px;flex-wrap:wrap">
+      <button class="btn" id="calImgAllBtn" onclick="calImagesAll()">🖼 Tạo ảnh tất cả</button>
+      <button class="btn blue" id="calSchAllBtn" onclick="calScheduleAll()">🗓 Lên lịch tất cả qua Zernio</button>
+      <button class="btn ghost sm" onclick="calStop()">⏹ Dừng</button>
+      ${zConnected()?'':'<span class="hint" style="align-self:center;color:var(--gold)">⚠ Nhập key Zernio ở khung trên để lên lịch</span>'}
+    </div>
+    <div class="calgrid">`+cal.days.map((d,i)=>{
+      const dt=calDayIso(cal,i);const dstr=dt.toLocaleDateString('vi')+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+      const sched=d.status==='scheduled';
+      return `<div class="calday${sched?' sched':''}">
+        <div class="cd-head"><b>Ngày ${d.day}</b><span class="cd-date">${esc(dstr)}</span></div>
+        <div class="cd-angle">${esc(d.angle||'')}</div>
+        <div class="cd-cap">${esc((d.caption||'').slice(0,180))}${(d.caption||'').length>180?'…':''}</div>
+        <div class="cd-row">
+          <div class="cd-thumb" id="calimg_${i}">${d.imgId?'':'<span style="font-size:10px;color:var(--mut2)">chưa ảnh</span>'}</div>
+          <div class="cd-btns">
+            <button class="btn ghost sm" title="Tạo ảnh" onclick="calImageOne(${i},this)">🖼</button>
+            <button class="btn ${sched?'ghost':'blue'} sm" title="Lên lịch ngày này" onclick="calScheduleOne(${i},this)" ${sched?'disabled':''}>${sched?'✓':'🗓'}</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')+`</div>`;
+  }
+  h+=`</div>`;
+  return h;
+}
 function renderContentList(){
   const list=S.content||[];if(!list.length)return '<div class="note" style="text-align:center;opacity:.6;margin-top:14px">Chưa có nội dung — nhập chủ đề rồi bấm Tạo.</div>';
   return list.map(set=>{
@@ -1857,10 +2003,12 @@ function renderContent(m){
       <div><label>Số ảnh</label><select id="cc_nimg" onchange="CC.nimg=parseInt(this.value);renderContent(document.getElementById('main'))">${[1,2,4,6].map(n=>`<option ${CC.nimg==n?'selected':''}>${n} ảnh</option>`).join('')}</select></div>
     </div>
   </div>
+  ${renderCalendarSection()}
   <div id="ccList">${renderContentList()}</div>
   <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('intake')">← Chiến lược</button><button class="btn blue" onclick="go('export')">Tiếp: Xuất bản →</button></div>`;
   const tb=document.getElementById('cc_topic');if(tb)tb.addEventListener('input',()=>{CC.topic=tb.value;});
   if(typeof loadCCImages==='function')loadCCImages();
+  if(typeof calLoadImages==='function')calLoadImages();
 }
 
 /* --- 🎬 VIDEO OMNI (bộ prompt cho Google Flow — biến hình × tài năng) --- */
