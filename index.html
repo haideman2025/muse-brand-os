@@ -1331,6 +1331,7 @@ function renderStudio(m){
   ${!(S.persona&&(S.persona.hasRef||S.persona.publicDescription))?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Mẹo: tạo Digital Twin ở bước ④ (upload selfie) để mọi ảnh giữ cùng khuôn mặt.</div>':''}
   <div class="tabs">
     <button class="tab ${t==='photoshoot'?'active':''}" onclick="studioTab('photoshoot')">📸 Photoshoot</button>
+    <button class="tab ${t==='clone'?'active':''}" onclick="studioTab('clone')">🎯 Clone từ ảnh</button>
     <button class="tab ${t==='product'?'active':''}" onclick="studioTab('product')">🛍️ Bộ ảnh SP</button>
     <button class="tab ${t==='wardrobe'?'active':''}" onclick="studioTab('wardrobe')">👗 Tủ đồ</button>
     <button class="tab ${t==='gallery'?'active':''}" onclick="studioTab('gallery')">🖼️ Thư viện (${S.gallery.length})</button>
@@ -1341,6 +1342,7 @@ function renderStudio(m){
    <button class="btn blue" onclick="go('intake')">Tiếp: Mục tiêu KD →</button></div>`;
   const body=document.getElementById('studioBody');
   if(t==='photoshoot')renderPhotoshoot(body);
+  else if(t==='clone')renderClone(body);
   else if(t==='product')renderProductSet(body);
   else if(t==='wardrobe')renderWardrobe(body);
   else if(t==='video')renderVideo(body);
@@ -1418,6 +1420,91 @@ async function useAsRefByImg(btn){const img=btn.closest('.imgcard').querySelecto
 
 /* --- Wardrobe --- */
 let __outfitIdeas=[];
+/* --- 🎯 Clone từ ảnh: upload ảnh bất kỳ → clone trang phục/tư thế/phong cách sang nhân vật + tuỳ bối cảnh --- */
+const CLONE={ref:'',doOutfit:true,doPose:true,doStyle:true,bgMode:'keep',bgText:'',useRef:true,shots:1};
+function cloneSyncBg(){const e=document.getElementById('clone_bg');if(e)CLONE.bgText=e.value;}
+async function onCloneFile(ev){const f=ev.target.files[0];if(!f)return;try{CLONE.ref=await fileToDataUrl(f);renderStudio(document.getElementById('main'));}catch(e){toast('Lỗi đọc ảnh');}}
+function cloneTgl(k){cloneSyncBg();CLONE[k]=!CLONE[k];if(!CLONE.doOutfit&&!CLONE.doPose&&!CLONE.doStyle)CLONE[k]=true;renderStudio(document.getElementById('main'));}
+function cloneBg(m){cloneSyncBg();CLONE.bgMode=m;renderStudio(document.getElementById('main'));}
+function clonePrompt(){
+  const parts=[];
+  if(CLONE.doOutfit)parts.push('the EXACT same outfit and clothing — same garments, colors, fabric, patterns and accessories');
+  if(CLONE.doPose)parts.push('the same body pose, gesture and camera framing/angle');
+  if(CLONE.doStyle)parts.push('the overall visual style, color grade, lighting mood and aesthetic');
+  const cloneList=parts.length?parts.join('; '):'the outfit';
+  const face=CLONE.useRef;
+  let bg;
+  if(CLONE.bgMode==='new'&&CLONE.bgText.trim())bg='BACKGROUND: place the character in this NEW setting: '+CLONE.bgText.trim()+'.';
+  else bg='BACKGROUND: keep a setting consistent with the style-reference image.';
+  return `A photorealistic, scroll-stopping photo of ${visualBase()}.
+${face?'CHARACTER IDENTITY (reference image 1): preserve the EXACT facial identity of the person in the first reference image — same face shape, eyes, nose, lips and proportions; unmistakably the same person; do NOT beautify or alter the face.':''}
+STYLE SOURCE (${face?'reference image 2':'the reference image'}): faithfully REPLICATE ${cloneList} from this reference image onto the character.${face?' Do NOT copy the face from this style-source image — only replicate the requested elements.':''}
+${bg}
+${PHOTO_TOKENS} Tasteful and platform-safe: no nudity, no sexual content. No text overlay, no watermark.`;
+}
+async function runClone(){
+  cloneSyncBg();
+  if(!CLONE.ref){toast('Upload ảnh tham chiếu đã');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  const er=document.getElementById('cloneErr');if(er)er.style.display='none';
+  const face=CLONE.useRef?await getRef():null;
+  const refs=[face,CLONE.ref].filter(Boolean);
+  const prompt=clonePrompt();
+  const n=Math.max(1,Math.min(4,CLONE.shots||1));
+  const btn=document.getElementById('cloneBtn');const out=document.getElementById('cloneOut');
+  if(btn)btn.disabled=true;
+  for(let i=0;i<n;i++){
+    if(btn)btn.innerHTML=`<span class="spinner"></span> Ảnh ${i+1}/${n}...`;
+    const ph=document.createElement('div');ph.className='imgcard';ph.innerHTML='<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center"><span class="spinner"></span></div>';if(out)out.appendChild(ph);
+    try{
+      const img=await geminiImageMulti(prompt,refs);
+      const tag=[CLONE.doOutfit?'đồ':'',CLONE.doPose?'dáng':'',CLONE.doStyle?'style':''].filter(Boolean).join('+');
+      const gid=await addToGallery(img,'clone: '+tag,'shot');
+      ph.innerHTML=`<img src="${img}" alt=""><div class="ov"><button title="Tải">⬇</button><button title="Đặt làm khuôn mặt neo">📌</button><button title="Xoá">✕</button></div>`;
+      const bs=ph.querySelectorAll('.ov button');bs[0].onclick=()=>dlDataUrl('muse-clone-'+gid+'.png',img);bs[1].onclick=async()=>{await useAsRef(gid);};bs[2].onclick=()=>{delGallery(gid);ph.remove();};
+    }catch(e){ph.innerHTML=`<div style="padding:10px;font-size:11px;color:var(--coral)">${esc(e.message).slice(0,140)}</div>`;if(er){er.style.display='block';er.textContent=e.message;}}
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='🎯 Clone sang nhân vật';}
+  if(typeof renderSteps==='function')renderSteps();
+}
+function renderClone(b){
+  const hasRef=!!CLONE.ref;
+  b.innerHTML=`<div class="card">
+    <p class="hint" style="margin-top:0">Upload <b>ảnh bất kỳ</b> (ảnh mẫu, outfit, tư thế bạn thích) → AI clone <b>trang phục / tư thế / phong cách</b> sang nhân vật của bạn (giữ khuôn mặt Digital Twin), tuỳ chỉnh bối cảnh.</p>
+    <input type="file" id="cloneFile" accept="image/*" style="display:none" onchange="onCloneFile(event)">
+    <div class="row">
+      <div>
+        <div class="uploadbox" onclick="document.getElementById('cloneFile').click()" style="cursor:pointer;min-height:170px;display:flex;align-items:center;justify-content:center;text-align:center;border-radius:14px;overflow:hidden;padding:0">
+          ${hasRef?`<img src="${CLONE.ref}" style="width:100%;max-height:340px;object-fit:contain" alt="">`:'<span style="color:var(--mut2);font-size:13px">📤 Bấm để upload ảnh tham chiếu</span>'}
+        </div>
+        ${hasRef?'<button class="btn ghost sm" style="margin-top:6px" onclick="document.getElementById(\'cloneFile\').click()">Đổi ảnh khác</button>':''}
+      </div>
+      <div>
+        <label>Clone gì từ ảnh?</label>
+        <div>
+          <span class="chip" style="${CLONE.doOutfit?'border-color:var(--acc);color:var(--acc)':''}" onclick="cloneTgl('doOutfit')">${CLONE.doOutfit?'✓ ':''}👗 Trang phục</span>
+          <span class="chip" style="${CLONE.doPose?'border-color:var(--acc);color:var(--acc)':''}" onclick="cloneTgl('doPose')">${CLONE.doPose?'✓ ':''}🧍 Tư thế</span>
+          <span class="chip" style="${CLONE.doStyle?'border-color:var(--acc);color:var(--acc)':''}" onclick="cloneTgl('doStyle')">${CLONE.doStyle?'✓ ':''}🎨 Phong cách/màu</span>
+        </div>
+        <label style="margin-top:12px">Bối cảnh</label>
+        <div>
+          <span class="chip" style="${CLONE.bgMode==='keep'?'border-color:var(--acc);color:var(--acc)':''}" onclick="cloneBg('keep')">${CLONE.bgMode==='keep'?'✓ ':''}Giữ như ảnh gốc</span>
+          <span class="chip" style="${CLONE.bgMode==='new'?'border-color:var(--acc);color:var(--acc)':''}" onclick="cloneBg('new')">${CLONE.bgMode==='new'?'✓ ':''}Đổi bối cảnh mới</span>
+        </div>
+        ${CLONE.bgMode==='new'?`<input id="clone_bg" value="${esc(CLONE.bgText)}" placeholder="VD: quán cà phê Đà Lạt sáng sớm / phố neon ban đêm / studio nền trắng" style="margin-top:6px">`:''}
+        <div class="row" style="margin-top:12px">
+          <div><label>Số ảnh</label><select id="clone_shots" onchange="CLONE.shots=parseInt(this.value)"><option value="1" ${CLONE.shots==1?'selected':''}>1 ảnh</option><option value="2" ${CLONE.shots==2?'selected':''}>2 ảnh</option><option value="4" ${CLONE.shots==4?'selected':''}>4 ảnh</option></select></div>
+          <div style="display:flex;align-items:flex-end"><label style="display:flex;align-items:center;gap:6px;margin:0"><input type="checkbox" ${CLONE.useRef?'checked':''} onchange="CLONE.useRef=this.checked" style="width:auto">Giữ mặt Digital Twin</label></div>
+        </div>
+      </div>
+    </div>
+    <div class="err" id="cloneErr"></div>
+    <div class="bar" style="margin-top:10px"><button class="btn" id="cloneBtn" onclick="runClone()" ${personaOK()?'':'disabled'}>🎯 Clone sang nhân vật</button>
+      <span class="hint" style="align-self:center">Muốn lưu riêng bộ đồ → dùng "🖼 Trích outfit từ ảnh" ở tab 👗 Tủ đồ.</span></div>
+  </div>
+  <div class="imgrid" id="cloneOut" style="margin-top:12px"></div>`;
+}
 function renderWardrobe(b){
   b.innerHTML=`<div class="card">
     <h2>Gợi ý trang phục</h2>
