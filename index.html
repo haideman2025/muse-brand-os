@@ -1969,7 +1969,7 @@ const CH_PLATFORMS=[
   {key:'youtube',label:'YouTube Shorts',lim:0,spec:'"youtube": kịch bản Shorts ~45-60s: VOICE-OVER theo mốc [0-Xs] + TEXT OVERLAY (từ khóa viết HOA) + GỢI Ý CẢNH QUAY. Hook 3 giây đầu.'},
   {key:'comment',label:'Comment CTA',lim:0,spec:'"comment": 2-3 mẫu comment ghim đi link (thân tình, CTA rõ, có [Chèn link] nếu chưa có). Đánh số Mẫu 1/2/3.'}
 ];
-const CC={angles:[],topic:'',ratio:'4:5',nimg:2,outfitKey:'',lang:'vi'};
+const CC={angles:[],topic:'',ratio:'4:5',nimg:2,outfitKey:'',lang:'vi',salesProductId:'',salesLink:''};
 function ccLangName(){return CC.lang==='en'?'English':'Tiếng Việt';}
 function contentDNA(){
   let s=personaContext();
@@ -1990,6 +1990,53 @@ async function ccViralAngles(){
     const o=parseJSON(await geminiText(prompt,true));CC.angles=(o.angles||[]).slice(0,8);renderContent(document.getElementById('main'));toast('Đã gợi ý góc viral');
   }catch(e){if(er){er.style.display='block';er.textContent=e.message;}}
   finally{if(b){b.disabled=false;b.innerHTML='✨ AI gợi ý góc viral';}}
+}
+function renderContentSales(){
+  const list=prodList();
+  const SALES_CH=[['fb','Facebook'],['tiktok','TikTok / Reels'],['instagram','Instagram'],['threads','Threads'],['comment','Comment CTA (link)']];
+  return `<div class="card" style="margin-top:12px">
+    <div class="bar" style="margin-top:0"><b style="color:var(--gold)">🛒 Viết bài bán hàng cho sản phẩm</b></div>
+    <div class="hint" style="margin:4px 0 8px">Chọn sản phẩm từ kho → AI viết bài bán hàng mượt, hấp dẫn (theo mô tả/thông điệp/JTBD), CTA mềm dẫn "link ở bình luận" + sinh sẵn comment chốt đơn kèm link.</div>
+    ${list.length?`<div class="row">
+      <div><label>📦 Sản phẩm</label><select id="cc_sales_prod">${list.map(p=>`<option value="${p.id}" ${CC.salesProductId===p.id?'selected':''}>${esc(p.name||'Sản phẩm')}</option>`).join('')}</select></div>
+      <div><label>🔗 Link đặt hàng (đặt vào bình luận)</label><input id="cc_sales_link" value="${esc(CC.salesLink||'')}" placeholder="https://... (để trống thì để [Chèn link])"></div>
+    </div>
+    <label style="margin-top:10px">Kênh</label>
+    <div>${SALES_CH.map(c=>`<label class="chip" style="cursor:pointer;display:inline-flex;align-items:center"><input type="checkbox" id="cc_s_${c[0]}" ${['fb','tiktok','comment'].includes(c[0])?'checked':''} style="width:auto;margin-right:6px">${esc(c[1])}</label>`).join(' ')}</div>
+    <div class="bar" style="margin-top:10px"><button class="btn" id="ccSalesBtn" onclick="ccSalesGen()">🛒 Viết bài bán hàng</button><span class="hint" style="align-self:center">Ngôn ngữ: ${ccLangName()} (đổi ở khung trên)</span></div>`
+    :'<div class="hint" style="opacity:.8">Chưa có sản phẩm — lưu ở tab 🛍️ Bộ ảnh SP (điền mô tả + thông điệp + JTBD) rồi quay lại.</div>'}
+  </div>`;
+}
+async function ccSalesGen(){
+  const pid=val('cc_sales_prod');CC.salesProductId=pid;const link=(val('cc_sales_link')||'').trim();CC.salesLink=link;
+  const p=prodList().find(x=>x.id===pid);
+  if(!p){toast('Chọn sản phẩm ở kho trước');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const SALES_KEYS=['fb','tiktok','instagram','threads','comment'];
+  let chans=CH_PLATFORMS.filter(c=>SALES_KEYS.includes(c.key)&&document.getElementById('cc_s_'+c.key)&&document.getElementById('cc_s_'+c.key).checked);
+  if(!chans.length)chans=CH_PLATFORMS.filter(c=>c.key==='fb'||c.key==='comment');
+  if(!chans.some(c=>c.key==='comment'))chans=chans.concat(CH_PLATFORMS.filter(c=>c.key==='comment'));
+  const b=document.getElementById('ccSalesBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang viết...';}
+  const er=document.getElementById('ccErr');if(er)er.style.display='none';
+  try{
+    const prodData=[p.name&&('Tên: '+p.name),p.type&&('Loại: '+p.type),p.colors&&('Màu/chất liệu: '+p.colors),p.key_features&&('Đặc điểm nổi bật: '+p.key_features),p.desc&&('Mô tả: '+p.desc),p.bigMessage&&('Thông điệp lớn: '+p.bigMessage),p.jtbd&&('JTBD (giá trị khách cần): '+p.jtbd)].filter(Boolean).join('\n');
+    const keys=chans.map(c=>c.key).join(', ');
+    const specs=chans.filter(c=>c.key!=='comment').map(c=>c.spec).join('\n');
+    const linkNote=link?('LINK ĐẶT HÀNG (CHỈ đặt trong "comment", KHÔNG trong thân bài): '+link):'Chưa có link — trong "comment" để [Chèn link].';
+    const prompt=contentDNA()+`\nNHIỆM VỤ: Viết BÀI ĐĂNG BÁN HÀNG mượt mà, hấp dẫn, đúng GIỌNG nhân vật cho sản phẩm dưới đây. Bán bằng CẢM XÚC + lợi ích thật (không spam, không hứa quá): hook mạnh dòng đầu, chạm nhu cầu (JTBD), khơi khát khao, hoá giải 1-2 lăn tăn, rồi CTA MỀM MẠI dẫn về "link ở bình luận". TUYỆT ĐỐI KHÔNG dán link trong thân bài (tránh tụt reach) — kết bài nhắc khéo "link 👇 ở bình luận".
+SẢN PHẨM:
+${prodData}
+${linkNote}
+Sinh cho kênh: ${keys}. Mỗi kênh 1 key JSON đúng spec:
+${specs}
+RIÊNG key "comment": 2-3 MẪU comment chốt đơn NGẮN GỌN, thân thiện, mượt mà — MỖI mẫu CÓ SẴN ${link?('đúng link đặt hàng: '+link):'[Chèn link]'} + CTA rõ (đặt hàng/nhắn tin). Đánh số Mẫu 1/2/3.
+NGÔN NGỮ ĐẦU RA: viết TOÀN BỘ bằng ${ccLangName()}. MỖI giá trị là 1 CHUỖI văn bản thuần (string). Trả DUY NHẤT JSON gồm đúng các key: {${chans.map(c=>'"'+c.key+'":"..."').join(',')}}`;
+    const o=parseJSON(await geminiText(prompt,true));
+    const set={id:uid(),topic:'🛒 '+(p.name||'Sản phẩm'),ts:Date.now(),outputs:o,chans:chans.map(c=>c.key),productId:pid,link};
+    S.content=S.content||[];S.content.unshift(set);if(S.content.length>50)S.content=S.content.slice(0,50);save();
+    renderContent(document.getElementById('main'));toast('✓ Đã viết bài bán hàng');
+  }catch(e){if(er){er.style.display='block';er.textContent=e.message;}if(b){b.disabled=false;b.innerHTML='🛒 Viết bài bán hàng';}}
 }
 async function ccGenerate(){
   const topic=val('cc_topic').trim();CC.topic=topic;
@@ -2344,6 +2391,7 @@ function renderContent(m){
       <div><label>Số ảnh</label><select id="cc_nimg" onchange="CC.nimg=parseInt(this.value);renderContent(document.getElementById('main'))">${[1,2,4,6].map(n=>`<option ${CC.nimg==n?'selected':''}>${n} ảnh</option>`).join('')}</select></div>
     </div>
   </div>
+  ${renderContentSales()}
   ${renderCalendarSection()}
   <div id="ccList">${renderContentList()}</div>
   <div class="bar" style="margin-top:22px"><button class="btn ghost" onclick="go('intake')">← Chiến lược</button><button class="btn blue" onclick="go('export')">Tiếp: Xuất bản →</button></div>`;
