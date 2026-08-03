@@ -2164,6 +2164,15 @@ function ccImagePrompt(topic,outfitName,ratio){
 CHARACTER CONSISTENCY: preserve the EXACT same facial identity as the character reference image — same face shape, eyes, nose, lips and proportions; unmistakably the same person; do not beautify or alter the face.
 ${PT} Tasteful and platform-safe: no nudity, no sexual content. No text overlay, no watermark.`;
 }
+function ccProductImagePrompt(prod,outfitName,ratio){
+  const m=moodProfile(S.persona);const rt=CC_RATIOS[ratio]||CC_RATIOS['4:5'];const PT=PHOTO_TOKENS.replace(', vertical 3:4','');
+  const prodDesc=`the product ("${prod.name||'the product'}"${prod.type?', a '+prod.type:''}${prod.colors?', '+prod.colors:''})`;
+  const feat=prod.key_features?` Preserve these product features/label EXACTLY: ${prod.key_features}.`:'';
+  return `medium shot of ${visualBase()} naturally holding / using / presenting ${prodDesc}. Expression & mood: ${m.expression}.${outfitName?(' Wearing: '+outfitName+' (match the outfit reference image).'):''} A scroll-stopping social-commerce photo that makes the product desirable${prod.bigMessage?(' and conveys "'+prod.bigMessage+'"'):''}; natural setting, aspirational and emotionally engaging. Lighting: ${m.lighting}. Composition: ${m.lens}, rule-of-thirds, shallow depth of field, the PRODUCT clearly visible and in sharp focus, ${rt}. Style & mood: ${m.styleMood}. Color palette: ${m.palette}.
+PRODUCT CONSISTENCY (critical): reproduce the EXACT SAME product shown in the product reference image — identical shape, color, materials, proportions and any label/logo/text EXACTLY as-is; do NOT redesign, restyle, relabel or invent a different product.${feat}
+CHARACTER CONSISTENCY: preserve the EXACT same facial identity as the character reference image — same face shape, eyes, nose, lips and proportions; unmistakably the same person; do not beautify or alter the face.
+${PT} Tasteful and platform-safe: no nudity, no sexual content. No text overlay, no watermark.`;
+}
 async function ccImages(id){
   const set=(S.content||[]).find(s=>s.id===id);if(!set)return;
   if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
@@ -2173,8 +2182,10 @@ async function ccImages(id){
   const outfit=items.find(x=>x.key===CC.outfitKey);
   const face=await getRef();
   const outfitImg=(outfit&&outfit.imgKey)?await mediaGet(outfit.imgKey):null;
-  const refs=[face,outfitImg].filter(Boolean);
-  const prompt=ccImagePrompt(set.topic||'',outfit?outfit.name:'',ratio);
+  const prod=set.productId?prodList().find(x=>x.id===set.productId):null;
+  const prodImg=(prod&&prod.imgKey)?await mediaGet(prod.imgKey):null;
+  const refs=[face,outfitImg,prodImg].filter(Boolean);
+  const prompt=prod?ccProductImagePrompt(prod,outfit?outfit.name:'',ratio):ccImagePrompt(set.topic||'',outfit?outfit.name:'',ratio);
   set.imgIds=set.imgIds||[];
   const btn=document.getElementById('ccimg_'+id);if(btn)btn.disabled=true;
   const box=document.getElementById('ccimgs_'+id);
@@ -2349,7 +2360,7 @@ function renderContentList(){
         </div>`;}).join('')}
       <div class="bar" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
         <button class="btn gold sm" id="ccimg_${set.id}" onclick="ccImages('${set.id}')">🖼 Tạo ảnh cho bài</button>
-        <span class="hint" style="align-self:center">Khuôn mặt + trang phục nhân vật · ${CC.ratio} · ${CC.nimg} ảnh (chỉnh khung trên). Tích ✓ trên ảnh để chọn ảnh đăng kèm.</span>
+        <span class="hint" style="align-self:center">${set.productId?'Khuôn mặt + <b>ảnh sản phẩm tham chiếu</b>':'Khuôn mặt + trang phục nhân vật'} · ${CC.ratio} · ${CC.nimg} ảnh (chỉnh khung trên). Tích ✓ trên ảnh để chọn ảnh đăng kèm.</span>
       </div>
       <div class="imgrid" id="ccimgs_${set.id}" style="margin-top:8px">${nimg?'':''}</div>
       <div class="bar" style="margin-top:10px;flex-wrap:wrap;align-items:center">
