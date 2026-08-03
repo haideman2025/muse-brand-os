@@ -1653,8 +1653,29 @@ const PSET_TEMPLATES={
     {a:'golden-hour portrait',m:'aspirational',r:'golden-hour glow, product as part of an enviable life.'},
     {a:'close-up detail',m:'editorial',r:'detail of the product in a real, lived-in setting.'},
     {a:'relaxed evening shot',m:'serene',r:'unwinding in the evening with the product, warm and content.'}
-  ]}
+  ]},
+  auto:{name:'✨ Infographic AI (tự đề xuất)',desc:'AI chọn phong cách hợp SP · ảnh TMĐT/infographic, có/không người mẫu',auto:true}
 };
+function infographicConceptsPrompt(){
+  const p=PSET.det||{};
+  const data=[p.name&&('Tên: '+p.name),p.type&&('Loại: '+p.type),p.colors&&('Màu/chất liệu: '+p.colors),p.key_features&&('Đặc điểm: '+p.key_features),PSET.desc&&('Mô tả: '+PSET.desc),PSET.bigMessage&&('Thông điệp lớn: '+PSET.bigMessage),PSET.jtbd&&('JTBD: '+PSET.jtbd)].filter(Boolean).join('\n');
+  return `Bạn là DIRECTOR ảnh thương mại điện tử. Từ DỮ LIỆU SẢN PHẨM, TỰ ĐỀ XUẤT phong cách & 10 concept ảnh phù hợp NHẤT với sản phẩm cho cửa hàng online / bộ ảnh infographic bán hàng: hero nền sạch, macro đặc điểm, khối nêu bật lợi ích, hướng dẫn dùng, texture/thành phần, cảm giác/kết quả, lifestyle nhẹ... Phong cách hình phải HỢP loại sản phẩm & thông điệp.
+DỮ LIỆU SẢN PHẨM:
+${data||'(ít dữ liệu — tự suy luận hợp lý theo ảnh sản phẩm)'}
+Mỗi concept trả: "label" (nhãn tiếng Việt ngắn), "direction_en" (chỉ đạo cảnh/bố cục/ánh sáng/phong cách bằng tiếng Anh — phong cách TMĐT sạch, hiện đại, chừa khoảng trống cho chữ; KHÔNG chứa chữ trong ảnh), "with_person" (true nếu nên có người mẫu cầm/dùng sản phẩm, false nếu chỉ sản phẩm).
+Trả DUY NHẤT JSON: {"style":"mô tả phong cách tổng thể (tiếng Việt, 1 câu)","concepts":[{"label":"...","direction_en":"...","with_person":false}]} gồm ĐÚNG 10 concept, đa dạng (nên có cả ảnh chỉ-sản-phẩm và ảnh có người).`;
+}
+function infographicPrompt(direction,det,ratio,withPerson){
+  const rt=PSET_RATIOS[ratio]||PSET_RATIOS['4:5'];
+  const PT=PHOTO_TOKENS.replace(', vertical 3:4','');
+  const prod=det?`the product ("${det.name||'the product'}"${det.type?', a '+det.type:''}${det.colors?', '+det.colors:''})`:'the product';
+  const feat=det&&det.key_features?` Preserve these product features/label EXACTLY: ${det.key_features}.`:'';
+  return `Premium e-commerce commercial / infographic-style product photograph. SCENE & STYLE: ${direction}
+This image FEATURES ${prod}${withPerson?(' together with '+visualBase()):''}.
+PRODUCT CONSISTENCY (critical): reproduce the EXACT SAME product from the product reference image — identical shape, color, materials, proportions and any label/logo/text EXACTLY as-is; do NOT redesign, restyle, relabel or invent a different product.${feat}
+${withPerson?'CHARACTER CONSISTENCY: preserve the EXACT facial identity from the character reference image; do not alter the face.\n':''}Clean, uncluttered, modern premium commercial composition with generous negative space for text callouts; crisp product in razor-sharp focus; ${rt}. Do NOT render any text, letters, numbers, logos-you-invent or watermark — leave clean empty space for text to be added later.
+${PT} Tasteful and platform-safe. No nudity.`;
+}
 const PSET={img:null,det:null,tpl:'story',ratio:'4:5',desc:'',bigMessage:'',jtbd:'',editId:null};
 /* ---- Kho sản phẩm: lưu nhiều SP + mô tả/thông điệp lớn/JTBD làm dữ liệu sáng tạo ---- */
 function prodList(){return S.products||[];}
@@ -1738,7 +1759,7 @@ function renderProductSet(b){
     <div>${Object.keys(PSET_TEMPLATES).map(k=>`<span class="chip" onclick="PSET.tpl='${k}';renderStudio(document.getElementById('main'))" style="${PSET.tpl===k?'outline:2px solid var(--gold);color:var(--gold)':''}"><b>${esc(PSET_TEMPLATES[k].name)}</b> · ${esc(PSET_TEMPLATES[k].desc)}</span>`).join(' ')}</div>
     <div class="row" style="margin-top:12px">
       <div><label>Tỉ lệ khung (Shopify)</label><select id="pset_ratio">${Object.keys(PSET_RATIOS).map(r=>`<option ${PSET.ratio===r?'selected':''}>${r}</option>`).join('')}</select></div>
-      <div style="display:flex;align-items:flex-end"><button class="btn" id="psetBtn" onclick="runProductSet()" ${(PSET.img&&personaOK())?'':'disabled'}>✨ Tạo bộ 10 ảnh</button></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn" id="psetBtn" onclick="runProductSet()" ${(PSET.img&&(personaOK()||PSET.tpl==='auto'))?'':'disabled'}>✨ Tạo bộ 10 ảnh</button></div>
     </div>
     <div class="err" id="psetErr"></div>
   </div>
@@ -1762,13 +1783,37 @@ function readPset(){if(document.getElementById('pset_type'))PSET.det=Object.assi
 async function runProductSet(){
   readPset();
   if(!PSET.img){toast('Cần ảnh sản phẩm');return;}
-  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
-  const tpl=PSET_TEMPLATES[PSET.tpl]||PSET_TEMPLATES.story;const beats=tpl.beats;
+  const tpl=PSET_TEMPLATES[PSET.tpl]||PSET_TEMPLATES.story;
+  if(!tpl.auto&&!personaOK()){toast('Cần nhân vật (bước ③)');return;}
   const face=await getRef();
   const b=document.getElementById('psetBtn');if(b)b.disabled=true;
   const out=document.getElementById('psetOut');out.innerHTML='';
   const er=document.getElementById('psetErr');if(er)er.style.display='none';
+  const finishBar=()=>{if(b){b.disabled=false;b.innerHTML='✨ Tạo bộ 10 ảnh';}if(typeof renderSteps==='function')renderSteps();const dl=document.createElement('div');dl.className='bar';dl.style.gridColumn='1/-1';dl.innerHTML='<button class="btn ghost" onclick="dlGalleryAll()">⬇ Tải tất cả ảnh trong Thư viện</button>';out.appendChild(dl);};
+  if(tpl.auto){
+    if(b)b.innerHTML='<span class="spinner"></span> AI đề xuất phong cách...';
+    let concepts=[];
+    try{const o=parseJSON(await geminiText(infographicConceptsPrompt(),true));concepts=(o.concepts||[]).slice(0,10);if(o.style)toast('Phong cách: '+String(o.style).slice(0,70));}
+    catch(e){if(er){er.style.display='block';er.textContent='Không đề xuất được concept: '+e.message;}if(b){b.disabled=false;b.innerHTML='✨ Tạo bộ 10 ảnh';}return;}
+    if(!concepts.length){if(er){er.style.display='block';er.textContent='AI không trả concept hợp lệ.';}if(b){b.disabled=false;b.innerHTML='✨ Tạo bộ 10 ảnh';}return;}
+    for(let i=0;i<concepts.length;i++){
+      const cc=concepts[i];const withP=!!cc.with_person&&!!face;
+      if(b)b.innerHTML=`<span class="spinner"></span> Đang tạo ${i+1}/${concepts.length}...`;
+      const ph=document.createElement('div');ph.className='imgcard';ph.innerHTML='<div style="aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;color:#5b7187"><span class="spinner"></span></div>';out.appendChild(ph);
+      try{
+        const prompt=infographicPrompt(cc.direction_en||cc.label||'clean e-commerce product hero',PSET.det,PSET.ratio,withP);
+        const refs=withP?[face,PSET.img]:[PSET.img];
+        const img=await geminiImageMulti(prompt,refs);
+        const id=await addToGallery(img,'infographic · '+(cc.label||('shot '+(i+1))),'product');
+        ph.innerHTML=`<img src="${img}" alt=""><div class="ov"></div>`;ph.querySelector('img').dataset.gid=id;
+        const ov=ph.querySelector('.ov');const mk=(l,fn)=>{const x=document.createElement('button');x.textContent=l;x.onclick=fn;ov.appendChild(x);};
+        mk('⬇',()=>dlDataUrl('muse-info-'+id+'.png',img));mk('📌 Neo',async()=>{await useAsRef(id);});mk('✕',()=>{delGallery(id);ph.remove();});
+      }catch(e){ph.innerHTML=`<div style="padding:10px;font-size:11px;color:var(--coral)">${esc(e.message).slice(0,140)}</div>`;if(er){er.style.display='block';er.textContent=e.message;}}
+    }
+    finishBar();return;
+  }
+  const beats=tpl.beats;
   for(let i=0;i<beats.length;i++){
     if(b)b.innerHTML=`<span class="spinner"></span> Đang tạo ${i+1}/${beats.length}...`;
     const ph=document.createElement('div');ph.className='imgcard';ph.innerHTML='<div style="aspect-ratio:4/5;display:flex;align-items:center;justify-content:center;color:#5b7187"><span class="spinner"></span></div>';out.appendChild(ph);
@@ -1844,6 +1889,8 @@ async function ccGenerate(){
 function zGet(k){return localStorage.getItem('muse_zernio_'+k)||'';}
 function zSet(k,v){if(v)localStorage.setItem('muse_zernio_'+k,v);else localStorage.removeItem('muse_zernio_'+k);}
 function zConnected(){return !!(zGet('key')&&zGet('account'));}
+function zErrMsg(d){const m=(d&&d.data&&(d.data.error||d.data.message))||(d&&d.error)||JSON.stringify((d&&d.data)||d||{});return String(m);}
+function zIsDup(d){return /already (scheduled|publishing|posted)|last 24 hours|duplicate/i.test(zErrMsg(d));}
 function zernioSave(){zSet('key',(val('z_key')||'').trim());zSet('account',(val('z_account')||'').trim());zSet('page',(val('z_page')||'').trim());toast('Đã lưu kết nối Zernio');renderContent(document.getElementById('main'));}
 function zernioCard(){
   const on=zConnected();
@@ -1894,7 +1941,8 @@ async function zernioPublish(setId,mode){
     const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json().catch(()=>({}));
     if(d.ok){toast(scheduledFor?('✓ Đã lên lịch '+scheduledFor.replace('T',' ')):'✓ Đã đăng lên Facebook');if(d.mediaErrors&&d.mediaErrors.length)toast('⚠ Ảnh lỗi: '+esc(JSON.stringify(d.mediaErrors).slice(0,120)));}
-    else{toast('Zernio: '+esc(JSON.stringify(d.data||d).slice(0,160)));}
+    else if(zIsDup(d)){toast('⚠ Nội dung này ĐÃ đăng/lên lịch trong 24h qua — Zernio chặn trùng. (Bài trước có thể đã lên page rồi.) Sửa nội dung rồi thử lại.');}
+    else{toast('Zernio: '+esc(zErrMsg(d).slice(0,160)));}
   }catch(e){toast('Lỗi mạng: '+(e.message||e));}
   finally{if(btn){btn.disabled=false;btn.innerHTML=old;}}
 }
@@ -2045,7 +2093,8 @@ async function calScheduleOne(i,btn){
     const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account'),content:day.caption||'',imagesBase64,scheduledFor:zLocalIso(dt),timezone:zTz()})});
     const d=await r.json().catch(()=>({}));
     if(d.ok){day.status='scheduled';save();if(btn){btn.innerHTML='✓';}return true;}
-    toast('Zernio ngày '+(i+1)+': '+esc(JSON.stringify(d.data||d).slice(0,120)));if(btn){btn.disabled=false;btn.innerHTML='🗓';}return false;
+    if(zIsDup(d)){day.status='scheduled';save();if(btn){btn.innerHTML='✓';}return true;} // trùng = coi như đã có trên page
+    toast('Zernio ngày '+(i+1)+': '+esc(zErrMsg(d).slice(0,120)));if(btn){btn.disabled=false;btn.innerHTML='🗓';}return false;
   }catch(e){toast('Lỗi mạng: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='🗓';}return false;}
 }
 async function calScheduleAll(){
@@ -2360,17 +2409,20 @@ async function genSalesVideo(){
   const beats=pickBeats(n);
   const prod=vidProduct();
   const prodName=(prod&&prod.name)?prod.name:((PSET&&PSET.det&&PSET.det.name)?PSET.det.name:'sản phẩm');
+  const prodRef=(prod&&prod.imgKey)?{name:'📦 '+(prod.name||'Sản phẩm'),imgKey:prod.imgKey}:null;
   const sb=document.getElementById('salesVidBtn');if(sb){sb.disabled=true;sb.innerHTML='<span class="spinner"></span> Đang khoá nhân vật & dựng...';}
   await ensureMuseLock();
   const clips=beats.map((beat,i)=>{
-    const ref=picked.length?picked[i%picked.length]:{name:'Look mặc định',imgKey:null};
-    return {seq:i+1,prompt:withLock(salesClipPrompt(beat,i,n,picked.length?ref.name:'',prod)),outfit:ref,audio:'emotive trending music (no voiceover)',talentLabel:'Bán hàng · '+beat.t,overlayText:''};
+    const outfitRef=picked.length?picked[i%picked.length]:null;
+    // Ảnh tham chiếu ưu tiên ẢNH SẢN PHẨM (đã lưu ở kho) → Flow giữ đúng sản phẩm; nếu không có thì dùng outfit tick
+    const ref=prodRef||outfitRef||{name:'Look mặc định',imgKey:null};
+    return {seq:i+1,prompt:withLock(salesClipPrompt(beat,i,n,outfitRef?outfitRef.name:'',prod)),outfit:ref,audio:'emotive trending music (no voiceover)',talentLabel:'Bán hàng · '+beat.t,overlayText:''};
   });
   if(sb){sb.disabled=false;sb.innerHTML='🛍️ Video bán hàng (không lời)';}
   __vidVideos=[{series:'Video bán hàng · '+prodName,clips}];
   logVidPack('Video bán hàng · '+prodName);
   renderVideoOut();
-  toast(picked.length?('✓ Đã dựng video bán hàng ('+n+' clip)'):'Mẹo: tick ảnh bộ SP ở lưới để Flow giữ đúng sản phẩm');
+  toast(prodRef?('✓ Dựng video bán hàng ('+n+' clip) — đã gắn ảnh SP tham chiếu'):(picked.length?('✓ Đã dựng video bán hàng ('+n+' clip)'):'💡 Chọn Sản phẩm (kho) hoặc tick ảnh bộ SP để Flow giữ đúng sản phẩm'));
 }
 /* ---- AI sáng tạo + Pack 10 ---- */
 function videoGenPrompt(idea,talentNames,nVideos,clipsPerVideo){
