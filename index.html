@@ -288,6 +288,11 @@ input:focus,textarea:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0
 .cd-row{display:flex;gap:8px;align-items:center;margin-top:2px}
 .cd-thumb{width:52px;height:66px;border-radius:8px;overflow:hidden;flex-shrink:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0 8px,rgba(255,255,255,.02) 8px 16px);display:flex;align-items:center;justify-content:center;text-align:center}
 .cd-btns{display:flex;gap:6px;flex-wrap:wrap}
+/* product library */
+.prodgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:4px}
+.prodcard{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:9px;background:var(--panel)}
+.prodcard.on{border-color:rgba(194,178,255,.5);background:rgba(142,123,255,.1)}
+.prodcard .pc-thumb{width:52px;height:52px;border-radius:10px;overflow:hidden;flex-shrink:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.06) 0 8px,rgba(255,255,255,.02) 8px 16px);display:flex;align-items:center;justify-content:center}
 /* redesigned shell — sidebar + icon nav + character card */
 aside{display:flex;flex-direction:column;gap:13px}
 .side-bottom{margin-top:auto;display:flex;flex-direction:column;gap:11px;padding-top:10px}
@@ -366,10 +371,10 @@ aside{display:flex;flex-direction:column;gap:13px}
    Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
-const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory','calendar'];
+const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory','calendar','products'];
 /* Field nào là MẢNG — nguồn sự thật duy nhất. Thêm field mảng mới vào CHAR_FIELDS thì PHẢI thêm vào đây,
    nếu không activeChar() sẽ khởi tạo nó thành {} và mọi .push/.unshift/.filter sẽ nổ. */
-const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content','vidHistory'];
+const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content','vidHistory','products'];
 function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[],content:[],vidHistory:[]};}
 let __migratedLegacy=false;
 /* Migration → workspace đa nhân vật (v2). Giữ settings toàn cục ở gốc; mỗi nhân vật 1 gói dna riêng. */
@@ -1650,7 +1655,48 @@ const PSET_TEMPLATES={
     {a:'relaxed evening shot',m:'serene',r:'unwinding in the evening with the product, warm and content.'}
   ]}
 };
-const PSET={img:null,det:null,tpl:'story',ratio:'4:5'};
+const PSET={img:null,det:null,tpl:'story',ratio:'4:5',desc:'',bigMessage:'',jtbd:'',editId:null};
+/* ---- Kho sản phẩm: lưu nhiều SP + mô tả/thông điệp lớn/JTBD làm dữ liệu sáng tạo ---- */
+function prodList(){return S.products||[];}
+function vidProduct(){return prodList().find(x=>x.id===VID.productId)||null;}
+function prodContextEN(p){if(!p)return '';return `\n📦 SẢN PHẨM cần lồng ghép & tôn vinh: "${p.name||'sản phẩm'}"${p.type?(' ('+p.type+')'):''}.${p.desc?(' Mô tả: '+p.desc+'.'):''}${p.bigMessage?(' THÔNG ĐIỆP LỚN của chiến dịch: "'+p.bigMessage+'".'):''}${p.jtbd?(' JOB-TO-BE-DONE (giá trị cốt lõi khách cần): '+p.jtbd+'.'):''} Hãy để sản phẩm & thông điệp này DẪN DẮT cảm xúc và nội dung một cách tự nhiên, tinh tế, không gượng ép.`;}
+async function prodSave(){
+  if(typeof readPset==='function')readPset();
+  if(!PSET.img&&!PSET.editId){toast('Chọn ảnh sản phẩm trước đã');return;}
+  const det=PSET.det||{};
+  const id=PSET.editId||uid();
+  let imgKey=null;
+  if(PSET.img){imgKey='prod:'+id;await mediaPut(imgKey,PSET.img);}
+  else{const ex=prodList().find(x=>x.id===id);imgKey=ex?ex.imgKey:null;}
+  const prod={id,name:det.name||(PSET.desc||'').slice(0,40)||'Sản phẩm',type:det.type||'other',colors:det.colors||'',key_features:det.key_features||'',placement:det.placement||'',desc:PSET.desc||'',bigMessage:PSET.bigMessage||'',jtbd:PSET.jtbd||'',imgKey,ts:Date.now()};
+  S.products=S.products||[];
+  const i=S.products.findIndex(x=>x.id===id);
+  if(i>=0)S.products[i]=prod;else S.products.unshift(prod);
+  PSET.editId=id;save();renderStudio(document.getElementById('main'));toast('✓ Đã lưu vào kho sản phẩm');
+}
+async function prodUse(id){const p=prodList().find(x=>x.id===id);if(!p)return;
+  PSET.det={type:p.type,name:p.name,colors:p.colors,key_features:p.key_features,placement:p.placement};
+  PSET.desc=p.desc||'';PSET.bigMessage=p.bigMessage||'';PSET.jtbd=p.jtbd||'';PSET.editId=p.id;
+  if(p.imgKey){const u=await mediaGet(p.imgKey);if(u)PSET.img=u;}
+  renderStudio(document.getElementById('main'));toast('Đã nạp "'+(p.name||'sản phẩm')+'" vào bộ ảnh');
+}
+function prodDel(id){if(!confirm('Xoá sản phẩm này khỏi kho?'))return;const p=prodList().find(x=>x.id===id);if(p&&p.imgKey&&typeof mediaDel==='function')mediaDel(p.imgKey);S.products=prodList().filter(x=>x.id!==id);if(PSET.editId===id)PSET.editId=null;save();renderStudio(document.getElementById('main'));toast('Đã xoá sản phẩm');}
+function prodNew(){PSET.img=null;PSET.det=null;PSET.desc='';PSET.bigMessage='';PSET.jtbd='';PSET.editId=null;renderStudio(document.getElementById('main'));}
+function prodLoadThumbs(){prodList().forEach(p=>{if(!p.imgKey)return;const th=document.getElementById('prodthumb_'+p.id);if(!th||th.querySelector('img'))return;mediaGet(p.imgKey).then(u=>{if(u)th.innerHTML=`<img src="${u}" style="width:100%;height:100%;object-fit:cover">`;});});}
+function prodLibraryHtml(){
+  const list=prodList();
+  return `<div class="card" style="margin-top:12px">
+    <div class="bar" style="margin-top:0;justify-content:space-between;align-items:center"><b style="color:var(--acc)">📦 Kho sản phẩm (${list.length})</b><button class="btn ghost sm" onclick="prodNew()">➕ Sản phẩm mới</button></div>
+    <div class="hint" style="margin:4px 0 8px">Lưu nhiều SP kèm mô tả · thông điệp lớn · JTBD. Bấm "Dùng" để nạp lại vào bộ ảnh, hoặc chọn ở Video Omni làm dữ liệu sáng tạo.</div>
+    ${list.length?`<div class="prodgrid">`+list.map(p=>`<div class="prodcard${PSET.editId===p.id?' on':''}">
+      <div class="pc-thumb" id="prodthumb_${p.id}"><span style="font-size:20px">📦</span></div>
+      <div style="flex:1;min-width:0"><b style="font-size:13px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name||'Sản phẩm')}</b>
+        <span class="hint" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.bigMessage||p.desc||p.type||'')}</span>
+        <div class="bar" style="margin-top:6px;gap:6px"><button class="btn ghost sm" onclick="prodUse('${p.id}')">Dùng</button><button class="btn ghost sm" onclick="prodDel('${p.id}')">🗑</button></div>
+      </div>
+    </div>`).join('')+`</div>`:'<div class="hint" style="opacity:.7">Chưa có sản phẩm nào — upload ảnh + điền mô tả rồi bấm "💾 Lưu vào kho".</div>'}
+  </div>`;
+}
 function productDetectPrompt(){
   return `Bạn là chuyên gia e-commerce. Nhìn ẢNH SẢN PHẨM và trả DUY NHẤT JSON:
 {"type":"one of: apparel, skincare, cosmetic, gadget, food_drink, accessory, other","name":"tên sản phẩm ngắn gọn (tiếng Việt)","colors":"english: main colors & materials","key_features":"english: notable visual features / label text to preserve exactly","placement":"english: one short phrase on how a person would naturally hold/wear/use it in a photo"}`;
@@ -1680,6 +1726,13 @@ function renderProductSet(b){
     </div>
     ${PSET.det?`<div class="row"><div><label>Loại sản phẩm (sửa nếu AI đoán sai)</label><select id="pset_type">${['apparel','skincare','cosmetic','gadget','food_drink','accessory','other'].map(t=>`<option ${PSET.det.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
       <div><label>Tên / mô tả ngắn</label><input id="pset_name" value="${esc(PSET.det.name||'')}"></div></div>`:''}
+    <label style="margin-top:10px">📝 Mô tả chi tiết <span style="color:var(--mut2);font-weight:400">(dữ liệu tham chiếu cho AI sáng tạo)</span></label>
+    <textarea id="pset_desc" style="min-height:56px" placeholder="Thành phần, công dụng, điểm khác biệt, đối tượng khách hàng, cảm giác khi dùng...">${esc(PSET.desc||'')}</textarea>
+    <div class="row">
+      <div><label>📣 Thông điệp lớn của chiến dịch</label><input id="pset_big" value="${esc(PSET.bigMessage||'')}" placeholder="VD: Tự tin là bản lĩnh đàn ông"></div>
+      <div><label>🎯 Job To Be Done</label><input id="pset_jtbd" value="${esc(PSET.jtbd||'')}" placeholder="VD: giúp nam giới sạch thoáng, tự tin mỗi ngày"></div>
+    </div>
+    <div class="bar" style="margin-top:8px"><button class="btn ghost sm" onclick="prodSave()">💾 Lưu vào kho sản phẩm</button>${PSET.editId?'<span class="hint" style="align-self:center;color:var(--ok)">✓ Đang gắn với SP đã lưu — lưu lại để cập nhật</span>':'<span class="hint" style="align-self:center">Lưu để tái sử dụng & làm dữ liệu video</span>'}</div>
     ${!hasFace?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④, upload selfie) để bộ ảnh giữ đúng khuôn mặt nhân vật.</div>':''}
     <label style="margin-top:12px">🎬 Kiểu bộ ảnh</label>
     <div>${Object.keys(PSET_TEMPLATES).map(k=>`<span class="chip" onclick="PSET.tpl='${k}';renderStudio(document.getElementById('main'))" style="${PSET.tpl===k?'outline:2px solid var(--gold);color:var(--gold)':''}"><b>${esc(PSET_TEMPLATES[k].name)}</b> · ${esc(PSET_TEMPLATES[k].desc)}</span>`).join(' ')}</div>
@@ -1689,7 +1742,9 @@ function renderProductSet(b){
     </div>
     <div class="err" id="psetErr"></div>
   </div>
+  ${prodLibraryHtml()}
   <div id="psetOut" class="imgrid"></div>`;
+  prodLoadThumbs();
 }
 async function psetUpload(ev){
   const f=ev.target.files[0];if(!f)return;
@@ -1700,7 +1755,10 @@ async function psetUpload(ev){
   catch(e){PSET.det={type:'other',name:'',colors:'',key_features:'',placement:''};if(err){err.style.display='block';err.textContent='Không tự nhận diện được — bạn chọn loại thủ công. '+e.message;}}
   renderStudio(document.getElementById('main'));
 }
-function readPset(){if(document.getElementById('pset_type'))PSET.det=Object.assign(PSET.det||{},{type:val('pset_type'),name:val('pset_name')});PSET.ratio=val('pset_ratio')||PSET.ratio;}
+function readPset(){if(document.getElementById('pset_type'))PSET.det=Object.assign(PSET.det||{},{type:val('pset_type'),name:val('pset_name')});PSET.ratio=val('pset_ratio')||PSET.ratio;
+  if(document.getElementById('pset_desc'))PSET.desc=val('pset_desc');
+  if(document.getElementById('pset_big'))PSET.bigMessage=val('pset_big');
+  if(document.getElementById('pset_jtbd'))PSET.jtbd=val('pset_jtbd');}
 async function runProductSet(){
   readPset();
   if(!PSET.img){toast('Cần ảnh sản phẩm');return;}
@@ -2129,7 +2187,7 @@ const VID_TALENTS=[
   ['catwalk','🚶‍♀️ Catwalk','walking a runway catwalk with confident elegant poise','a stylish fashion runway beat'],
   ['pose','✨ Tạo dáng biểu cảm','striking cute, expressive, attractive poses','soft cinematic background music']
 ];
-const VID={talents:['guitar','pose'],outfits:[],duration:20,custom:'',mode:'idea'};
+const VID={talents:['guitar','pose'],outfits:[],duration:20,custom:'',mode:'idea',productId:''};
 const VID_MODES=[
   ['idea','🎬','Từ ý tưởng','1 phim liền mạch — nhân vật diễn bất kỳ câu chuyện nào'],
   ['pack','🎁','Pack video','sản xuất hàng loạt 10 video một lần'],
@@ -2172,6 +2230,12 @@ function renderVideo(b){
     <p class="hint" style="margin-top:2px">Chọn <b>chế độ dựng</b>, prompt EN chất iPhone thật · 6-8 quick-cut/10s theo nhịp · hook giữ chân từng giây.</p>
     <div class="vmodes">${VID_MODES.map(m=>`<button class="vmode ${VID.mode===m[0]?'on':''}" onclick="vidMode('${m[0]}')"><span class="vi">${m[1]}</span><b>${m[2]}</b><span>${m[3]}</span></button>`).join('')}</div>
     ${!hasRef?'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Nên tạo Digital Twin (bước ④) để mọi clip giữ cùng khuôn mặt.</div>':'<div class="hint" style="margin:4px 0">🔒 AI tự đọc ảnh neo → khoá CHARACTER + STYLE, chèn nguyên văn vào mọi clip (nhất quán xuyên video, đổ vào flow-pack).</div>'}
+    <label style="margin-top:8px">📦 Sản phẩm (kho) — dữ liệu tham chiếu cho nội dung</label>
+    <select id="vid_prod" onchange="VID.productId=this.value;renderVideo(document.getElementById('studioBody'))">
+      <option value="">— Không dùng sản phẩm —</option>
+      ${prodList().map(p=>`<option value="${p.id}" ${VID.productId===p.id?'selected':''}>${esc(p.name||'Sản phẩm')}</option>`).join('')}
+    </select>
+    ${vidProduct()?`<div class="hint" style="margin:4px 0">📣 <b>${esc(vidProduct().bigMessage||'—')}</b> · 🎯 ${esc(vidProduct().jtbd||'—')}</div>`:(prodList().length?'':`<div class="hint" style="margin:4px 0;opacity:.7">Lưu sản phẩm ở tab 🛍️ Bộ ảnh SP để chọn ở đây.</div>`)}
     <label>💡 Ý tưởng phim — nhân vật diễn bất kỳ câu chuyện nào (AI sáng tạo)</label>
     <textarea id="vid_idea" rows="2" placeholder="VD: cô nàng cướp biển đối đầu kẻ thù trên boong tàu lúc bình minh · nữ điệp viên phá kho báu trong bảo tàng · cô gái lạc vào thế giới thần tiên...">${esc(VID.idea||'')}</textarea>
     <div class="hint" style="margin:4px 0">Nhập ý tưởng phim bất kỳ (mọi thể loại) → AI dựng thành thước phim cuốn cho nhân vật của bạn. Để trống thì AI tự sáng tạo concept.</div>
@@ -2276,11 +2340,12 @@ function pickBeats(n){
   for(let i=0;i<need;i++)out.push(mid[Math.floor(i*mid.length/need)]);
   out.push(SALES_ARC[SALES_ARC.length-1]);return out;
 }
-function salesClipPrompt(beat,i,total,outfitName){
+function salesClipPrompt(beat,i,total,outfitName,prod){
   const cont=i>0?' Continues smoothly from the previous clip — the same woman, the same product, the story progressing.':'';
   const outfit=outfitName?` She is wearing ${outfitName}.`:'';
+  const pmsg=prod?` This clip must express the campaign message "${prod.bigMessage||prod.name||''}" and the core value it delivers: ${prod.jtbd||prod.desc||''}.${prod.key_features?(' Product details to preserve: '+prod.key_features+'.'):''}`:'';
   return `Vertical 9:16 cinematic product SALES film, about 10 seconds, NO voiceover and NO talking — pure visual storytelling that sells.`
-    +` ${beat.t}: ${beat.m}.${outfit}${cont}`
+    +` ${beat.t}: ${beat.m}.${outfit}${cont}${pmsg}`
     +` Featuring the EXACT product and the EXACT same woman defined by the provided reference images — do not alter her face; reproduce the product's shape, color, materials and any label/text exactly.`
     +` Camera & editing: ${beat.cam}; EXACTLY 6-8 quick cuts within the 10 seconds cut ON the music beat, a scroll-stopping hook in the very first second, every second a fresh angle/motion/product micro-payoff, macro inserts of the product, silky match-cut and morph transitions, high-retention momentum — no dead frames.`
     +` Look: premium commercial e-commerce film, soft cinematic color grade, flattering light, emotionally compelling and aspirational to drive purchase.`
@@ -2293,12 +2358,13 @@ async function genSalesVideo(){
   const picked=VID.outfits.map(k=>items.find(x=>x.key===k)).filter(Boolean);
   const n=Math.max(1,Math.round(VID.duration/10));
   const beats=pickBeats(n);
-  const prodName=(PSET&&PSET.det&&PSET.det.name)?PSET.det.name:'sản phẩm';
+  const prod=vidProduct();
+  const prodName=(prod&&prod.name)?prod.name:((PSET&&PSET.det&&PSET.det.name)?PSET.det.name:'sản phẩm');
   const sb=document.getElementById('salesVidBtn');if(sb){sb.disabled=true;sb.innerHTML='<span class="spinner"></span> Đang khoá nhân vật & dựng...';}
   await ensureMuseLock();
   const clips=beats.map((beat,i)=>{
     const ref=picked.length?picked[i%picked.length]:{name:'Look mặc định',imgKey:null};
-    return {seq:i+1,prompt:withLock(salesClipPrompt(beat,i,n,picked.length?ref.name:'')),outfit:ref,audio:'emotive trending music (no voiceover)',talentLabel:'Bán hàng · '+beat.t,overlayText:''};
+    return {seq:i+1,prompt:withLock(salesClipPrompt(beat,i,n,picked.length?ref.name:'',prod)),outfit:ref,audio:'emotive trending music (no voiceover)',talentLabel:'Bán hàng · '+beat.t,overlayText:''};
   });
   if(sb){sb.disabled=false;sb.innerHTML='🛍️ Video bán hàng (không lời)';}
   __vidVideos=[{series:'Video bán hàng · '+prodName,clips}];
@@ -2310,7 +2376,7 @@ async function genSalesVideo(){
 function videoGenPrompt(idea,talentNames,nVideos,clipsPerVideo){
   const hasIdea=(idea||'').trim();const hasTal=(talentNames||'').trim();
   return `Bạn là ĐẠO DIỄN điện ảnh cho video ngắn dọc (Google Flow / Omni). Từ Ý TƯỞNG của người dùng, biến nhân vật thành DIỄN VIÊN CHÍNH trong một thước phim hấp dẫn — BẤT KỲ thể loại nào (hành động, tình cảm, phiêu lưu, cổ trang, viễn tưởng, kinh dị nhẹ, đời thường, kịch tính, hài...). Sáng tạo ${nVideos} concept VIDEO KHÁC NHAU${clipsPerVideo>1?(' (mỗi video '+clipsPerVideo+' clip 10s nối nhau thành 1 mạch phim liền)'):' (mỗi video 1 clip 10s)'} — mỗi video 1 hook riêng, cuốn hút, khác bối cảnh/diễn biến.
-Ý TƯỞNG GỐC: "${hasIdea||'(người dùng để trống — TỰ sáng tạo một concept phim ngắn thật cuốn cho nhân vật)'}".
+Ý TƯỞNG GỐC: "${hasIdea||'(người dùng để trống — TỰ sáng tạo một concept phim ngắn thật cuốn cho nhân vật)'}".${prodContextEN(vidProduct())}
 ${hasTal?('TÀI NĂNG / hành động ĐẶC BIỆT muốn nhân vật thể hiện (lồng vào phim thật tự nhiên, đúng mạch): '+talentNames+'.'):'Người dùng KHÔNG chỉ định tài năng — TỰ nghĩ ra diễn xuất, hành động, kỹ năng phù hợp nhất với ý tưởng để phim cuốn nhất.'}
 MỖI clip = 1 prompt TIẾNG ANH cho Omni, theo NGUYÊN TẮC AN TOÀN + CHẤT LƯỢNG:
 - Chủ thể CHUNG CHUNG "a stylish young woman" — KHÔNG mô tả khuôn mặt, KHÔNG "real/famous person", KHÔNG tên riêng (danh tính do ảnh tham chiếu + CHARACTER LOCK lo, hệ thống chèn sau).
@@ -2356,7 +2422,7 @@ ${H.life?H.life+'\n':''}⚡ MẠCH CUỘC SỐNG CÓ THẬT: Coi nhân vật nh�
   return `Bạn là ĐẠO DIỄN vlog đời thường CHÂN THẬT cho Google Flow (Omni). Dựa trên NHÂN VẬT, tự dựng ${nVideos>1?(nVideos+' vlog KHÁC NHAU — như một người có CUỘC SỐNG THẬT, mỗi vlog là 1 khoảnh khắc/câu chuyện đời thường khác nhau'+(clipsPerVideo>1?(', MỖI vlog gồm '+clipsPerVideo+' clip 10s NỐI LIỀN MẠCH (mở đầu → diễn biến → lắng đọng)'):', mỗi vlog 1 clip 10s')):('MỘT vlog LIỀN MẠCH gồm '+clipsPerVideo+' clip 10s nối nhau thành một mạch cảm xúc trọn vẹn (mở đầu → diễn biến → cao trào/lắng đọng)')}.
 NHÂN VẬT:
 ${ctx||'một cô gái trẻ sống tình cảm, đời thường'}
-${idea?('Định hướng thêm: '+idea+'\n'):''}${histBlock}YÊU CẦU: CHÂN THẬT như đời sống (KHÔNG glam/sàn diễn), giàu CẢM XÚC, gần gũi, relatable, bám tính cách/POV/nghề/niche nhân vật. AI TỰ CHỌN mạch hợp nhất (một ngày của nhân vật / hành trình cảm xúc / khoảnh khắc lifestyle).
+${idea?('Định hướng thêm: '+idea+'\n'):''}${prodContextEN(vidProduct())?prodContextEN(vidProduct())+'\n':''}${histBlock}YÊU CẦU: CHÂN THẬT như đời sống (KHÔNG glam/sàn diễn), giàu CẢM XÚC, gần gũi, relatable, bám tính cách/POV/nghề/niche nhân vật. AI TỰ CHỌN mạch hợp nhất (một ngày của nhân vật / hành trình cảm xúc / khoảnh khắc lifestyle).
 MỖI clip = 1 prompt TIẾNG ANH cho Omni, CÔNG THỨC AN TOÀN:
 - Chủ thể CHUNG CHUNG "a young woman" — KHÔNG tả mặt, KHÔNG "real/famous person", KHÔNG "reference image", KHÔNG tên riêng.
 - Phong cách VLOG: handheld iPhone POV/selfie, candid real-life moment, natural light, real cozy settings (nhà/bếp/quán cà phê/phố/nơi làm việc...), authentic UGC, emotional & relatable — real skin, NOT glam/runway/plastic/CGI.
