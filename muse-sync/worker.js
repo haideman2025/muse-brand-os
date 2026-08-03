@@ -107,12 +107,13 @@ export default {
             // B1: xin presigned URL
             const pr = await fetch('https://zernio.com/api/v1/media/presign', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: 'muse-' + Date.now().toString(36) + '.' + ext, contentType: mime }) });
             const pj = await pr.json().catch(() => ({}));
-            if (!pr.ok || !pj.uploadUrl || !pj.fileUrl) { mediaErrors.push({ step: 'presign', status: pr.status, data: pj }); continue; }
-            // B2: PUT file lên presigned URL
+            const fileUrl = pj.publicUrl || pj.fileUrl || pj.url;
+            if (!pr.ok || !pj.uploadUrl || !fileUrl) { mediaErrors.push({ step: 'presign', status: pr.status, data: pj }); continue; }
+            // B2: PUT file lên presigned URL (không cần auth, Content-Type khớp)
             const up = await fetch(pj.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: bytes });
-            if (!up.ok) { mediaErrors.push({ step: 'upload', status: up.status }); continue; }
-            // B3: dùng fileUrl trong mediaItems
-            mediaItems.push({ type: 'image', url: pj.fileUrl });
+            if (!up.ok) { const ut = await up.text().catch(() => ''); mediaErrors.push({ step: 'upload', status: up.status, body: ut.slice(0, 200) }); continue; }
+            // B3: dùng publicUrl trong mediaItems
+            mediaItems.push({ type: 'image', url: fileUrl });
           } catch (e) { mediaErrors.push({ step: 'exception', msg: String(e && e.message || e) }); }
         }
         const payload = { content: String(b.content).slice(0, 63000), platforms: [{ platform: 'facebook', accountId: String(b.accountId) }] };
