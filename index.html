@@ -1794,13 +1794,14 @@ function zernioCard(){
       <b style="color:var(--gold)">📤 Kết nối Zernio — đăng &amp; lên lịch tự động lên Facebook</b>
       <span class="hpill" style="background:${on?'rgba(111,227,210,.14)':'rgba(242,193,78,.14)'};color:${on?'var(--ok)':'var(--gold)'}">${on?'✓ Đã kết nối':'⚠ Chưa nhập key'}</span>
     </div>
-    <div class="hint" style="margin:6px 0 8px">Lấy <b>API key</b> + <b>Account ID</b> tại zernio.com (kết nối Facebook Page trong dashboard Zernio). Đăng qua server (né CORS, ảnh tự host).</div>
+    <div class="hint" style="margin:6px 0 8px">Lấy <b>API key</b> tại zernio.com → Developer/API (dạng <b>sk_...</b>). <b>Account ID</b> lấy tự động: dán key → bấm <b>"Lấy tài khoản đã kết nối"</b> → chọn Facebook.</div>
     <div class="row3">
-      <div><label>Zernio API key</label><input id="z_key" type="password" value="${esc(zGet('key'))}" placeholder="zk_..."></div>
-      <div><label>Account ID</label><input id="z_account" value="${esc(zGet('account'))}" placeholder="acc_..."></div>
-      <div><label>Page ID (tuỳ chọn)</label><input id="z_page" value="${esc(zGet('page'))}" placeholder="nếu có nhiều page"></div>
+      <div><label>Zernio API key</label><input id="z_key" type="password" value="${esc(zGet('key'))}" placeholder="sk_..."></div>
+      <div><label>Account ID (tự điền khi chọn bên dưới)</label><input id="z_account" value="${esc(zGet('account'))}" placeholder="chọn ở danh sách bên dưới"></div>
+      <div><label>Page ID (tuỳ chọn)</label><input id="z_page" value="${esc(zGet('page'))}" placeholder="thường bỏ trống"></div>
     </div>
-    <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="zernioSave()">💾 Lưu kết nối</button><button class="btn ghost sm" onclick="zernioPages()">📄 Lấy danh sách Page</button></div>
+    <div class="bar" style="margin-top:8px"><button class="btn sm" onclick="zernioSave()">💾 Lưu kết nối</button><button class="btn ghost sm" onclick="zernioAccounts()">📄 Lấy tài khoản đã kết nối</button></div>
+    <div id="zAccts" style="margin-top:8px"></div>
     <div class="hint" id="zStatus" style="margin-top:6px"></div>
   </div>`;
 }
@@ -1825,28 +1826,47 @@ async function zernioPublish(setId,mode){
   if(!zConnected()){toast('Nhập Zernio API key + Account ID ở "Kết nối Zernio" trên cùng');return;}
   const content=ccText((set.outputs||{}).fb||Object.values(set.outputs||{})[0]);
   if(!content){toast('Không có nội dung FB để đăng');return;}
-  let scheduledAt='';
-  if(mode==='schedule'){const v=val('sch_'+setId);if(!v){toast('Chọn thời gian lên lịch đã');return;}const dt=new Date(v);if(isNaN(dt.getTime())||dt.getTime()<Date.now()+60000){toast('Thời gian phải ở tương lai');return;}scheduledAt=dt.toISOString();}
+  let scheduledFor='';
+  if(mode==='schedule'){const v=val('sch_'+setId);if(!v){toast('Chọn thời gian lên lịch đã');return;}const dt=new Date(v);if(isNaN(dt.getTime())||dt.getTime()<Date.now()+60000){toast('Thời gian phải ở tương lai');return;}scheduledFor=zLocalIso(v);}
   const btn=document.getElementById((mode==='schedule'?'zsch_':'zpub_')+setId);const old=btn?btn.innerHTML:'';if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> ...';}
   try{
     const imagesBase64=await ccPubImages(set);
-    const body={zernioKey:zGet('key'),accountId:zGet('account'),pageId:zGet('page'),content,imagesBase64};
-    if(scheduledAt)body.scheduledAt=scheduledAt;else body.publishNow=true;
+    const body={zernioKey:zGet('key'),accountId:zGet('account'),content,imagesBase64};
+    if(scheduledFor){body.scheduledFor=scheduledFor;body.timezone=zTz();}else body.publishNow=true;
     const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json().catch(()=>({}));
-    if(d.ok){toast(scheduledAt?('✓ Đã lên lịch '+new Date(scheduledAt).toLocaleString('vi')):'✓ Đã đăng lên Facebook');}
-    else{toast('Zernio: '+esc(JSON.stringify(d.data||d).slice(0,140)));}
+    if(d.ok){toast(scheduledFor?('✓ Đã lên lịch '+scheduledFor.replace('T',' ')):'✓ Đã đăng lên Facebook');if(d.mediaErrors&&d.mediaErrors.length)toast('⚠ Ảnh lỗi: '+esc(JSON.stringify(d.mediaErrors).slice(0,120)));}
+    else{toast('Zernio: '+esc(JSON.stringify(d.data||d).slice(0,160)));}
   }catch(e){toast('Lỗi mạng: '+(e.message||e));}
   finally{if(btn){btn.disabled=false;btn.innerHTML=old;}}
 }
-async function zernioPages(){
-  zernioSave();
-  if(!zGet('key')||!zGet('account')){toast('Cần Zernio API key + Account ID');return;}
-  const st=document.getElementById('zStatus');if(st)st.textContent='Đang lấy danh sách Page...';
-  try{const r=await fetch(SYNC_URL+'/zernio/pages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account')})});const d=await r.json();
-    if(st)st.innerHTML='<b>Kết quả:</b> <span style="font-family:ui-monospace,monospace;font-size:11px">'+esc(JSON.stringify(d.data||d).slice(0,500))+'</span>';
-  }catch(e){if(st)st.textContent='Lỗi: '+(e.message||e);}
+function zTz(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'Asia/Ho_Chi_Minh';}catch(e){return 'Asia/Ho_Chi_Minh';}}
+function zPad(n){return String(n).padStart(2,'0');}
+function zLocalIso(v){ // "YYYY-MM-DDTHH:mm" (datetime-local) -> "YYYY-MM-DDTHH:mm:00" giữ giờ địa phương
+  if(typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v))return v.length===16?v+':00':v.slice(0,19);
+  const d=(v instanceof Date)?v:new Date(v);
+  return d.getFullYear()+'-'+zPad(d.getMonth()+1)+'-'+zPad(d.getDate())+'T'+zPad(d.getHours())+':'+zPad(d.getMinutes())+':00';
 }
+async function zernioAccounts(){
+  zernioSave();
+  if(!zGet('key')){toast('Nhập API key (sk_...) trước');return;}
+  const box=document.getElementById('zAccts');const st=document.getElementById('zStatus');
+  if(box)box.innerHTML='<span class="hint"><span class="spinner"></span> Đang lấy tài khoản...</span>';
+  try{
+    const r=await fetch(SYNC_URL+'/zernio/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key')})});
+    const d=await r.json().catch(()=>({}));
+    const accs=(d.data&&(d.data.accounts||d.data.data||(Array.isArray(d.data)?d.data:null)))||[];
+    if(!r.ok||!d.ok){if(box)box.innerHTML='<div class="hint" style="color:var(--coral)">Lỗi: '+esc(JSON.stringify(d.data||d).slice(0,220))+'</div>';return;}
+    if(!accs.length){if(box)box.innerHTML='<div class="hint" style="color:var(--gold)">Chưa thấy tài khoản nào — kết nối Facebook trong dashboard Zernio trước. (raw: '+esc(JSON.stringify(d.data).slice(0,160))+')</div>';return;}
+    if(box)box.innerHTML='<div class="hint" style="margin-bottom:4px">Bấm để chọn (điền Account ID):</div>'+accs.map(a=>{
+      const id=a._id||a.id||a.accountId||'';const plat=(a.platform||a.provider||'').toString();
+      const nm=a.name||a.username||a.displayName||a.handle||a.pageName||'';
+      return `<button class="chip" style="margin:2px 4px 2px 0" onclick="zPickAcct('${esc(String(id))}')">${esc(plat||'account')}${nm?' · '+esc(nm):''} · ${esc(String(id).slice(-6))}</button>`;
+    }).join('');
+    if(st)st.textContent='';
+  }catch(e){if(box)box.innerHTML='<div class="hint" style="color:var(--coral)">Lỗi mạng: '+esc(e.message||String(e))+'</div>';}
+}
+function zPickAcct(id){zSet('account',id);const el=document.getElementById('z_account');if(el)el.value=id;toast('Đã chọn Account ID');renderContent(document.getElementById('main'));}
 // Chuẩn hoá output kênh về CHUỖI (AI đôi khi trả object → tránh "[object Object]")
 function ccText(v){
   if(v==null)return '';
@@ -1964,7 +1984,7 @@ async function calScheduleOne(i,btn){
   const imagesBase64=[];if(day.imgId){const u=await mediaGet('g:'+day.imgId);if(u)imagesBase64.push({base64:u,mime:(u.match(/^data:([^;]+);/)||[])[1]||'image/jpeg'});}
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';}
   try{
-    const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account'),pageId:zGet('page'),content:day.caption||'',imagesBase64,scheduledAt:dt.toISOString()})});
+    const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zernioKey:zGet('key'),accountId:zGet('account'),content:day.caption||'',imagesBase64,scheduledFor:zLocalIso(dt),timezone:zTz()})});
     const d=await r.json().catch(()=>({}));
     if(d.ok){day.status='scheduled';save();if(btn){btn.innerHTML='✓';}return true;}
     toast('Zernio ngày '+(i+1)+': '+esc(JSON.stringify(d.data||d).slice(0,120)));if(btn){btn.disabled=false;btn.innerHTML='🗓';}return false;

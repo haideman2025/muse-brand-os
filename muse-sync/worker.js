@@ -72,39 +72,56 @@ export default {
         if (!obj) return new Response('', { status: 404, headers: CORS });
         return new Response(obj.body, { status: 200, headers: { ...CORS, 'Content-Type': (obj.httpMetadata && obj.httpMetadata.contentType) || 'image/jpeg', 'Cache-Control': 'public, max-age=86400' } });
       }
+      // Liệt kê tài khoản social đã kết nối (chỉ cần API key) — để lấy accountId (_id)
+      if (path === '/zernio/accounts' && req.method === 'POST') {
+        const b = await req.json().catch(() => ({}));
+        if (!b.zernioKey) return json({ error: 'Thiếu zernioKey.' }, 400);
+        const r = await fetch('https://zernio.com/api/v1/accounts', { headers: { 'Authorization': 'Bearer ' + b.zernioKey } });
+        const d = await r.json().catch(() => ({}));
+        return json({ status: r.status, ok: r.ok, data: d });
+      }
+      // Giữ route cũ cho tương thích
       if (path === '/zernio/pages' && req.method === 'POST') {
         const b = await req.json().catch(() => ({}));
-        if (!b.zernioKey || !b.accountId) return json({ error: 'Thiếu zernioKey/accountId.' }, 400);
-        const r = await fetch('https://zernio.com/api/v1/accounts/' + encodeURIComponent(b.accountId) + '/facebook-page', { headers: { 'Authorization': 'Bearer ' + b.zernioKey } });
+        if (!b.zernioKey) return json({ error: 'Thiếu zernioKey.' }, 400);
+        const r = await fetch('https://zernio.com/api/v1/accounts', { headers: { 'Authorization': 'Bearer ' + b.zernioKey } });
         const d = await r.json().catch(() => ({}));
         return json({ status: r.status, ok: r.ok, data: d });
       }
       if (path === '/zernio/publish' && req.method === 'POST') {
-        if (!env.IMG) return json({ error: 'R2 chưa cấu hình.' }, 500);
         const b = await req.json().catch(() => ({}));
         if (!b.zernioKey || !b.accountId || !b.content) return json({ error: 'Thiếu zernioKey/accountId/content.' }, 400);
-        let mediaItems = [];
+        const auth = { 'Authorization': 'Bearer ' + b.zernioKey };
         const imgs = Array.isArray(b.imagesBase64) ? b.imagesBase64
           : (b.imageBase64 ? [{ base64: b.imageBase64, mime: b.mime }] : []);
+        const mediaItems = [], mediaErrors = [];
         for (const it of imgs.slice(0, 10)) {
           const raw = it && (it.base64 || it);
           if (!raw) continue;
           const clean = String(raw).replace(/^data:[^;]+;base64,/, '');
           const bytes = Uint8Array.from(atob(clean), c => c.charCodeAt(0));
-          if (bytes.byteLength > 6 * 1024 * 1024) continue; // bỏ ảnh quá lớn thay vì fail cả bài
+          if (bytes.byteLength > 8 * 1024 * 1024) { mediaErrors.push('ảnh >8MB, bỏ qua'); continue; }
           const mime = (it && it.mime) || b.mime || 'image/jpeg';
           const ext = mime.indexOf('png') >= 0 ? 'png' : 'jpg';
-          const key = 'pub/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + ext;
-          await env.IMG.put(key, bytes, { httpMetadata: { contentType: mime } });
-          mediaItems.push({ type: 'image', url: url.origin + '/pub?k=' + encodeURIComponent(key) });
+          try {
+            // B1: xin presigned URL
+            const pr = await fetch('https://zernio.com/api/v1/media/presign', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: 'muse-' + Date.now().toString(36) + '.' + ext, contentType: mime }) });
+            const pj = await pr.json().catch(() => ({}));
+            if (!pr.ok || !pj.uploadUrl || !pj.fileUrl) { mediaErrors.push({ step: 'presign', status: pr.status, data: pj }); continue; }
+            // B2: PUT file lên presigned URL
+            const up = await fetch(pj.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: bytes });
+            if (!up.ok) { mediaErrors.push({ step: 'upload', status: up.status }); continue; }
+            // B3: dùng fileUrl trong mediaItems
+            mediaItems.push({ type: 'image', url: pj.fileUrl });
+          } catch (e) { mediaErrors.push({ step: 'exception', msg: String(e && e.message || e) }); }
         }
-        const psd = {}; if (b.pageId) psd.pageId = String(b.pageId);
-        const payload = { content: String(b.content).slice(0, 63000), platforms: [{ platform: 'facebook', accountId: String(b.accountId), platformSpecificData: psd }] };
+        const payload = { content: String(b.content).slice(0, 63000), platforms: [{ platform: 'facebook', accountId: String(b.accountId) }] };
         if (mediaItems.length) payload.mediaItems = mediaItems;
-        if (b.scheduledAt) payload.scheduledAt = b.scheduledAt; else payload.publishNow = true;
-        const r = await fetch('https://zernio.com/api/v1/posts', { method: 'POST', headers: { 'Authorization': 'Bearer ' + b.zernioKey, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (b.scheduledFor) { payload.scheduledFor = b.scheduledFor; payload.timezone = b.timezone || 'Asia/Ho_Chi_Minh'; }
+        else payload.publishNow = true;
+        const r = await fetch('https://zernio.com/api/v1/posts', { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const d = await r.json().catch(() => ({}));
-        return json({ status: r.status, ok: r.ok, data: d });
+        return json({ status: r.status, ok: r.ok, data: d, mediaErrors });
       }
 
       // ---------- ADMIN ----------
