@@ -1338,6 +1338,7 @@ function renderStudio(m){
     <button class="tab ${t==='photoshoot'?'active':''}" onclick="studioTab('photoshoot')">📸 Photoshoot</button>
     <button class="tab ${t==='clone'?'active':''}" onclick="studioTab('clone')">🎯 Clone từ ảnh</button>
     <button class="tab ${t==='product'?'active':''}" onclick="studioTab('product')">🛍️ Bộ ảnh SP</button>
+    <button class="tab ${t==='poster'?'active':''}" onclick="studioTab('poster')">🎞️ Poster</button>
     <button class="tab ${t==='wardrobe'?'active':''}" onclick="studioTab('wardrobe')">👗 Tủ đồ</button>
     <button class="tab ${t==='gallery'?'active':''}" onclick="studioTab('gallery')">🖼️ Thư viện (${S.gallery.length})</button>
     <button class="tab ${t==='video'?'active':''}" onclick="studioTab('video')">🎬 Video Omni</button>
@@ -1349,6 +1350,7 @@ function renderStudio(m){
   if(t==='photoshoot')renderPhotoshoot(body);
   else if(t==='clone')renderClone(body);
   else if(t==='product')renderProductSet(body);
+  else if(t==='poster')renderPoster(body);
   else if(t==='wardrobe')renderWardrobe(body);
   else if(t==='video')renderVideo(body);
   else renderGallery(body);
@@ -1831,6 +1833,105 @@ async function runProductSet(){
   if(b){b.disabled=false;b.innerHTML='✨ Tạo bộ 10 ảnh';}
   if(typeof renderSteps==='function')renderSteps();
   const dl=document.createElement('div');dl.className='bar';dl.style.gridColumn='1/-1';dl.innerHTML='<button class="btn ghost" onclick="dlGalleryAll()">⬇ Tải tất cả ảnh trong Thư viện</button>';out.appendChild(dl);
+}
+
+/* ==================== 🎞️ POSTER: người mẫu + sản phẩm, nhiều tỉ lệ tuỳ chọn ==================== */
+const POSTER_RATIOS=[
+  ['1:1','square 1:1 poster'],['4:5','vertical 4:5 poster'],['3:4','vertical 3:4 poster'],
+  ['2:3','tall vertical 2:3 print poster'],['9:16','tall vertical 9:16 story poster'],
+  ['16:9','horizontal 16:9 banner poster'],['3:2','horizontal 3:2 poster'],['21:9','ultra-wide 21:9 banner poster']
+];
+const POSTER_STYLES=[
+  ['bold','Bold / Sale','high-impact bold advertising poster, punchy contrast, dynamic energetic composition'],
+  ['lux','Sang trọng','luxury minimalist advertising poster, elegant premium aesthetic, refined dramatic lighting'],
+  ['minimal','Tối giản','clean minimalist poster, lots of negative space, modern editorial look'],
+  ['lifestyle','Lifestyle','warm aspirational lifestyle advertising poster, real-life inviting scene'],
+  ['festive','Lễ hội','festive vibrant campaign poster, celebratory joyful mood']
+];
+const POSTER={productId:'',img:null,det:null,headline:'',style:'bold',note:'',ratios:['4:5','1:1'],useRef:true};
+function posterSyncInputs(){if(document.getElementById('poster_head'))POSTER.headline=val('poster_head');if(document.getElementById('poster_note'))POSTER.note=val('poster_note');}
+function readPoster(){posterSyncInputs();}
+async function posterPickProduct(id){const p=prodList().find(x=>x.id===id);POSTER.productId=id;
+  if(p){POSTER.det={type:p.type,name:p.name,colors:p.colors,key_features:p.key_features};if(p.imgKey){const u=await mediaGet(p.imgKey);if(u)POSTER.img=u;}}
+  renderStudio(document.getElementById('main'));}
+async function onPosterFile(ev){const f=ev.target.files[0];if(!f)return;if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  POSTER.img=await fileToDataUrl(f);POSTER.productId='';renderStudio(document.getElementById('main'));
+  try{POSTER.det=parseJSON(await geminiVision(productDetectPrompt(),POSTER.img,true));renderStudio(document.getElementById('main'));toast('✓ Đã nhận diện sản phẩm');}catch(e){}}
+function posterTglRatio(r){posterSyncInputs();const i=POSTER.ratios.indexOf(r);if(i<0)POSTER.ratios.push(r);else POSTER.ratios.splice(i,1);if(!POSTER.ratios.length)POSTER.ratios.push(r);renderStudio(document.getElementById('main'));}
+function posterStyle(s){posterSyncInputs();POSTER.style=s;renderStudio(document.getElementById('main'));}
+function posterPrompt(ratioEN){
+  const st=POSTER_STYLES.find(s=>s[0]===POSTER.style)||POSTER_STYLES[0];
+  const det=POSTER.det||{};
+  const prod=`the product ("${det.name||'the product'}"${det.type?', a '+det.type:''}${det.colors?', '+det.colors:''})`;
+  const feat=det.key_features?` Preserve the product features/label EXACTLY: ${det.key_features}.`:'';
+  const face=POSTER.useRef;
+  const head=(POSTER.headline||'').trim();
+  const realismBase=PHOTO_TOKENS.replace(', vertical 3:4','');
+  const realism=head?realismBase.replace('watermark, text','watermark'):realismBase;
+  const headline=head?` Render a bold advertising headline reading EXACTLY "${head}" as clean, well-designed, correctly-spelled poster typography integrated tastefully into the layout (large and legible).`:` Leave clean negative space in the layout for a headline to be added later; do NOT render random or gibberish text.`;
+  const note=(POSTER.note||'').trim()?(' '+POSTER.note.trim()+'.'):'';
+  return `A high-end ADVERTISING POSTER / KEY VISUAL: ${st[2]}. Format: ${ratioEN}. The poster features ${face?visualBase()+' as the model posing with ':''}${prod} as the hero.${note}
+Composition: striking marketing-poster layout with strong focal hierarchy, product and model prominent and desirable, dramatic professional commercial lighting, premium color grading, polished and campaign-ready.${headline}
+PRODUCT CONSISTENCY (critical): reproduce the EXACT SAME product from the product reference image — identical shape, color, materials, proportions and any label/logo/text EXACTLY; do NOT redesign, restyle or relabel.${feat}
+${face?'CHARACTER CONSISTENCY: preserve the EXACT facial identity from the character reference image; unmistakably the same person; do not alter the face.\n':''}${realism} Tasteful and platform-safe.`;
+}
+async function runPoster(){
+  readPoster();
+  if(!POSTER.img){toast('Chọn sản phẩm ở kho hoặc upload ảnh SP');return;}
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  if(POSTER.useRef&&!personaOK()){toast('Cần nhân vật (bước ③), hoặc tắt "Có người mẫu"');return;}
+  const ratios=POSTER.ratios.length?POSTER.ratios:['4:5'];
+  const face=POSTER.useRef?await getRef():null;
+  const refs=[face,POSTER.img].filter(Boolean);
+  const b=document.getElementById('posterBtn');if(b)b.disabled=true;
+  const out=document.getElementById('posterOut');if(out)out.innerHTML='';
+  const er=document.getElementById('posterErr');if(er)er.style.display='none';
+  for(let i=0;i<ratios.length;i++){
+    const r=ratios[i];const rEN=(POSTER_RATIOS.find(x=>x[0]===r)||['',r])[1];
+    if(b)b.innerHTML=`<span class="spinner"></span> Poster ${i+1}/${ratios.length} (${r})...`;
+    const ph=document.createElement('div');ph.className='imgcard';ph.innerHTML=`<div style="aspect-ratio:${r.replace(':','/')};display:flex;align-items:center;justify-content:center"><span class="spinner"></span></div>`;if(out)out.appendChild(ph);
+    try{
+      const img=await geminiImageMulti(posterPrompt(rEN),refs);
+      const gid=await addToGallery(img,'poster '+r+' · '+((POSTER.det&&POSTER.det.name)||''),'product');
+      ph.innerHTML=`<img src="${img}" alt=""><span class="ccsel" style="left:auto;right:6px;pointer-events:none;background:rgba(11,8,30,.7)">${r}</span><div class="ov"><button title="Tải">⬇</button><button title="Neo">📌</button><button title="Xoá">✕</button></div>`;
+      const bs=ph.querySelectorAll('.ov button');bs[0].onclick=()=>dlDataUrl('muse-poster-'+r.replace(':','x')+'-'+gid+'.png',img);bs[1].onclick=async()=>{await useAsRef(gid);};bs[2].onclick=()=>{delGallery(gid);ph.remove();};
+    }catch(e){ph.innerHTML=`<div style="padding:10px;font-size:11px;color:var(--coral)">${esc(e.message).slice(0,140)}</div>`;if(er){er.style.display='block';er.textContent=e.message;}}
+  }
+  if(b){b.disabled=false;b.innerHTML='🎞️ Tạo poster';}
+  if(typeof renderSteps==='function')renderSteps();
+}
+function renderPoster(b){
+  const list=prodList();
+  const hasImg=!!POSTER.img;
+  b.innerHTML=`<div class="card">
+    <p class="hint" style="margin-top:0">Poster quảng cáo: <b>người mẫu + sản phẩm</b> theo <b>nhiều tỉ lệ</b> tuỳ chọn (dọc/vuông/ngang/banner). Chọn SP từ kho hoặc upload.</p>
+    <div class="row">
+      <div><label>📦 Sản phẩm (từ kho)</label><select id="poster_prod" onchange="posterPickProduct(this.value)">
+        <option value="">— Chọn / hoặc upload bên phải —</option>
+        ${list.map(p=>`<option value="${p.id}" ${POSTER.productId===p.id?'selected':''}>${esc(p.name||'Sản phẩm')}</option>`).join('')}
+      </select></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <input type="file" id="poster_file" accept="image/*" style="display:none" onchange="onPosterFile(event)">
+        <button class="btn ghost" onclick="document.getElementById('poster_file').click()">📤 Upload ảnh SP</button>
+        ${hasImg?`<img src="${POSTER.img}" style="height:56px;border-radius:8px;border:1px solid var(--line)">`:''}
+        ${POSTER.det&&POSTER.det.name?`<span class="hint" style="align-self:center">${esc(POSTER.det.name)}</span>`:''}
+      </div>
+    </div>
+    <label style="margin-top:12px">🎨 Phong cách poster</label>
+    <div>${POSTER_STYLES.map(s=>`<span class="chip" style="${POSTER.style===s[0]?'border-color:var(--acc);color:var(--acc)':''}" onclick="posterStyle('${s[0]}')">${POSTER.style===s[0]?'✓ ':''}${esc(s[1])}</span>`).join(' ')}</div>
+    <label style="margin-top:12px">📐 Tỉ lệ (chọn nhiều — mỗi tỉ lệ 1 poster)</label>
+    <div>${POSTER_RATIOS.map(r=>`<span class="chip" style="${POSTER.ratios.includes(r[0])?'border-color:var(--acc);color:var(--acc)':''}" onclick="posterTglRatio('${r[0]}')">${POSTER.ratios.includes(r[0])?'✓ ':''}${r[0]}</span>`).join(' ')}</div>
+    <label style="margin-top:12px">✍️ Dòng chữ lớn trên poster <span style="color:var(--mut2);font-weight:400">(tuỳ chọn — để trống thì chừa khoảng trống cho chữ)</span></label>
+    <input id="poster_head" value="${esc(POSTER.headline||'')}" placeholder="VD: SALE 50% · Bản lĩnh đàn ông · Ra mắt sản phẩm mới">
+    <label style="margin-top:10px">📝 Ghi chú concept (tuỳ chọn)</label>
+    <input id="poster_note" value="${esc(POSTER.note||'')}" placeholder="VD: nền tối sang, ánh sáng viền, sản phẩm cận cảnh trước mẫu">
+    <div class="bar" style="margin-top:12px;align-items:center">
+      <label style="display:flex;align-items:center;gap:6px;margin:0"><input type="checkbox" ${POSTER.useRef?'checked':''} onchange="POSTER.useRef=this.checked;renderStudio(document.getElementById('main'))" style="width:auto">Có người mẫu (giữ mặt Digital Twin)</label>
+      <button class="btn gold" id="posterBtn" onclick="runPoster()" ${hasImg?'':'disabled'}>🎞️ Tạo poster</button>
+    </div>
+    <div class="err" id="posterErr"></div>
+  </div>
+  <div id="posterOut" class="imgrid"></div>`;
 }
 
 /* ==================== ⑦ NỘI DUNG ĐA KÊNH (mascot + DNA → viral 7 kênh; học Clone Your Mind) ==================== */
