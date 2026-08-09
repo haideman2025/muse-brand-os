@@ -1626,7 +1626,7 @@ async function onOutfitFile(ev){
 
 /* --- Gallery --- */
 let __galShow=30,__galKind='all';
-const GAL_KINDS=[['all','Tất cả'],['shot','Photoshoot'],['product','Bộ ảnh SP'],['content','Ảnh bài'],['wardrobe','Outfit']];
+const GAL_KINDS=[['all','Tất cả'],['shot','Photoshoot'],['product','Bộ ảnh SP'],['content','Ảnh bài'],['wardrobe','Outfit'],['style','Phối đồ']];
 function galFilter(k){__galKind=k;__galShow=30;renderStudio(document.getElementById('main'));}
 function galMore(){__galShow+=30;renderStudio(document.getElementById('main'));}
 async function renderGallery(b){
@@ -2667,6 +2667,47 @@ function styleCopyPost(id){
   const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;const p=s.post||{};
   const t=['① KIẾN THỨC\n'+p.knowledge,'② CẢM XÚC\n'+p.emotion,'③ ĐỘC ĐÁO\n'+p.insight,p.caption||'',p.hashtags||''].filter(Boolean).join('\n\n');
   if(navigator.clipboard)navigator.clipboard.writeText(t);toast('Đã copy bài đăng');
+}
+
+/* ---- Giai đoạn 2: render 5 ảnh của 1 bộ ---- */
+function styleImgPrompt(sceneEN,ratio){
+  const r=CC_RATIOS[ratio]||CC_RATIOS['4:5'];
+  return sceneEN+'.'+fashionDnaEN()+' Photorealistic fashion photography, natural skin texture, sharp fabric detail, '+r+'. Keep the same face as the reference image.';
+}
+async function styleRefs(set){
+  const refs=[];
+  const face=await getRef();if(face)refs.push(face);
+  /* Ảnh món đồ đặt CUỐI: geminiImageMulti khi bị chặn sẽ bỏ dần ref từ đầu và giữ ref cuối
+     lâu nhất → ưu tiên giữ đúng món đồ. */
+  if(set.source&&set.source.kind==='wardrobe'&&set.source.key){
+    const u=await mediaGet(set.source.key);if(u)refs.push(u);
+  }
+  return refs;
+}
+async function styleRenderSet(id){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;
+  const btn=document.getElementById('stylerender_'+id);
+  const errBox=document.getElementById('styleerr_'+id);if(errBox)errBox.textContent='';
+  const refs=await styleRefs(s);
+  const jobs=[{label:'ảnh gốc',get:()=>s.base,scene:s.base.prompt_en}]
+    .concat((s.looks||[]).map((l,i)=>({label:'look '+(i+1),get:()=>s.looks[i],scene:l.prompt_en})));
+  const errs=[];
+  /* Tuần tự: mỗi ảnh Gemini trả về là 1-7MB base64, chạy song song là dội RAM. */
+  for(let i=0;i<jobs.length;i++){
+    const j=jobs[i];
+    if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> '+(i+1)+'/'+jobs.length;}
+    try{
+      const u=await geminiImageMulti(styleImgPrompt(j.scene,s.ratio),refs);
+      const gid=await addToGallery(u,s.styleName+' — '+j.label,'style');
+      j.get().gid=gid;save();
+    }catch(e){errs.push(j.label+': '+(e.message||e));}
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='🖼 Render 5 ảnh';}
+  renderStyleBrain(document.getElementById('studioBody'));
+  const box=document.getElementById('styleerr_'+id);
+  if(box&&errs.length)box.innerHTML='Lỗi: '+errs.map(esc).join(' · ');
+  toast(errs.length?('Xong, '+errs.length+' ảnh lỗi'):'✓ Đã render 5 ảnh');
 }
 
 /* ---- Giai đoạn 1: sinh kế hoạch (1 lần gọi text, rẻ) ---- */
