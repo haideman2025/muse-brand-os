@@ -2601,6 +2601,8 @@ function styleInputsHTML(){
   </div>`;
 }
 function renderStyleBrain(b){
+  /* Render 5 ảnh mất vài phút; người dùng rời trang giữa chừng thì studioBody không còn nữa. */
+  if(!b)return;
   b.innerHTML=fashionDnaHTML()+styleInputsHTML()+'<div id="styleSetList"></div>';
   renderStyleSets();
 }
