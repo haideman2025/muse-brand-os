@@ -1,0 +1,188 @@
+# Style Brain — bộ não phối đồ & thiết kế thời trang
+
+Ngày: 2026-08-09 · Trạng thái: đã duyệt thiết kế, chờ viết kế hoạch triển khai
+
+## Mục tiêu
+
+Cho phép người dùng biến **một món đồ / một mô tả / một dịp mặc** thành một gói nội dung thời trang
+hoàn chỉnh, bám đúng phong cách của nhân vật mẫu:
+
+- **5 ảnh**: 1 ảnh mặc đơn giản + 4 ảnh phối theo 4 phong cách khác nhau
+- **3 prompt video 10s**: mỗi video 6–8 quick-cut, góc máy khác nhau, có text overlay dạy phối đồ
+- **1 bài đăng storytelling 3 tầng giá trị**
+- Làm **tối đa 5 bộ cùng lúc**
+- Xuất **1 file `flow-pack/v1`** import thẳng Google Flow, ảnh tham chiếu nhúng sẵn
+
+## Quyết định đã chốt
+
+| Câu hỏi | Chốt |
+|---|---|
+| Đầu vào 1 bộ | Cả 3 kiểu: món đồ có sẵn · mô tả tự gõ · dịp mặc |
+| DNA thời trang | Khối riêng lưu theo nhân vật, AI sinh nháp, người dùng sửa tay |
+| Cách chạy 5 bộ | 2 giai đoạn: sinh kế hoạch (text) → duyệt/sửa → render ảnh |
+| Xuất file | 1 JSON `flow-pack/v1`, ảnh nhúng đã thu nhỏ 1024px |
+| 4 phong cách phối | **AI tự chọn** dựa trên DNA thời trang + đầu vào (không dùng danh sách cố định) |
+| Vị trí | Tab mới `👠 Phối đồ` trong Studio |
+
+## Kiến trúc
+
+Tab mới trong Studio, đứng sau `🛍️ Bộ ảnh SP`. Không sửa tính năng nào đang chạy.
+
+```
+studioTab('style') → renderStyleBrain(body)
+  ├─ Khối DNA thời trang       (S.fashionDna, sửa tay + nút AI viết nháp)
+  ├─ Khối nhập tối đa 5 bộ     (STYLE.inputs[])
+  ├─ Giai đoạn 1: sinh kế hoạch → S.styleSets[]
+  ├─ Danh sách card từng bộ    (sửa/xoá/render ảnh)
+  └─ Xuất flow-pack + tải ảnh gốc
+```
+
+### Dùng lại (không viết mới)
+
+| Hàm sẵn có | Dùng để |
+|---|---|
+| `geminiText(prompt,true)` | sinh kế hoạch JSON, sinh DNA thời trang |
+| `geminiImageMulti(prompt,refs)` | render ảnh có nhiều tham chiếu (ref cuối = món đồ, được giữ lâu nhất khi retry) |
+| `getRef()` | ảnh neo khuôn mặt nhân vật |
+| `addToGallery(dataUrl,prompt,kind)` | lưu ảnh, trả `gid` |
+| `mediaGet` / `mediaThumb` / `lazyThumb` | ảnh gốc vs thumb cho lưới |
+| `scaleDataUrl(u,1024)` | thu nhỏ trước khi nhúng JSON |
+| `parseJSON`, `dl`, `esc`, `uid`, `toast` | tiện ích |
+| `ANGLES` | danh sách góc máy cho quick-cut |
+
+## Dữ liệu
+
+### 1. DNA thời trang — `S.fashionDna` (object, per nhân vật)
+
+```js
+{archetype:'', silhouette:'', palette:'', fabrics:'', accessories:'', hairMakeup:'', avoid:''}
+```
+
+- `avoid` = **TỪ CẤM**: kiểu đồ nhân vật không bao giờ mặc. Bơm vào prompt dưới dạng negative
+  constraint cho cả ảnh lẫn video.
+- Nút `✨ AI viết DNA thời trang`: gọi `geminiText` với persona + `ethnicityLook` + `vibe` +
+  `visualStyle`; nếu có ảnh neo thì gửi kèm qua đường vision. Kết quả đổ vào 7 ô, **không tự lưu
+  đè** — người dùng bấm Lưu.
+- Đăng ký `fashionDna` vào `CHAR_FIELDS` (kiểu object, mặc định `{}`).
+
+### 2. Bộ phối đồ — `S.styleSets` (array, per nhân vật)
+
+```js
+{
+  id, createdAt,                          // uid(), _today10()
+  source:{kind:'wardrobe'|'text'|'occasion', key:'', text:''},
+  styleName:'',                           // tên phong cách chung của bộ
+  base:{prompt_en:'', gid:''},            // ảnh 1 — mặc đơn giản, nền sạch
+  looks:[{name:'', why:'', prompt_en:'', gid:''}],      // đúng 4
+  videos:[{title:'', hook:'', audio:'', clips:[         // đúng 3
+    {seq:1, angle:'', action:'', overlay:'', prompt_en:''}   // 6–8 clip
+  ]}],
+  post:{knowledge:'', emotion:'', insight:'', caption:'', hashtags:''}
+}
+```
+
+**Bắt buộc:** đăng ký `styleSets` vào **cả** `CHAR_FIELDS` **và** `CHAR_ARRAY_FIELDS`. Thiếu vế thứ
+hai thì `activeChar()` khởi tạo nó thành `{}` và mọi `.push/.filter` sẽ nổ — đúng lỗi
+`S.content.unshift is not a function` đã xảy ra ngày 2026-08-09.
+
+### 3. State tạm (không lưu) — `STYLE`
+
+```js
+const STYLE={inputs:[{kind:'wardrobe',key:'',text:''}], ratio:'4:5', busy:false, openId:'', exportIds:[]};
+```
+- `inputs` tối đa 5 phần tử; UI chặn thêm quá 5.
+- `ratio` dùng cho toàn bộ ảnh của lần chạy đó — chọn `1:1` / `4:5` (mặc định) / `9:16`, lấy chuỗi
+  mô tả từ `CC_RATIOS` sẵn có.
+- `exportIds` = các bộ được tick để xuất flow-pack.
+
+## Luồng
+
+### Giai đoạn 1 — `styleGenPlan()` — sinh kế hoạch (1 lần gọi text)
+
+Input prompt gồm: persona rút gọn · **toàn bộ DNA thời trang** · danh sách đầu vào từng bộ ·
+yêu cầu schema JSON.
+
+Ràng buộc ghi thẳng trong prompt và **validate lại phía client**:
+
+- đúng 4 phần tử `looks`, đúng 3 phần tử `videos`
+- mỗi `videos[].clips` có **6–8** phần tử; mỗi clip `angle` phải lấy từ `ANGLES`, `overlay` ≤ 12 từ
+  và không rỗng
+- `post` đủ 3 tầng, không tầng nào rỗng
+- không nhắc tên thương hiệu thật, không claim y khoa (theo mục Tuân thủ của repo)
+
+Hàm validate `styleValidatePlan(plan)` trả về `{ok, errors[]}`. Lỗi → hiện lỗi cụ thể + nút thử lại,
+**không** ghi vào `S.styleSets`.
+
+Kết quả hợp lệ → `S.styleSets.unshift(...)` từng bộ, cap 20 bộ (xoá bộ cũ nhất kèm ảnh của nó).
+
+### Giai đoạn 2 — Render ảnh (bấm riêng từng bộ)
+
+`styleRenderSet(setId)`:
+
+1. `refs = [await getRef()]`; nếu `source.kind==='wardrobe'` thì thêm ảnh món đồ vào **cuối** mảng
+   (`geminiImageMulti` giữ ref cuối lâu nhất khi phải retry).
+2. Render **tuần tự** 5 ảnh: `base` trước, rồi 4 `looks`. Mỗi ảnh:
+   `geminiImageMulti(promptGhep, refs)` → `addToGallery(u, prompt, 'style')` → lưu `gid` vào set → `save()`.
+3. Ảnh nào lỗi thì bỏ qua ảnh đó, ghi lỗi lên card, **các ảnh còn lại vẫn chạy tiếp**.
+4. Nút render hiện tiến độ `n/5`, disabled khi đang chạy.
+
+`promptGhep` = mô tả cảnh (từ kế hoạch) + khoá phong cách dựng từ `fashionDna` + `avoid` dưới dạng
+negative + tỉ lệ ảnh. Ảnh lưu với `kind:'style'`; thêm `['style','Phối đồ']` vào `GAL_KINDS`.
+
+### Xuất flow-pack
+
+`styleFlowPack()` → `flow-pack/v1`. **Chỉ xuất các bộ được tick** (`STYLE.exportIds`); mặc định tick
+sẵn mọi bộ đã có ít nhất 1 ảnh. Thư viện giữ tới 20 bộ nên phải chọn, không xuất mù cả kho.
+
+- `characters[]`: 1 phần tử `NV1`, `anh_base64` = ảnh neo qua `scaleDataUrl(u,1024)`
+- `products[]`: mỗi look **đã có ảnh** = 1 phần tử, `anh_base64` = ảnh look thu nhỏ 1024px,
+  `xuat_hien_o` = danh sách shot dùng nó
+- `days[]`: mỗi video = 1 ngày (`N1`…), mỗi clip = 1 shot với `prompt_en`, `overlay.text`,
+  `goc_may`, `thoi_luong:'10s'`. Một mẻ 5 bộ → 15 ngày; tick nhiều bộ hơn thì nhiều ngày hơn.
+- Thu nhỏ **trước** khi nhúng, dựng chuỗi JSON một lần rồi `dl()` qua Blob
+
+Nút phụ `⬇ Tải ảnh gốc` tải bản full-res, nạp trong hẹn giờ từng tấm (theo `dlGalleryAll`).
+
+## Bài post 3 tầng
+
+| Tầng | Nội dung |
+|---|---|
+| `knowledge` | nguyên tắc phối cụ thể, áp dụng được ngay (tỉ lệ, màu, chất liệu) |
+| `emotion` | mô tả khoảnh khắc/góc máy bắt mắt và cảm giác khi mặc |
+| `insight` | chi tiết ít người biết: gốc gác món đồ, mẹo, lỗi thường gặp |
+
+Kèm `caption` ngắn + `hashtags`. Ngôn ngữ theo `CC.lang` đang có (vi/en).
+
+## Bộ nhớ — luật bắt buộc
+
+- Lưới ảnh trong tab **chỉ** dùng `lazyThumb()`, không `mediaGet()` trong vòng lặp
+- Render ảnh **tuần tự**, không `Promise.all`
+- Thu nhỏ trước khi nhúng JSON; không giữ mảng ảnh full-res sống lâu
+
+## Xử lý lỗi
+
+| Tình huống | Xử lý |
+|---|---|
+| Chưa có API key | toast + `go('setup')` |
+| Chưa có persona | toast "Cần nhân vật (bước ③)", nút disabled |
+| Chưa có DNA thời trang | cho chạy, nhưng cảnh báo vàng "nên sinh DNA trước để 5 bộ đồng nhất" |
+| JSON kế hoạch sai schema | hiện lỗi cụ thể từ `styleValidatePlan`, không ghi vào state |
+| Ảnh bị Gemini chặn | ghi lỗi lên đúng ảnh đó, các ảnh khác vẫn render |
+| Xuất pack khi chưa có ảnh | vẫn xuất, `co_anh:false`, cảnh báo trong toast |
+
+## Test
+
+- `test/char-fields.test.js`: thêm `styleSets` vào `ARRAY_FIELDS`
+- `test/boot.test.html`: assert có `renderStyleBrain`, `styleGenPlan`, `styleRenderSet`,
+  `styleFlowPack`, `styleValidatePlan`
+- `test/stylepack.test.html` (mới): dựng set giả → `styleValidatePlan` bắt đúng các vi phạm
+  (thiếu look, clip < 6 hoặc > 8, overlay rỗng, tầng post rỗng); `styleFlowPack` ra đúng schema,
+  số ngày = số video, ảnh nhúng đã thu nhỏ (< 400KB/ảnh)
+- `test/syntax.test.js` chạy như thường
+
+## Không làm (YAGNI)
+
+- Không tự đăng mạng xã hội — đã có Zernio riêng
+- Không render video thật — app chỉ sinh prompt, Flow lo phần dựng
+- Không có nút "sinh lại đúng 1 ảnh lỗi" ở bản đầu
+- Không đồng bộ thumb lên worker
