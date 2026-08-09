@@ -26,7 +26,12 @@ function test(name, fn) {
 
 // Dựng 1 bộ hợp lệ làm gốc, mỗi test bẻ đúng 1 chỗ.
 function goodClip(i) {
-  return { seq: i + 1, angle: app.ANGLES[i % app.ANGLES.length], action: 'walk', overlay: 'Phối áo khoác dài', prompt_en: 'a cinematic shot' };
+  return {
+    seq: i + 1, angle: app.ANGLES[i % app.ANGLES.length], action: 'walk', overlay: 'Phối áo khoác dài',
+    camera: 'slow push in', sound: 'fabric rustle',
+    end_state: 'facing camera three-quarter left, hand on collar',
+    prompt_en: 'a cinematic shot'
+  };
 }
 function goodVideo() { return { title: 'V', hook: 'h', audio: 'lo-fi', clips: [0, 1, 2, 3, 4, 5].map(goodClip) }; }
 function goodLook(i) { return { name: 'Look ' + i, why: 'vì DNA', prompt_en: 'styled shot ' + i }; }
@@ -95,6 +100,21 @@ test('overlay dài quá 12 từ thì báo lỗi', () => {
 test('góc máy lạ thì báo lỗi', () => {
   const s = goodSet(); s.videos[0].clips[0].angle = 'drone bay vòng quanh';
   assert.ok(app.styleValidatePlan([s]).errors.some(e => /góc máy/.test(e)));
+});
+
+// end_state là thứ nối cut này sang cut kia — thiếu nó thì quick-cut giật cục.
+test('clip giữa thiếu end_state thì báo lỗi', () => {
+  const s = goodSet(); s.videos[0].clips[2].end_state = '   ';
+  assert.ok(app.styleValidatePlan([s]).errors.some(e => /trạng thái kết thúc/.test(e)));
+});
+
+test('clip CUỐI được phép không có end_state', () => {
+  const s = goodSet();
+  delete s.videos[0].clips[s.videos[0].clips.length - 1].end_state;
+  delete s.videos[1].clips[s.videos[1].clips.length - 1].end_state;
+  delete s.videos[2].clips[s.videos[2].clips.length - 1].end_state;
+  const r = app.styleValidatePlan([s]);
+  assert.ok(r.ok, 'phải hợp lệ, lỗi: ' + r.errors.join(' | '));
 });
 
 test('thiếu tầng bài post thì báo lỗi', () => {

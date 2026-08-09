@@ -34,7 +34,8 @@ Không có build step, nên chạy tay trước khi push:
 ```bash
 node test/syntax.test.js        # mọi khối <script> còn parse được (lỗi cú pháp = trang trắng)
 node test/char-fields.test.js   # CHAR_FIELDS ↔ blankChar/activeChar nhất quán kiểu dữ liệu
-node test/style-plan.test.js    # validate kế hoạch AI (số look/clip, overlay, góc máy)
+node test/style-plan.test.js    # validate kế hoạch AI (số look/clip, overlay, góc máy, end_state)
+node test/omni-prompt.test.js   # prompt Omni đủ 5 khối + END STATE nối cut
 
 # 3 test dưới cần Chrome; xem dòng RESULT trong output
 CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
@@ -45,6 +46,14 @@ CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
 "$CHROME" --headless=new --disable-gpu --allow-file-access-from-files --virtual-time-budget=90000 \
   --dump-dom "file://$PWD/test/style-pack.test.html"  # flow-pack đúng schema, ảnh nhúng đã thu nhỏ
 ```
+
+### Luật prompt video (đọc trước khi sửa phần video)
+Prompt cho mô hình Omni theo công thức 5 khối: **quy cách chung + khoá chủ thể + đơn vị cảnh×N +
+liên tục xuyên cảnh + ràng buộc phủ định** (`omniMasterPrompt()`).
+
+Mỗi đơn vị cảnh phải có **`end_state`** — khi cut kết thúc thì nhân vật ở đâu, mặt quay hướng nào,
+tay cầm gì, hành động đang có đà gì. `action` của cut sau bắt đầu đúng từ đó. Đây là thứ duy nhất
+làm 6–8 quick-cut liền mạch; bỏ nó đi là video giật cục ngay.
 
 ### Luật ảnh (đọc trước khi thêm lưới ảnh mới)
 Thư viện chứa tới **600 ảnh**, mỗi ảnh gốc **1–7MB base64**. Nạp cả lưới bằng ảnh gốc = **1–4GB** →

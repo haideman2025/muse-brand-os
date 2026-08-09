@@ -180,6 +180,36 @@ Kèm `caption` ngắn + `hashtags`. Ngôn ngữ theo `CC.lang` đang có (vi/en)
   số ngày = số video, ảnh nhúng đã thu nhỏ (< 400KB/ảnh)
 - `test/syntax.test.js` chạy như thường
 
+## Nâng cấp 2026-08-09 — prompt hoàn chỉnh cho mô hình Omni
+
+Học từ công thức tham khảo của @cheerselflin:
+
+```
+quy cách chung + khoá chủ thể + đơn vị cảnh × N + liên tục xuyên cảnh + ràng buộc phủ định
+```
+
+Mỗi **đơn vị cảnh** = mốc thời gian + cỡ cảnh/góc máy + MỘT hành động chính + chuyển động máy +
+âm thanh + ON-SCREEN TEXT + **trạng thái kết thúc (END STATE)**.
+
+**END STATE là mấu chốt.** Nó bàn giao vị trí nhân vật, hướng mặt, vật trong tay, đà chuyển động và
+cảm xúc cho cut kế tiếp; `action` của cut sau phải bắt đầu đúng từ đó. Không có nó thì 6–8 quick-cut
+là 6–8 mảnh rời — nhân vật đang cầm ly ở cut 3 sang cut 4 tay không.
+
+Thay đổi:
+
+| Việc | Nơi |
+|---|---|
+| Clip có thêm `camera`, `sound`, `end_state` | schema `styleSets`, prompt sinh kế hoạch |
+| `styleValidatePlan` ép `end_state` không rỗng ở mọi clip **trừ clip cuối** | validator |
+| `omniMasterPrompt(video,opts)` dựng prompt 5 khối; trường trống thì bỏ qua nên bộ dữ liệu cũ vẫn chạy | hàm thuần, test bằng node |
+| Nút `📋 Copy prompt Omni` | tab Phối đồ **và** tab Video Omni |
+| `days[].prompt_omni` trong flow-pack, giữ nguyên `shots[].prompt_en` | `styleBuildPack` |
+
+**Quyết định về text overlay:** người dùng chọn **để model tự vẽ chữ vào video**, nên khối phủ định
+KHÔNG cấm chữ và mỗi đơn vị cảnh ghi `ON-SCREEN TEXT: "..."`. Rủi ro đã nêu: chữ tiếng Việt có dấu
+hay bị méo và không sửa được, phải sinh lại cả clip. Bảng "giây nào — chữ gì" vẫn hiển thị ở card
+để dán tay ở CapCut khi cần.
+
 ## Không làm (YAGNI)
 
 - Không tự đăng mạng xã hội — đã có Zernio riêng
