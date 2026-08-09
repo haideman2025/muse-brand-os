@@ -2604,7 +2604,70 @@ function renderStyleBrain(b){
   b.innerHTML=fashionDnaHTML()+styleInputsHTML()+'<div id="styleSetList"></div>';
   renderStyleSets();
 }
-function renderStyleSets(){const el=document.getElementById('styleSetList');if(el)el.innerHTML='';}
+function styleSetCardHTML(s){
+  const imgs=[{t:'Gốc',g:s.base.gid,n:'Mặc đơn giản'}].concat((s.looks||[]).map((l,i)=>({t:'Look '+(i+1),g:l.gid,n:l.name})));
+  const done=imgs.filter(x=>x.g).length;
+  return `<div class="card" style="margin-top:14px">
+    <div class="bar" style="justify-content:space-between;flex-wrap:wrap">
+      <div><b>${esc(s.styleName)}</b> <span class="hint">· ${esc(s.createdAt)} · ${done}/5 ảnh</span></div>
+      <div class="bar" style="margin:0">
+        <label class="hint" style="margin:0"><input type="checkbox" ${STYLE.exportIds.indexOf(s.id)>=0?'checked':''} onchange="styleToggleExport('${s.id}')"> xuất</label>
+        <button class="btn blue sm" id="stylerender_${s.id}" onclick="styleRenderSet('${s.id}')">🖼 Render 5 ảnh</button>
+        <button class="btn ghost sm" onclick="styleDelSet('${s.id}')">✕</button>
+      </div>
+    </div>
+    <div class="imgrid">${imgs.map(x=>`<div class="imgcard">
+      ${x.g?`<img data-ik="g:${x.g}" loading="lazy" style="aspect-ratio:3/4;object-fit:cover" alt="">`:`<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:22px;color:#5b7187">👗</div>`}
+      <div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.6))"><span style="font-size:10px;padding:3px 5px">${esc(x.t)} · ${esc(x.n||'')}</span></div></div>`).join('')}</div>
+    <div id="styleerr_${s.id}" class="hint" style="color:var(--coral)"></div>
+    <details style="margin-top:10px"><summary class="hint">🎬 ${(s.videos||[]).length} prompt video — bấm xem</summary>
+      ${(s.videos||[]).map((v,vi)=>`<div class="note" style="margin-top:8px"><b>Video ${vi+1}: ${esc(v.title||'')}</b> <span class="hint">${esc(v.hook||'')}</span>
+        ${(v.clips||[]).map(c=>`<div style="margin-top:6px;padding-left:8px;border-left:2px solid var(--line)">
+          <div class="hint">Clip ${c.seq} · ${esc(c.angle)} · overlay: <b>${esc(c.overlay)}</b></div>
+          <div style="font-size:12px">${esc(c.prompt_en)}</div></div>`).join('')}
+        <button class="btn ghost sm" style="margin-top:8px" onclick="styleCopyVideo('${s.id}',${vi})">Copy prompt video ${vi+1}</button></div>`).join('')}
+    </details>
+    <details style="margin-top:8px"><summary class="hint">📝 Bài đăng 3 tầng giá trị</summary>
+      <div class="note" style="margin-top:8px">
+        <b>① Kiến thức:</b> ${esc(s.post.knowledge)}<br><br>
+        <b>② Cảm xúc:</b> ${esc(s.post.emotion)}<br><br>
+        <b>③ Độc đáo:</b> ${esc(s.post.insight)}<br><br>
+        <b>Caption:</b> ${esc(s.post.caption||'')}<br><b>Hashtag:</b> ${esc(s.post.hashtags||'')}
+      </div>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="styleCopyPost('${s.id}')">Copy bài đăng</button>
+    </details>
+  </div>`;
+}
+function renderStyleSets(){
+  const el=document.getElementById('styleSetList');if(!el)return;
+  const list=S.styleSets||[];
+  if(!list.length){el.innerHTML='<div class="hint" style="text-align:center;margin-top:14px">Chưa có bộ nào — nhập đầu vào rồi bấm Sinh kế hoạch.</div>';return;}
+  el.innerHTML=`<div class="bar" style="margin-top:16px;flex-wrap:wrap">
+      <button class="btn gold" onclick="styleFlowPack()">⬇ Xuất flow-pack cho Flow</button>
+      <button class="btn ghost" onclick="styleDlOriginals()">⬇ Tải ảnh gốc</button>
+      <span class="hint" style="align-self:center">${list.length} bộ đã lưu (giữ tối đa 20)</span>
+    </div>`+list.map(styleSetCardHTML).join('');
+  /* Lưới ảnh: chỉ thumb, không bao giờ mediaGet trong vòng lặp — xem "Luật ảnh" trong README. */
+  el.querySelectorAll('img[data-ik]').forEach(im=>lazyThumb(im,im.getAttribute('data-ik')));
+}
+function styleToggleExport(id){const i=STYLE.exportIds.indexOf(id);if(i<0)STYLE.exportIds.push(id);else STYLE.exportIds.splice(i,1);}
+async function styleDelSet(id){
+  const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;
+  await styleDropImages(s);
+  S.styleSets=(S.styleSets||[]).filter(x=>x.id!==id);
+  STYLE.exportIds=STYLE.exportIds.filter(x=>x!==id);
+  save();renderStyleBrain(document.getElementById('studioBody'));toast('Đã xoá bộ');
+}
+function styleCopyVideo(id,vi){
+  const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;const v=(s.videos||[])[vi];if(!v)return;
+  const t=(v.clips||[]).map(c=>'[Clip '+c.seq+' · '+c.angle+' · overlay: "'+c.overlay+'"]\n'+c.prompt_en).join('\n\n');
+  if(navigator.clipboard)navigator.clipboard.writeText(t);toast('Đã copy prompt video '+(vi+1));
+}
+function styleCopyPost(id){
+  const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;const p=s.post||{};
+  const t=['① KIẾN THỨC\n'+p.knowledge,'② CẢM XÚC\n'+p.emotion,'③ ĐỘC ĐÁO\n'+p.insight,p.caption||'',p.hashtags||''].filter(Boolean).join('\n\n');
+  if(navigator.clipboard)navigator.clipboard.writeText(t);toast('Đã copy bài đăng');
+}
 
 /* ---- Giai đoạn 1: sinh kế hoạch (1 lần gọi text, rẻ) ---- */
 function styleSourceLine(it,i){
