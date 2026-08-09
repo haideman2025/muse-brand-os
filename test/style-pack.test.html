@@ -28,7 +28,7 @@ async function main(){
   lines.push('Ảnh gốc giả lập: '+(big.length/1024/1024).toFixed(2)+' MB');
 
   const ang=w.eval('ANGLES[0]');
-  const clips=[0,1,2,3,4,5].map(i=>({seq:i+1,angle:ang,action:'a',overlay:'Phối áo dài',prompt_en:'shot '+i}));
+  const clips=[0,1,2,3,4,5].map(i=>({seq:i+1,angle:ang,action:'she adjusts the collar',camera:'slow push in',sound:'fabric rustle',overlay:'Phối áo dài',end_state:'facing three-quarter left, hand on collar',prompt_en:'shot '+i}));
   const set={id:'s1',createdAt:'2026-08-09',ratio:'4:5',source:{kind:'text',key:'',text:'đầm đen'},
     styleName:'Gothic tối giản',
     base:{prompt_en:'plain',gid:'g1'},
@@ -54,6 +54,14 @@ async function main(){
   lines.push('Ảnh nhúng lớn nhất: '+(biggest/1024).toFixed(0)+' KB');
   ok(biggest<400*1024,'mọi ảnh nhúng đều dưới 400KB (đã thu nhỏ)');
   ok(biggest<big.length*0.2,'ảnh nhúng nhỏ hơn 20% ảnh gốc');
+
+  // Mỗi ngày phải kèm 1 prompt hoàn chỉnh cho mô hình omni (ngoài prompt_en từng shot).
+  const po=pack.days[0].prompt_omni||'';
+  ok(!!po,'ngày có prompt_omni');
+  ['GLOBAL STYLE','SUBJECT LOCK','TIMELINE','CONTINUITY','NEGATIVE'].forEach(k=>ok(po.indexOf(k)>=0,'prompt_omni có khối '+k));
+  ok((po.match(/END STATE:/g)||[]).length>=5,'prompt_omni có END STATE nối cut');
+  ok(po.indexOf('ON-SCREEN TEXT: "Phối áo dài"')>=0,'prompt_omni giữ text overlay');
+  ok(!!pack.days[0].shots[0].prompt_en,'vẫn giữ prompt_en từng shot (schema cũ không vỡ)');
 
   const json=JSON.stringify(pack);
   lines.push('Cả file pack: '+(json.length/1024/1024).toFixed(2)+' MB');

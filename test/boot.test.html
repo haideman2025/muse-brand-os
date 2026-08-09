@@ -30,7 +30,7 @@ async function main(){
   ok(w.eval('typeof S.fashionDna')==='object','S.fashionDna là object');
 
   // Các hàm của bản vá OOM
-  for(const fn of ['mediaThumb','vidTalentChipsHTML','paintVidPicked','paintVidOutfitSel','vidOutfit','vidTalent','renderVideo','scaleDataUrl','renderStyleBrain','styleGenPlan','styleRenderSet','styleFlowPack','styleValidatePlan','styleBuildPack','genFashionDna']){
+  for(const fn of ['mediaThumb','vidTalentChipsHTML','paintVidPicked','paintVidOutfitSel','vidOutfit','vidTalent','renderVideo','scaleDataUrl','renderStyleBrain','styleGenPlan','styleRenderSet','styleFlowPack','styleValidatePlan','styleBuildPack','genFashionDna','omniMasterPrompt','styleCopyOmni','copyVidOmni','styleOmniOpts']){
     ok(typeof w[fn]==='function','có hàm '+fn+'()');
   }
 

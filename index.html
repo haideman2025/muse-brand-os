@@ -2669,9 +2669,13 @@ function styleSetCardHTML(s){
     <details style="margin-top:10px"><summary class="hint">🎬 ${(s.videos||[]).length} prompt video — bấm xem</summary>
       ${(s.videos||[]).map((v,vi)=>`<div class="note" style="margin-top:8px"><b>Video ${vi+1}: ${esc(v.title||'')}</b> <span class="hint">${esc(v.hook||'')}</span>
         ${(v.clips||[]).map(c=>`<div style="margin-top:6px;padding-left:8px;border-left:2px solid var(--line)">
-          <div class="hint">Clip ${c.seq} · ${esc(c.angle)} · overlay: <b>${esc(c.overlay)}</b></div>
-          <div style="font-size:12px">${esc(c.prompt_en)}</div></div>`).join('')}
-        <button class="btn ghost sm" style="margin-top:8px" onclick="styleCopyVideo('${s.id}',${vi})">Copy prompt video ${vi+1}</button></div>`).join('')}
+          <div class="hint">Clip ${c.seq} · ${esc(c.angle)}${c.camera?(' · '+esc(c.camera)):''} · overlay: <b>${esc(c.overlay)}</b></div>
+          <div style="font-size:12px">${esc(c.prompt_en)}</div>
+          ${c.end_state?`<div class="hint" style="color:var(--gold)">↳ kết thúc: ${esc(c.end_state)}</div>`:''}</div>`).join('')}
+        <div class="bar" style="margin-top:8px">
+          <button class="btn gold sm" onclick="styleCopyOmni('${s.id}',${vi})">📋 Copy prompt Omni (cả video)</button>
+          <button class="btn ghost sm" onclick="styleCopyVideo('${s.id}',${vi})">Copy từng clip</button>
+        </div></div>`).join('')}
     </details>
     <details style="margin-top:8px"><summary class="hint">📝 Bài đăng 3 tầng giá trị</summary>
       <div class="note" style="margin-top:8px">
@@ -2708,6 +2712,21 @@ function styleCopyVideo(id,vi){
   const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;const v=(s.videos||[])[vi];if(!v)return;
   const t=(v.clips||[]).map(c=>'[Clip '+c.seq+' · '+c.angle+' · overlay: "'+c.overlay+'"]\n'+c.prompt_en).join('\n\n');
   if(navigator.clipboard)navigator.clipboard.writeText(t);toast('Đã copy prompt video '+(vi+1));
+}
+/* Gom bối cảnh của 1 bộ thành opts cho omniMasterPrompt — dùng chung cho copy lẻ và flow-pack. */
+function styleOmniOpts(s){
+  const p=S.persona||{};const d=S.fashionDna||{};
+  const imm=[s.styleName,d.accessories].filter(x=>String(x||'').trim()).join(', ');
+  return {seconds:10,ratio:'9:16',
+    globalStyle:'contemporary editorial fashion film, natural daylight with soft rim light, photorealistic, full-frame mirrorless look, subtle film grain, not a commercial',
+    subject:'Use the '+(p.gender==='Nam'?'man':'woman')+' from the reference image as the main subject. Maintain '+(p.gender==='Nam'?'his':'her')+' EXACT facial identity, hairstyle, facial features and body proportions in every cut.',
+    immutables:imm,dnaLock:fashionDnaEN()};
+}
+function styleCopyOmni(id,vi){
+  const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;const v=(s.videos||[])[vi];if(!v)return;
+  const t=omniMasterPrompt(v,styleOmniOpts(s));
+  if(navigator.clipboard)navigator.clipboard.writeText(t);
+  toast('Đã copy prompt Omni video '+(vi+1));
 }
 function styleCopyPost(id){
   const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;const p=s.post||{};
@@ -2785,8 +2804,11 @@ async function styleBuildPack(sets,getImg){
           overlay:{text:c.overlay||'',do_hoa:'',sfx:'',nhac:v.audio||''},
           ly_do_gan:s.styleName||'',prompt_en:c.prompt_en||'',voiceover:''};
       });
+      /* prompt_omni = cả video trong 1 prompt (mô hình omni sinh liền mạch nhiều cut).
+         prompt_en từng shot vẫn giữ nguyên cho tool render từng cảnh — không phá schema cũ. */
       days.push({ngay:day,series:(s.styleName||'')+' — '+(v.title||''),
-        voice:{ngon_ngu:'Vietnamese',ma_ngon_ngu:'vi-VN',phong_cach:''},arc_cam_xuc:[],shots:shots});
+        voice:{ngon_ngu:'Vietnamese',ma_ngon_ngu:'vi-VN',phong_cach:''},arc_cam_xuc:[],
+        prompt_omni:omniMasterPrompt(v,styleOmniOpts(s)),shots:shots});
     });
   }
   return {schema:'flow-pack/v1',
@@ -2855,7 +2877,7 @@ Trả về DUY NHẤT JSON:
  "base":{"prompt_en":"mô tả ảnh gốc bằng tiếng Anh"},
  "looks":[{"name":"tên phong cách look","why":"nguyên tắc phối, ${lang}","prompt_en":"mô tả ảnh bằng tiếng Anh"}],
  "videos":[{"title":"","hook":"câu hook mở đầu","audio":"mô tả nhạc nền tiếng Anh","clips":[
-   {"seq":1,"angle":"PHẢI copy nguyên văn 1 giá trị trong DANH SÁCH GÓC MÁY","action":"hành động trong clip, tiếng Anh","overlay":"chữ hiện trên màn hình, TỐI ĐA 12 TỪ, ${lang}","prompt_en":"mô tả cảnh quay bằng tiếng Anh"}]}],
+   {"seq":1,"angle":"PHẢI copy nguyên văn 1 giá trị trong DANH SÁCH GÓC MÁY","action":"MỘT hành động chính duy nhất, tiếng Anh","camera":"chuyển động máy, tiếng Anh (slow push in / tilt down / orbit / handheld follow / static)","sound":"âm thanh hoặc nhịp, tiếng Anh","overlay":"chữ hiện trên màn hình, TỐI ĐA 12 TỪ, ${lang}","end_state":"TRẠNG THÁI KẾT THÚC, tiếng Anh","prompt_en":"mô tả cảnh quay bằng tiếng Anh"}]}],
  "post":{"knowledge":"","emotion":"","insight":"","caption":"","hashtags":"#..."}
 }]}
 
@@ -2865,6 +2887,13 @@ ${ANGLES.map(a=>'- '+a).join('\n')}
 LUẬT BẮT BUỘC:
 - Đúng 4 look, đúng 3 video, mỗi video 6-8 clip. Sai số lượng là hỏng.
 - overlay KHÔNG ĐƯỢC rỗng và không quá 12 từ.
+- "end_state" là LUẬT QUAN TRỌNG NHẤT của phần video. Mỗi clip (trừ clip cuối) phải ghi rõ khi clip
+  kết thúc thì: nhân vật ĐANG Ở ĐÂU, MẶT QUAY HƯỚNG NÀO, TAY ĐANG CẦM/CHẠM GÌ, hành động đang có ĐÀ
+  gì, cảm xúc ra sao.
+- "action" của clip sau PHẢI bắt đầu đúng từ "end_state" của clip trước — cùng vị trí, cùng hướng
+  mặt, cùng vật trong tay. Không được reset tư thế, không được nhảy cóc vô cớ. Đây là thứ làm
+  6-8 quick-cut liền mạch thay vì rời rạc.
+- Mỗi clip chỉ MỘT hành động chính. Mỗi clip một góc máy khác clip liền trước.
 - prompt_en tả HÀNH ĐỘNG và BỐI CẢNH, KHÔNG tả khuôn mặt nhân vật (ảnh tham chiếu lo phần đó).
 - 3 tầng bài post viết bằng ${lang}: "knowledge" = nguyên tắc phối áp dụng được ngay (tỉ lệ/màu/chất liệu); "emotion" = tả khoảnh khắc và góc máy bắt mắt, cảm giác khi mặc; "insight" = chi tiết ít người biết (gốc gác món đồ, mẹo, lỗi thường gặp). Không tầng nào được rỗng.
 - Không nhắc tên thương hiệu thật, không claim y khoa.`;
@@ -3272,7 +3301,8 @@ function renderVideoOut(){
   o.innerHTML=`<div class="bar" style="margin:14px 0 4px"><button class="btn sm" onclick="copyAllVid()">📋 Copy tất cả prompt</button>
     <button class="btn ghost sm" onclick="dlVideoPack()">⬇ Tải flow-pack/v1 (import tool Flow)</button>
     <span class="hint">${__vidVideos.length} video · ${totalClips} clip · dán prompt vào Flow + chọn ảnh tham chiếu</span></div>`
-    +__vidVideos.map((v,vi)=>`<div style="margin-top:16px"><h3 style="margin:0 0 6px;font-size:16px">🎬 Video ${vi+1}: ${esc(v.series)}</h3>`
+    +__vidVideos.map((v,vi)=>`<div style="margin-top:16px"><h3 style="margin:0 0 6px;font-size:16px">🎬 Video ${vi+1}: ${esc(v.series)}</h3>
+      <button class="btn gold sm" onclick="copyVidOmni(${vi})">📋 Copy prompt Omni (cả video ${v.clips.length} cut)</button>`
       +v.clips.map((c,ci)=>`<div class="card" style="margin-top:8px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <b>Clip ${c.seq}/${v.clips.length} · 10s · ${esc(c.talentLabel)}</b>
@@ -3289,6 +3319,18 @@ function renderVideoOut(){
   __vidVideos.forEach(v=>v.clips.forEach(c=>{const k=c.outfit&&c.outfit.imgKey;if(!k)return;o.querySelectorAll(`img[data-ik="${k}"]`).forEach(im=>lazyThumb(im,k));}));
 }
 function copyVidClip(vi,ci){navigator.clipboard.writeText(__vidVideos[vi].clips[ci].prompt);toast('Đã copy prompt');}
+/* Video Omni dùng chung bộ dựng prompt với tab Phối đồ. Clip ở đây có sẵn prompt ghép đầy đủ nên
+   đưa vào ô action; camera/sound/end_state chưa có thì omniMasterPrompt tự bỏ qua. */
+function copyVidOmni(vi){
+  const v=__vidVideos[vi];if(!v)return;
+  const p=S.persona||{};
+  const t=omniMasterPrompt({clips:(v.clips||[]).map(c=>({angle:'',action:c.prompt,overlay:c.overlayText||'',sound:c.audio||'',camera:'',end_state:''}))},
+    {seconds:10,ratio:'9:16',
+     globalStyle:'authentic short-form video, real smartphone/mirrorless look, natural light, documentary realism, not a commercial',
+     subject:'Use the '+(p.gender==='Nam'?'man':'woman')+' from the reference image as the main subject. Maintain '+(p.gender==='Nam'?'his':'her')+' EXACT facial identity, hairstyle, facial features and body proportions in every cut.',
+     immutables:v.series||'',dnaLock:(typeof fashionDnaEN==='function'?fashionDnaEN():'')});
+  navigator.clipboard.writeText(t);toast('Đã copy prompt Omni video '+(vi+1));
+}
 function copyAllVid(){let out=[];__vidVideos.forEach((v,vi)=>{out.push('=== VIDEO '+(vi+1)+': '+v.series+' ===');v.clips.forEach(c=>out.push('[Clip '+c.seq+' · '+c.talentLabel+']\n'+c.prompt));});navigator.clipboard.writeText(out.join('\n\n'));toast('Đã copy tất cả prompt');}
 /* Xuất ĐÚNG flow-pack/v1: mỗi VIDEO = 1 day (N1..Nk), outfit → products, nhúng ảnh */
 async function dlVideoPack(){
