@@ -619,7 +619,42 @@ async function r2Put(key,dataUrl){if(typeof syncCode!=='function'||!syncCode())r
 async function r2Get(key){if(typeof syncCode!=='function'||!syncCode())return null;try{const r=await fetch(SYNC_URL+'/img?key='+encodeURIComponent(key),{headers:{'x-muse-code':syncCode()}});if(!r.ok)return null;return await blobToDataUrl(await r.blob());}catch(e){return null;}}
 async function mediaPut(key,dataUrl){try{await IDB.put(key,dataUrl);}catch(e){}r2Put(key,dataUrl);return dataUrl;}
 async function mediaGet(key){let v=null;try{v=await IDB.get(key);}catch(e){}if(v)return v;v=await r2Get(key);if(v){try{await IDB.put(key,v);}catch(e){}}return v;}
-async function mediaDel(key){try{await IDB.del(key);}catch(e){}if(typeof syncCode==='function'&&syncCode()){try{fetch(SYNC_URL+'/img/delete',{method:'POST',headers:{'x-muse-code':syncCode(),'Content-Type':'application/json'},body:JSON.stringify({key:key})});}catch(e){}}}
+async function mediaDel(key){try{await IDB.del(key);}catch(e){}try{await IDB.del('th:'+key);}catch(e){}delete __thumbMem[key];if(typeof syncCode==='function'&&syncCode()){try{fetch(SYNC_URL+'/img/delete',{method:'POST',headers:{'x-muse-code':syncCode(),'Content-Type':'application/json'},body:JSON.stringify({key:key})});}catch(e){}}}
+
+/* ================= THUMBNAIL CHO LƯỚI ẢNH =================
+   Ảnh Gemini lưu nguyên cỡ gốc: mỗi tấm 1-7MB base64 (chuỗi JS còn gấp đôi vì UTF-16) cộng bitmap
+   giải nén ~4-6MB. Thư viện chứa tới 600 ảnh → nạp cả lưới bằng ảnh gốc là 1-4GB, tab chết ngay
+   (Aw Snap: Out of Memory). Lưới chỉ dùng thumb 384px (~44KB); ảnh gốc chỉ nạp cho ĐÚNG MỘT tấm,
+   đúng lúc cần (tải về · đặt ảnh neo · làm reference cho Gemini · nhúng flow-pack).
+
+   LUẬT: trong vòng lặp dựng lưới, KHÔNG BAO GIỜ gọi mediaGet — dùng lazyThumb(). */
+const __thumbMem={};
+async function mediaThumb(key){
+  if(__thumbMem[key])return __thumbMem[key];
+  let t=null;try{t=await IDB.get('th:'+key);}catch(e){}
+  if(!t){
+    const full=await mediaGet(key);if(!full)return null;
+    t=await scaleDataUrl(full,384);
+    try{await IDB.put('th:'+key,t);}catch(e){}
+  }
+  __thumbMem[key]=t;return t;
+}
+/* Hàng đợi 1 tấm/lượt: lần đầu mỗi thumb phải mở ảnh gốc ra để thu nhỏ, chạy song song hàng trăm
+   tấm là ôm hàng trăm ảnh full-res cùng lúc — đúng thứ ta đang tránh. */
+let __thumbQ=Promise.resolve();
+function queueThumb(im,key){
+  if(!im||!key)return;
+  __thumbQ=__thumbQ.then(async()=>{const u=await mediaThumb(key);if(u&&im.isConnected)im.src=u;}).catch(()=>{});
+}
+/* Chỉ dựng thumb cho ảnh sắp lọt vào tầm nhìn → mở tab có 600 ảnh không phải xử lý cả 600. */
+const __thumbIO=(typeof IntersectionObserver!=='undefined')?new IntersectionObserver((es,io)=>{
+  es.forEach(e=>{if(!e.isIntersecting)return;io.unobserve(e.target);queueThumb(e.target,e.target.getAttribute('data-tk'));});
+},{rootMargin:'300px'}):null;
+function lazyThumb(im,key){
+  if(!im||!key)return;
+  im.setAttribute('data-tk',key);
+  if(__thumbIO)__thumbIO.observe(im);else queueThumb(im,key);
+}
 
 async function getRef(){const id=S.activeId;if(id in __refCache&&__refCache[id])return __refCache[id];let v=await mediaGet("ref:"+id);__refCache[id]=v;return v;}
 async function setRef(dataUrl){const id=S.activeId;__refCache[id]=dataUrl;await mediaPut("ref:"+id,dataUrl);S.persona.hasRef=!!dataUrl;save();}
@@ -1544,7 +1579,7 @@ async function paintWardrobe(){
     <div><div class="nm">👗 ${esc(w.name)}</div><div class="hint" style="margin:0">${esc(w.masterPrompt).slice(0,80)}</div></div></div>
     <button class="btn sm" onclick="tryWardrobe('${w.id}')">Mặc thử</button>
     <button class="btn ghost sm" onclick="delWardrobe('${w.id}')">✕</button></div>`).join('');
-  for(const w of S.wardrobe){if(w.img){const u=await mediaGet("wb:"+w.id);const im=document.getElementById('wbimg_'+w.id);if(im&&u)im.src=u;}}
+  for(const w of S.wardrobe){if(w.img){const im=document.getElementById('wbimg_'+w.id);if(im)lazyThumb(im,"wb:"+w.id);}}
 }
 async function genOutfitIdeas(){
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
@@ -1603,19 +1638,23 @@ async function renderGallery(b){
     <div class="imgrid" id="galGrid"></div>
     ${show<total?`<div class="bar" style="justify-content:center;margin-top:12px"><button class="btn ghost" onclick="galMore()">Xem thêm (còn ${total-show})</button></div>`:''}`;
   const grid=document.getElementById('galGrid');
-  for(let i=0;i<show;i++){const g=list[i];
-    const u=await mediaGet("g:"+g.id);if(!u)continue;
+  for(let i=0;i<show;i++){const g=list[i];const key="g:"+g.id;
     const c=document.createElement('div');c.className='imgcard';
-    c.innerHTML=`<img loading="lazy" src="${u}" title="${esc(g.prompt)}" alt=""><div class="ov">
+    c.innerHTML=`<img loading="lazy" alt=""><div class="ov">
       <button title="Tải">⬇</button><button title="Đặt làm khuôn mặt neo">📌</button><button title="Xoá">✕</button></div>`;
+    const im=c.querySelector('img');im.title=g.prompt||'';
     const bs=c.querySelectorAll('button');
-    bs[0].onclick=()=>dlDataUrl("muse-"+g.id+".png",u);
-    bs[1].onclick=async()=>{await setRef(u);S.persona.hasPortrait=true;save();toast("Đã đặt làm khuôn mặt neo");};
+    /* Ảnh gốc chỉ nạp đúng lúc bấm nút — lưới chỉ giữ thumb. */
+    bs[0].onclick=async()=>{const full=await mediaGet(key);if(full)dlDataUrl("muse-"+g.id+".png",full);};
+    bs[1].onclick=async()=>{const full=await mediaGet(key);if(!full)return;await setRef(full);S.persona.hasPortrait=true;save();toast("Đã đặt làm khuôn mặt neo");};
     bs[2].onclick=()=>delGallery(g.id);
     grid.appendChild(c);
+    lazyThumb(im,key);
   }
 }
-async function dlGalleryAll(){let i=0;for(const g of S.gallery){const u=await mediaGet("g:"+g.id);if(u){setTimeout(()=>dlDataUrl("muse-"+g.id+".png",u),160*(++i));}}toast("Đang tải ảnh...");}
+/* Nạp ảnh gốc BÊN TRONG hẹn giờ: bản cũ nạp hết trước rồi mới hẹn tải, tức ôm cả trăm ảnh
+   full-res trong RAM suốt thời gian chờ. */
+async function dlGalleryAll(){let i=0;for(const g of S.gallery){const id=g.id;setTimeout(async()=>{const u=await mediaGet("g:"+id);if(u)dlDataUrl("muse-"+id+".png",u);},160*(++i));}toast("Đang tải ảnh...");}
 
 /* ==================== ⑤ BỘ ẢNH SẢN PHẨM (product × character, storytelling-to-sale) ==================== */
 const PSET_RATIOS={'1:1':'square 1:1 format','4:5':'vertical 4:5 portrait format','3:4':'vertical 3:4 portrait format'};
@@ -1705,7 +1744,7 @@ async function prodUse(id){const p=prodList().find(x=>x.id===id);if(!p)return;
 }
 function prodDel(id){if(!confirm('Xoá sản phẩm này khỏi kho?'))return;const p=prodList().find(x=>x.id===id);if(p&&p.imgKey&&typeof mediaDel==='function')mediaDel(p.imgKey);S.products=prodList().filter(x=>x.id!==id);if(PSET.editId===id)PSET.editId=null;save();renderStudio(document.getElementById('main'));toast('Đã xoá sản phẩm');}
 function prodNew(){PSET.img=null;PSET.det=null;PSET.desc='';PSET.bigMessage='';PSET.jtbd='';PSET.editId=null;renderStudio(document.getElementById('main'));}
-function prodLoadThumbs(){prodList().forEach(p=>{if(!p.imgKey)return;const th=document.getElementById('prodthumb_'+p.id);if(!th||th.querySelector('img'))return;mediaGet(p.imgKey).then(u=>{if(u)th.innerHTML=`<img src="${u}" style="width:100%;height:100%;object-fit:cover">`;});});}
+function prodLoadThumbs(){prodList().forEach(p=>{if(!p.imgKey)return;const th=document.getElementById('prodthumb_'+p.id);if(!th||th.querySelector('img'))return;th.innerHTML=`<img loading="lazy" style="width:100%;height:100%;object-fit:cover">`;lazyThumb(th.querySelector('img'),p.imgKey);});}
 function prodLibraryHtml(){
   const list=prodList();
   return `<div class="card" style="margin-top:12px">
@@ -2087,9 +2126,12 @@ function ccToggleSel(setId,gid,btn){const set=(S.content||[]).find(s=>s.id===set
 function ccImgCard(setId,gid,url){
   const set=(S.content||[]).find(s=>s.id===setId);const sel=!!(set&&set.pubSel&&set.pubSel.includes(gid));
   const c=document.createElement('div');c.className='imgcard';
-  c.innerHTML=`<img data-cg="${gid}" src="${url}" alt=""><button class="ccsel${sel?' on':''}" title="Chọn ảnh đăng kèm">${sel?'✓':'○'}</button><div class="ov"><button title="Tải">⬇</button><button title="Xoá">✕</button></div>`;
+  /* url chỉ có khi ảnh vừa sinh xong (đã nằm sẵn trong RAM). Khi dựng lại từ IndexedDB thì bỏ trống
+     để lưới dùng thumb — xem loadCCImages(). */
+  c.innerHTML=`<img data-cg="${gid}" loading="lazy"${url?` src="${url}"`:''} alt=""><button class="ccsel${sel?' on':''}" title="Chọn ảnh đăng kèm">${sel?'✓':'○'}</button><div class="ov"><button title="Tải">⬇</button><button title="Xoá">✕</button></div>`;
+  if(!url)lazyThumb(c.querySelector('img'),'g:'+gid);
   const selb=c.querySelector('.ccsel');selb.onclick=()=>ccToggleSel(setId,gid,selb);
-  const bs=c.querySelectorAll('.ov button');bs[0].onclick=()=>dlDataUrl('muse-post-'+gid+'.png',url);
+  const bs=c.querySelectorAll('.ov button');bs[0].onclick=async()=>{const full=url||await mediaGet('g:'+gid);if(full)dlDataUrl('muse-post-'+gid+'.png',full);};
   bs[1].onclick=()=>{delGallery(gid);if(set){set.imgIds=(set.imgIds||[]).filter(x=>x!==gid);set.pubSel=(set.pubSel||[]).filter(x=>x!==gid);save();}c.remove();};
   return c;
 }
@@ -2204,7 +2246,7 @@ async function ccImages(id){
 function loadCCImages(){
   (S.content||[]).forEach(set=>{const box=document.getElementById('ccimgs_'+set.id);if(!box||!set.imgIds)return;
     set.imgIds.forEach(gid=>{if(box.querySelector('img[data-cg="'+gid+'"]'))return;
-      mediaGet('g:'+gid).then(u=>{if(!u)return;box.appendChild(ccImgCard(set.id,gid,u));});
+      box.appendChild(ccImgCard(set.id,gid));
     });
   });
 }
@@ -2297,7 +2339,7 @@ async function calScheduleAll(){
   if(btn){btn.disabled=false;btn.innerHTML='🗓 Lên lịch tất cả qua Zernio';}
   toast('✓ Đã lên lịch '+ok+' bài');renderContent(document.getElementById('main'));
 }
-function calLoadImages(){const cal=S.calendar;if(!cal||!cal.days)return;cal.days.forEach((d,i)=>{if(!d.imgId)return;const th=document.getElementById('calimg_'+i);if(!th||th.querySelector('img'))return;mediaGet('g:'+d.imgId).then(u=>{if(u)th.innerHTML=`<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`;});});}
+function calLoadImages(){const cal=S.calendar;if(!cal||!cal.days)return;cal.days.forEach((d,i)=>{if(!d.imgId)return;const th=document.getElementById('calimg_'+i);if(!th||th.querySelector('img'))return;th.innerHTML=`<img loading="lazy" alt="" style="width:100%;height:100%;object-fit:cover">`;lazyThumb(th.querySelector('img'),'g:'+d.imgId);});}
 function renderCalendarSection(){
   const cal=S.calendar;
   const hasCal=!!(cal&&Array.isArray(cal.days)&&cal.days.length);
@@ -2452,8 +2494,20 @@ function vidOutfitItems(){
   (S.gallery||[]).forEach(g=>items.push({key:'g:'+g.id,name:(g.prompt||'Ảnh').slice(0,26),desc:g.prompt||'her outfit as shown in the reference image',imgKey:'g:'+g.id}));
   return items;
 }
-function vidTalent(k){const i=VID.talents.indexOf(k);if(i<0)VID.talents.push(k);else VID.talents.splice(i,1);renderVideo(document.getElementById('studioBody'));}
-function vidOutfit(k){const i=VID.outfits.indexOf(k);if(i<0)VID.outfits.push(k);else VID.outfits.splice(i,1);renderVideo(document.getElementById('studioBody'));}
+function vidTalentChipsHTML(){return VID_TALENTS.map(t=>`<span class="chip" style="${VID.talents.includes(t[0])?'border-color:var(--gold);color:var(--gold)':''}" onclick="vidTalent('${t[0]}')">${VID.talents.includes(t[0])?'✓ ':''}${t[1]}</span>`).join('');}
+/* Chỉ sơn lại đúng phần đã đổi. Trước đây tick 1 outfit là renderVideo() dựng lại cả lưới, kéo
+   theo nạp LẠI toàn bộ ảnh của lưới (tới 600 tấm) — chính là đường dẫn tới Out of Memory. */
+function paintVidPicked(){const el=document.getElementById('vidPicked');if(el)el.value=VID.talents.length+' tài năng · '+VID.outfits.length+' outfit';}
+function paintVidOutfitSel(){
+  document.querySelectorAll('#vidOutfits [data-ok]').forEach(el=>{
+    const ord=VID.outfits.indexOf(el.getAttribute('data-ok'));
+    el.style.outline=ord>=0?'3px solid var(--gold)':'';
+    const o=el.querySelector('[data-ord]');if(o)o.textContent=ord>=0?('#'+(ord+1)+' '):'';
+  });
+  paintVidPicked();
+}
+function vidTalent(k){const i=VID.talents.indexOf(k);if(i<0)VID.talents.push(k);else VID.talents.splice(i,1);const el=document.getElementById('vidTalents');if(el)el.innerHTML=vidTalentChipsHTML();paintVidPicked();}
+function vidOutfit(k){const i=VID.outfits.indexOf(k);if(i<0)VID.outfits.push(k);else VID.outfits.splice(i,1);paintVidOutfitSel();}
 function renderVideo(b){
   const hasRef=!!(S.persona&&(S.persona.hasRef||S.persona.publicDescription));
   const items=vidOutfitItems();
@@ -2474,25 +2528,25 @@ function renderVideo(b){
     <textarea id="vid_idea" rows="2" placeholder="VD: cô nàng cướp biển đối đầu kẻ thù trên boong tàu lúc bình minh · nữ điệp viên phá kho báu trong bảo tàng · cô gái lạc vào thế giới thần tiên...">${esc(VID.idea||'')}</textarea>
     <div class="hint" style="margin:4px 0">Nhập ý tưởng phim bất kỳ (mọi thể loại) → AI dựng thành thước phim cuốn cho nhân vật của bạn. Để trống thì AI tự sáng tạo concept.</div>
     <label style="margin-top:10px">Tài năng / diễn xuất đặc biệt <span style="color:var(--mut2);font-weight:400">(tuỳ chọn — để trống thì AI tự sáng tạo hợp ý tưởng)</span></label>
-    <div>${VID_TALENTS.map(t=>`<span class="chip" style="${VID.talents.includes(t[0])?'border-color:var(--gold);color:var(--gold)':''}" onclick="vidTalent('${t[0]}')">${VID.talents.includes(t[0])?'✓ ':''}${t[1]}</span>`).join('')}</div>
+    <div id="vidTalents">${vidTalentChipsHTML()}</div>
     <input id="vid_custom" value="${esc(VID.custom)}" placeholder="Tài năng / hành động khác (tự nhập, cách nhau dấu phẩy): kiếm đạo, bắn cung, lái mô tô, ma thuật..." style="margin-top:8px">
     <div class="row" style="margin-top:10px">
       <div><label>Thời lượng → số clip 10s</label><select id="vid_dur" onchange="VID.duration=parseInt(this.value)">
         ${[10,20,30,40,50,60,80,100,120].map(s=>`<option value="${s}" ${VID.duration==s?'selected':''}>${s}s · ${s/10} clip${s>=60?(s>=100?' (phim dài)':' (dài)'):''}</option>`).join('')}
       </select></div>
-      <div><label>Đã chọn</label><input value="${VID.talents.length} tài năng · ${VID.outfits.length} outfit" readonly></div>
+      <div><label>Đã chọn</label><input id="vidPicked" value="${VID.talents.length} tài năng · ${VID.outfits.length} outfit" readonly></div>
     </div>
     <label style="margin-top:12px">👗 Tủ đồ / thư viện — tick outfit biến hình (theo thứ tự)</label>
-    ${items.length?`<div class="imgrid" id="vidOutfits">${items.map(it=>{const ord=VID.outfits.indexOf(it.key);return `<div class="imgcard" style="cursor:pointer;${ord>=0?'outline:3px solid var(--gold)':''}" onclick="vidOutfit('${it.key}')">
-      ${it.imgKey?`<img data-ik="${it.imgKey}" style="aspect-ratio:3/4;object-fit:cover" alt="">`:`<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:26px">👗</div>`}
-      <div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.6))"><span style="font-size:10px;padding:3px 5px">${ord>=0?('#'+(ord+1)+' '):''}${esc(it.name)}</span></div></div>`;}).join('')}</div>`
+    ${items.length?`<div class="imgrid" id="vidOutfits">${items.map(it=>{const ord=VID.outfits.indexOf(it.key);return `<div class="imgcard" data-ok="${it.key}" style="cursor:pointer;${ord>=0?'outline:3px solid var(--gold)':''}" onclick="vidOutfit('${it.key}')">
+      ${it.imgKey?`<img data-ik="${it.imgKey}" loading="lazy" style="aspect-ratio:3/4;object-fit:cover" alt="">`:`<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:26px">👗</div>`}
+      <div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.6))"><span style="font-size:10px;padding:3px 5px"><b data-ord>${ord>=0?('#'+(ord+1)+' '):''}</b>${esc(it.name)}</span></div></div>`;}).join('')}</div>`
       :'<div class="hint">Chưa có ảnh outfit (không bắt buộc — sinh với look mặc định vẫn được).</div>'}
     ${vidModeCTA()}
     ${vlogLogPanelHTML()}
   </div>
   ${vidHistoryPanelHTML()}
   <div id="vidOut"></div>`;
-  items.forEach(async it=>{if(it.imgKey){const u=await mediaGet(it.imgKey);const im=b.querySelector(`img[data-ik="${it.imgKey}"]`);if(im&&u)im.src=u;}});
+  items.forEach(it=>{if(!it.imgKey)return;const im=b.querySelector(`img[data-ik="${it.imgKey}"]`);if(im)lazyThumb(im,it.imgKey);});
   if(__vidVideos.length)renderVideoOut();
 }
 /* Prompt deterministic: chủ thể CHUNG CHUNG (né policy) + iPhone thật + 6-8 cut giữ chân */
@@ -2778,7 +2832,7 @@ function renderVideoOut(){
         <div class="hint" style="margin-top:6px">🎵 ${esc(c.audio)}${c.overlayText?' · 💬 '+esc(c.overlayText):''} · không voiceover</div>
       </div>`).join('')+`</div>`).join('');
   getRef().then(u=>{if(u)o.querySelectorAll('img[data-face]').forEach(im=>im.src=u);});
-  __vidVideos.forEach(v=>v.clips.forEach(async c=>{if(c.outfit&&c.outfit.imgKey){const u=await mediaGet(c.outfit.imgKey);o.querySelectorAll(`img[data-ik="${c.outfit.imgKey}"]`).forEach(im=>{if(u)im.src=u;});}}));
+  __vidVideos.forEach(v=>v.clips.forEach(c=>{const k=c.outfit&&c.outfit.imgKey;if(!k)return;o.querySelectorAll(`img[data-ik="${k}"]`).forEach(im=>lazyThumb(im,k));}));
 }
 function copyVidClip(vi,ci){navigator.clipboard.writeText(__vidVideos[vi].clips[ci].prompt);toast('Đã copy prompt');}
 function copyAllVid(){let out=[];__vidVideos.forEach((v,vi)=>{out.push('=== VIDEO '+(vi+1)+': '+v.series+' ===');v.clips.forEach(c=>out.push('[Clip '+c.seq+' · '+c.talentLabel+']\n'+c.prompt));});navigator.clipboard.writeText(out.join('\n\n'));toast('Đã copy tất cả prompt');}
@@ -3068,8 +3122,9 @@ async function dojoPickHero(charId){
   const d=document.createElement('div');d.className='overlay';d.id='heroPick';d.style.zIndex='650';
   d.innerHTML=`<div class="ovbox"><h2>Chọn ảnh nhân vật chính</h2><p class="lead">Bấm 1 ảnh để đặt làm ảnh chính.</p><div class="imgrid" id="heroGrid"></div><div class="bar"><button class="btn ghost" onclick="document.getElementById('heroPick').remove()">Đóng</button></div></div>`;
   document.body.appendChild(d);const grid=document.getElementById('heroGrid');
-  for(const g of c.gallery){const u=await mediaGet('g:'+g.id);if(!u)continue;const el=document.createElement('div');el.className='imgcard';el.style.cursor='pointer';el.innerHTML=`<img src="${u}" alt="">`;
-    el.onclick=async()=>{await mediaPut('ref:'+charId,u);__refCache[charId]=u;if(c.persona)c.persona.hasRef=true;save();const hp=document.getElementById('heroPick');if(hp)hp.remove();dojoDlgRefresh();toast('Đã đặt ảnh chính');};grid.appendChild(el);}
+  for(const g of c.gallery){const key='g:'+g.id;const el=document.createElement('div');el.className='imgcard';el.style.cursor='pointer';el.innerHTML=`<img loading="lazy" alt="">`;
+    /* Lưới dùng thumb; ảnh gốc chỉ nạp cho đúng tấm người dùng bấm chọn. */
+    el.onclick=async()=>{const full=await mediaGet(key);if(!full)return;await mediaPut('ref:'+charId,full);__refCache[charId]=full;if(c.persona)c.persona.hasRef=true;save();const hp=document.getElementById('heroPick');if(hp)hp.remove();dojoDlgRefresh();toast('Đã đặt ảnh chính');};grid.appendChild(el);lazyThumb(el.querySelector('img'),key);}
 }
 function closeDojoDialog(){const d=document.getElementById('dojoDlg');if(d)d.remove();}
 async function doSendDojo(charId,mode,targetId,openAfter){

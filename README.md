@@ -27,3 +27,29 @@ Web app 1 file đưa bạn đi một luồng liền mạch: **Tạo nhân vật 
 
 ## Triển khai
 Host tĩnh (GitHub Pages/Netlify/Cloudflare/Vercel). App vẫn chạy client-side; mỗi người tự nhập key của họ → public an toàn.
+
+## Kiểm thử
+Không có build step, nên chạy tay trước khi push:
+
+```bash
+node test/syntax.test.js        # mọi khối <script> còn parse được (lỗi cú pháp = trang trắng)
+node test/char-fields.test.js   # CHAR_FIELDS ↔ blankChar/activeChar nhất quán kiểu dữ liệu
+
+# 2 test dưới cần Chrome; xem dòng RESULT trong output
+CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
+"$CHROME" --headless=new --disable-gpu --allow-file-access-from-files --virtual-time-budget=90000 \
+  --dump-dom "file://$PWD/test/boot.test.html"   # app boot sạch, không lỗi JS runtime
+"$CHROME" --headless=new --disable-gpu --allow-file-access-from-files --virtual-time-budget=60000 \
+  --dump-dom "file://$PWD/test/thumb.test.html"  # thumbnail thật sự nhỏ và có cache
+```
+
+### Luật ảnh (đọc trước khi thêm lưới ảnh mới)
+Thư viện chứa tới **600 ảnh**, mỗi ảnh gốc **1–7MB base64**. Nạp cả lưới bằng ảnh gốc = **1–4GB** →
+tab chết với `Aw Snap: Out of Memory`.
+
+- Trong vòng lặp dựng lưới: **chỉ dùng `lazyThumb(imgEl, key)`** — thumb 384px (~44KB), cache
+  IndexedDB (`th:` + key), dựng theo hàng đợi 1 tấm/lượt và chỉ khi ảnh sắp lọt tầm nhìn.
+- `mediaGet()` trả ảnh gốc → chỉ gọi cho **đúng một tấm, đúng lúc cần**: tải về · đặt ảnh neo ·
+  làm reference gửi Gemini · nhúng flow-pack.
+- Nút tick/chọn trong lưới **không được** gọi lại hàm render cả lưới — chỉ sơn lại phần đã đổi
+  (xem `paintVidOutfitSel()`), nếu không mỗi lần tick là nạp lại toàn bộ ảnh.

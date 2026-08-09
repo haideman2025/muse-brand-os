@@ -1,0 +1,64 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mediaThumb test</title>
+<body><pre id="out">running...</pre>
+<script>
+/* Test chạy trong Chrome headless. Trích NGUYÊN VĂN scaleDataUrl + mediaThumb từ ../index.html
+   rồi chạy thật, với IDB thay bằng bộ nhớ tạm. Mục tiêu: chứng minh lưới ảnh không còn ôm full-res.
+   Chạy: chrome --headless --dump-dom test/thumb.test.html  */
+const lines=[];let failed=0;
+function ok(c,m){lines.push((c?'  PASS ':'  FAIL ')+m);if(!c)failed++;}
+function bytes(d){return d?d.length:0;}
+
+async function main(){
+  const src=await (await fetch('../index.html')).text();
+
+  // `.` trong regex JS không khớp \r nên phải dùng [^\n] (file lưu CRLF).
+  const grab=(re,label)=>{const m=src.match(re);if(!m)throw new Error('Không trích được '+label);return m[0];};
+  const srcScale=grab(/function scaleDataUrl\(dataUrl,max\)\{[\s\S]*?img\.src=dataUrl;\}\);\}/,'scaleDataUrl');
+  const srcThumb=grab(/const __thumbMem=\{\};[\s\S]*?\n\}/,'mediaThumb');
+
+  const store={};
+  const env=`
+    const IDB={ get:async k=>store[k]||null, put:async (k,v)=>{store[k]=v;}, del:async k=>{delete store[k];} };
+    let getCalls=0;
+    async function mediaGet(k){getCalls++;return store[k]||null;}
+    ${srcScale}
+    ${srcThumb}
+    return {mediaThumb, store, __thumbMem, getFullReads:()=>getCalls};
+  `;
+  const api=new Function('store',env)(store);
+
+  // Ảnh giả lập cỡ ảnh Gemini thật: 1024x1536 PNG nhiễu (nén kém, giống ảnh chụp).
+  const cv=document.createElement('canvas');cv.width=1024;cv.height=1536;
+  const ctx=cv.getContext('2d');const im=ctx.createImageData(1024,1536);
+  for(let i=0;i<im.data.length;i+=4){im.data[i]=Math.random()*255;im.data[i+1]=Math.random()*255;im.data[i+2]=Math.random()*255;im.data[i+3]=255;}
+  ctx.putImageData(im,0,0);
+  const full=cv.toDataURL('image/png');
+  store['g:1']=full;
+
+  lines.push('Ảnh gốc (1024x1536 PNG): '+(bytes(full)/1024/1024).toFixed(2)+' MB base64');
+
+  const t1=await api.mediaThumb('g:1');
+  ok(!!t1,'mediaThumb() trả về ảnh');
+  lines.push('Thumb: '+(bytes(t1)/1024).toFixed(1)+' KB  → '+(bytes(t1)/bytes(full)*100).toFixed(1)+'% cỡ gốc');
+  ok(bytes(t1)<bytes(full)*0.05,'thumb nhỏ hơn 5% ảnh gốc');
+
+  const readsAfterFirst=api.getFullReads();
+  const t2=await api.mediaThumb('g:1');
+  ok(t2===t1,'gọi lần 2 trả về đúng thumb');
+  ok(api.getFullReads()===readsAfterFirst,'gọi lần 2 KHÔNG đọc lại ảnh gốc (đã cache)');
+  ok(!!store['th:g:1'],'thumb được ghi xuống IndexedDB để lần sau khỏi dựng lại');
+
+  // 600 ảnh = mức trần thư viện của app (xem cap trong addGallery).
+  const N=600, totalFull=bytes(full)*N, totalThumb=bytes(t1)*N;
+  lines.push('Lưới '+N+' ảnh — trước: '+(totalFull/1024/1024/1024).toFixed(2)+' GB chuỗi base64 · sau: '+(totalThumb/1024/1024).toFixed(1)+' MB');
+  ok(totalThumb<50*1024*1024,N+' thumb dưới 50MB');
+}
+
+main().then(()=>{
+  document.getElementById('out').textContent='RESULT '+(failed?'FAIL':'PASS')+'\n'+lines.join('\n');
+}).catch(e=>{
+  document.getElementById('out').textContent='RESULT FAIL\n  '+e.message;
+});
+</script>
