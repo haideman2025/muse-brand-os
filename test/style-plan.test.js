@@ -102,17 +102,12 @@ test('góc máy lạ thì báo lỗi', () => {
   assert.ok(app.styleValidatePlan([s]).errors.some(e => /góc máy/.test(e)));
 });
 
-// end_state là thứ nối cut này sang cut kia — thiếu nó thì quick-cut giật cục.
-test('clip giữa thiếu end_state thì báo lỗi', () => {
-  const s = goodSet(); s.videos[0].clips[2].end_state = '   ';
-  assert.ok(app.styleValidatePlan([s]).errors.some(e => /trạng thái kết thúc/.test(e)));
-});
-
-test('clip CUỐI được phép không có end_state', () => {
+/* end_state là tuỳ chọn: prompt Omni chỉ nêu luật nối cut MỘT LẦN rồi để model tự dựng nhịp,
+   nên không ép AI viết trạng thái kết thúc cho từng cut. Ép thêm ràng buộc chỉ làm tăng tỉ lệ
+   AI trả sai schema mà chẳng đổi được gì ở đầu ra. */
+test('thiếu end_state KHÔNG bị coi là lỗi (để AI tự sáng tạo nhịp)', () => {
   const s = goodSet();
-  delete s.videos[0].clips[s.videos[0].clips.length - 1].end_state;
-  delete s.videos[1].clips[s.videos[1].clips.length - 1].end_state;
-  delete s.videos[2].clips[s.videos[2].clips.length - 1].end_state;
+  s.videos.forEach(v => v.clips.forEach(c => { delete c.end_state; delete c.camera; delete c.sound; }));
   const r = app.styleValidatePlan([s]);
   assert.ok(r.ok, 'phải hợp lệ, lỗi: ' + r.errors.join(' | '));
 });

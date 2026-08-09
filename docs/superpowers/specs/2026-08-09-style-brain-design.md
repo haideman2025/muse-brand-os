@@ -205,6 +205,25 @@ Thay đổi:
 | Nút `📋 Copy prompt Omni` | tab Phối đồ **và** tab Video Omni |
 | `days[].prompt_omni` trong flow-pack, giữ nguyên `shots[].prompt_en` | `styleBuildPack` |
 
+### Sửa lại cùng ngày — Flow chặn vì chính sách người nổi tiếng
+
+Bản đầu bê nguyên công thức tham khảo vào, gồm câu *"Use the woman from the reference image…
+Maintain her EXACT facial identity, hairstyle, facial features and body proportions"*. Google Flow
+**chặn thẳng**: *"Câu lệnh này có thể vi phạm chính sách của chúng tôi về việc tạo video về người
+nổi tiếng"*. Đây là luật app đã biết từ trước và ghi trong `aiPromptSafe()` — bản nâng cấp đã bỏ qua.
+
+Sửa:
+
+| Trước | Sau |
+|---|---|
+| "from the reference image", "EXACT facial identity", "facial features" | chủ thể chung chung `a generic stylish young woman`, cấm tả mặt, cấm nhắc người thật/nổi tiếng |
+| `IMMUTABLE ITEMS` gộp cả người lẫn đồ | `WARDROBE LOCK` — chỉ khoá trang phục |
+| TIMELINE kịch bản hoá từng cut (mốc giờ, góc máy, chuyển động, END STATE mỗi cut) | `6-8 quick cuts` + `IDEA` + beats + `You decide the pacing, the shot sizes, the camera moves` |
+| `end_state` bắt buộc, validate chặn | tuỳ chọn — luật nối cut nêu **một lần** ở khối `CUT FLOW` |
+
+Thứ giữ lại từ công thức tham khảo là phần đắt nhất: luật *mỗi cut nối tiếp đúng trạng thái cut
+trước* (vị trí, hướng người, vật trong tay, đà chuyển động).
+
 **Quyết định về text overlay:** người dùng chọn **để model tự vẽ chữ vào video**, nên khối phủ định
 KHÔNG cấm chữ và mỗi đơn vị cảnh ghi `ON-SCREEN TEXT: "..."`. Rủi ro đã nêu: chữ tiếng Việt có dấu
 hay bị méo và không sửa được, phải sinh lại cả clip. Bảng "giây nào — chữ gì" vẫn hiển thị ở card

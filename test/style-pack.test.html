@@ -58,9 +58,12 @@ async function main(){
   // Mỗi ngày phải kèm 1 prompt hoàn chỉnh cho mô hình omni (ngoài prompt_en từng shot).
   const po=pack.days[0].prompt_omni||'';
   ok(!!po,'ngày có prompt_omni');
-  ['GLOBAL STYLE','SUBJECT LOCK','TIMELINE','CONTINUITY','NEGATIVE'].forEach(k=>ok(po.indexOf(k)>=0,'prompt_omni có khối '+k));
-  ok((po.match(/END STATE:/g)||[]).length>=5,'prompt_omni có END STATE nối cut');
-  ok(po.indexOf('ON-SCREEN TEXT: "Phối áo dài"')>=0,'prompt_omni giữ text overlay');
+  ['LOOK:','SUBJECT:','IDEA','CUT FLOW:','NEGATIVE:'].forEach(k=>ok(po.indexOf(k)>=0,'prompt_omni có khối '+k));
+  ok(/6-8 quick cuts/.test(po),'prompt_omni để model tự dựng 6-8 cut');
+  ok(/continue EXACTLY from where the previous cut ended/.test(po),'prompt_omni có luật nối cut');
+  ok(po.indexOf('"Phối áo dài"')>=0,'prompt_omni giữ text overlay');
+  // Chốt chặn policy: nhắc nhận dạng là Flow chặn theo chính sách người nổi tiếng.
+  ok(!/reference image|facial identity|facial features/i.test(po),'prompt_omni KHÔNG nhắc ảnh tham chiếu / nhận dạng');
   ok(!!pack.days[0].shots[0].prompt_en,'vẫn giữ prompt_en từng shot (schema cũ không vỡ)');
 
   const json=JSON.stringify(pack);

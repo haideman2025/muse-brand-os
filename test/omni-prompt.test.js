@@ -1,10 +1,12 @@
 /**
- * Test cho omniMasterPrompt — dựng 1 prompt hoàn chỉnh cho mô hình video omni.
+ * Test cho omniMasterPrompt — brief sáng tạo cho mô hình video omni (Google Flow).
  *
- * Công thức (học từ tài liệu tham khảo):
- *   quy cách chung + khoá chủ thể + đơn vị cảnh × N + liên tục xuyên cảnh + ràng buộc phủ định
- * Mấu chốt là END STATE của từng cut: bàn giao vị trí, hướng mặt, vật trong tay, đà chuyển động
- * cho cut kế tiếp — thứ làm 6-8 quick-cut mượt thay vì giật cục.
+ * HAI RÀNG BUỘC SỐNG CÒN:
+ * 1. KHÔNG được nhắc ảnh tham chiếu / nhận dạng khuôn mặt. Flow chặn thẳng với lý do
+ *    "vi phạm chính sách về việc tạo video về người nổi tiếng". Chủ thể phải để chung chung,
+ *    đúng luật đã có sẵn trong aiPromptSafe() của app.
+ * 2. KHÔNG kịch bản hoá từng cut. Chỉ nêu "6-8 quick cuts" + ý tưởng + luật nối cut,
+ *    còn nhịp/khuôn hình/góc máy để model tự sáng tạo.
  *
  * Chạy: node test/omni-prompt.test.js
  */
@@ -31,93 +33,101 @@ function clip(i, extra) {
     end_state: 'facing three-quarter left, hand on collar', prompt_en: 'cinematic shot ' + i
   }, extra || {});
 }
-const video = { title: 'V1', hook: 'h', audio: 'lo-fi beat', clips: [0, 1, 2, 3, 4, 5].map(i => clip(i)) };
+const video = { title: 'Lên đồ 10 giây', hook: 'Cùng một chiếc đầm, bốn cách mặc', audio: 'lo-fi beat', clips: [0, 1, 2, 3, 4, 5].map(i => clip(i)) };
 const opts = {
   seconds: 10, ratio: '9:16',
   globalStyle: 'editorial fashion film, natural window daylight',
-  subject: 'Use the woman from the reference image as the main subject. Maintain her EXACT facial identity.',
-  immutables: 'black lace maxi dress, silver choker',
+  wardrobe: 'black lace maxi dress, silver choker',
   dnaLock: ' FASHION DNA LOCK — ARCHETYPE: gothic romantic. NEVER include: pastel.'
 };
 
-console.log('\nomniMasterPrompt — prompt hoàn chỉnh 5 khối cho omni\n');
+console.log('\nomniMasterPrompt — brief sáng tạo, an toàn policy\n');
 
 const out = app.omniMasterPrompt(video, opts);
 
-test('khối 1 — quy cách chung: thời lượng, tỉ lệ, số cut', () => {
-  assert.ok(/10-second/.test(out), 'thiếu thời lượng');
-  assert.ok(/9:16/.test(out), 'thiếu tỉ lệ');
-  assert.ok(/6 quick cuts/.test(out), 'thiếu số cut');
+/* ---- Nhóm 1: chống bị Flow chặn ---- */
+test('KHÔNG nhắc ảnh tham chiếu', () => {
+  assert.ok(!/reference image|reference photo|from the reference/i.test(out), 'còn nhắc ảnh tham chiếu');
 });
 
-test('khối 1 — phong cách toàn cục', () => {
-  assert.ok(/GLOBAL STYLE: editorial fashion film/.test(out));
+test('KHÔNG mô tả nhận dạng khuôn mặt', () => {
+  ['facial identity', 'facial features', 'exact face', 'same face', 'body proportions', 'likeness']
+    .forEach(k => assert.ok(out.toLowerCase().indexOf(k) < 0, 'còn chứa "' + k + '"'));
 });
 
-test('khối 2 — khoá chủ thể + hạng mục bất biến', () => {
-  assert.ok(/SUBJECT LOCK:/.test(out), 'thiếu SUBJECT LOCK');
-  assert.ok(/EXACT facial identity/.test(out), 'thiếu khoá nhận dạng');
-  assert.ok(/IMMUTABLE ITEMS: black lace maxi dress/.test(out), 'thiếu hạng mục bất biến');
+test('KHÔNG nhắc người thật / người nổi tiếng', () => {
+  assert.ok(/no real, famous or specific person/i.test(out), 'thiếu câu chặn người thật/nổi tiếng');
 });
 
-test('khối 2 — DNA thời trang được nhồi vào', () => {
-  assert.ok(/FASHION DNA LOCK/.test(out) && /NEVER include: pastel/.test(out));
+test('chủ thể để chung chung', () => {
+  assert.ok(/generic/i.test(out), 'thiếu từ khoá chủ thể chung chung');
+  assert.ok(/do not describe her face|no face description/i.test(out), 'thiếu lệnh cấm tả mặt');
 });
 
-test('khối 3 — đủ 6 đơn vị cảnh, mốc thời gian tăng dần', () => {
+/* ---- Nhóm 2: để AI tự sáng tạo ---- */
+test('nêu 6-8 quick cuts chứ không chốt cứng số cut', () => {
+  assert.ok(/6-8 quick cuts/i.test(out), 'thiếu "6-8 quick cuts"');
+});
+
+test('KHÔNG kịch bản hoá từng cut — không có mốc thời gian từng cảnh', () => {
   const stamps = out.match(/\[00:\d\d\.\d-00:\d\d\.\d\]/g) || [];
-  assert.strictEqual(stamps.length, 6, 'được ' + stamps.length + ' mốc thời gian');
-  assert.ok(/\[00:00\.0-/.test(stamps[0]), 'mốc đầu phải từ 00:00.0, được ' + stamps[0]);
-  assert.ok(/-00:10\.0\]/.test(stamps[5]), 'mốc cuối phải kết thúc 00:10.0, được ' + stamps[5]);
+  assert.strictEqual(stamps.length, 0, 'vẫn còn ' + stamps.length + ' mốc thời gian từng cut');
+  assert.ok(!/CAMERA: slow push in/.test(out), 'vẫn còn chỉ định chuyển động máy từng cut');
 });
 
-test('khối 3 — mỗi cảnh có góc máy, chuyển động máy, âm thanh', () => {
-  assert.ok(/CAMERA: slow push in/.test(out));
-  assert.ok(/SOUND: fabric rustle/.test(out));
-  assert.ok(/medium shot/.test(out));
+test('giao quyền nhịp/khuôn hình/góc máy cho model', () => {
+  assert.ok(/you decide/i.test(out), 'thiếu lệnh giao quyền sáng tạo');
 });
 
-test('khối 3 — END STATE có mặt (mấu chốt nối cut)', () => {
-  const n = (out.match(/END STATE:/g) || []).length;
-  assert.ok(n >= 5, 'chỉ có ' + n + ' END STATE, phải ít nhất 5 (cut cuối không cần)');
+test('vẫn giữ Ý TƯỞNG của video (hook + beat nội dung)', () => {
+  assert.ok(out.indexOf('Cùng một chiếc đầm, bốn cách mặc') >= 0, 'mất hook');
+  assert.ok(out.indexOf('she adjusts the collar') >= 0, 'mất beat nội dung');
 });
 
-test('khối 3 — text overlay ghi thành lời thoại màn hình, bọc nháy kép', () => {
-  assert.ok(/ON-SCREEN TEXT: "Siết eo tạo tỉ lệ"/.test(out));
+/* ---- Nhóm 3: giữ thứ giá trị từ công thức tham khảo ---- */
+test('giữ LUẬT nối cut (đà chuyển động liên tục)', () => {
+  assert.ok(/continue EXACTLY from where the previous cut ended/i.test(out), 'thiếu luật nối cut');
+  assert.ok(/same position, same facing/i.test(out), 'thiếu chi tiết bàn giao');
 });
 
-test('khối 4 — liên tục xuyên cảnh, nêu rõ nối từ END STATE trước', () => {
-  assert.ok(/CONTINUITY:/.test(out), 'thiếu CONTINUITY');
-  assert.ok(/previous cut's END STATE/.test(out), 'thiếu luật nối từ END STATE');
+test('giữ khoá trang phục và DNA thời trang (không phải nhận dạng người)', () => {
+  assert.ok(out.indexOf('black lace maxi dress') >= 0, 'mất khoá trang phục');
+  assert.ok(/NEVER include: pastel/.test(out), 'mất DNA thời trang');
 });
 
-test('khối 5 — ràng buộc phủ định', () => {
+test('giữ text overlay đúng nguyên văn', () => {
+  assert.ok(out.indexOf('"Siết eo tạo tỉ lệ"') >= 0, 'mất text overlay');
+});
+
+test('giữ khối ràng buộc phủ định', () => {
   assert.ok(/NEGATIVE:/.test(out), 'thiếu NEGATIVE');
-  ['no extra people', 'no identity swap', 'no wardrobe change', 'no unmotivated jump cuts', 'no action reset']
+  ['no extra people', 'no wardrobe change', 'no unmotivated jump cuts', 'no action reset']
     .forEach(k => assert.ok(out.indexOf(k) >= 0, 'thiếu ràng buộc "' + k + '"'));
 });
 
-test('người dùng chọn cho model vẽ chữ → KHÔNG cấm chữ trong khối phủ định', () => {
+test('khối phủ định KHÔNG cấm chữ (người dùng chọn cho model vẽ chữ)', () => {
   const neg = out.slice(out.indexOf('NEGATIVE:'));
   assert.ok(!/no text|no subtitle|no on-screen text/i.test(neg), 'khối phủ định không được cấm chữ');
 });
 
-test('bộ dữ liệu CŨ thiếu camera/sound/end_state vẫn dựng được, không lòi undefined', () => {
-  const old = { clips: [0, 1, 2, 3, 4, 5].map(i => ({ seq: i + 1, angle: 'medium shot', overlay: 'x', prompt_en: 'p' + i })) };
+/* ---- Nhóm 4: bền với dữ liệu thiếu ---- */
+test('bộ dữ liệu CŨ thiếu camera/sound/end_state vẫn dựng được', () => {
+  const old = { clips: [0, 1, 2].map(i => ({ seq: i + 1, overlay: 'x' + i, prompt_en: 'p' + i })) };
   const o = app.omniMasterPrompt(old, opts);
   assert.ok(o.length > 100, 'phải ra prompt');
   assert.ok(o.indexOf('undefined') < 0, 'lòi undefined ra prompt');
-  assert.ok(o.indexOf('CAMERA:') < 0, 'không được bịa CAMERA khi dữ liệu trống');
 });
 
 test('không có clip nào thì vẫn trả về chuỗi, không ném lỗi', () => {
   const o = app.omniMasterPrompt({ clips: [] }, opts);
   assert.ok(typeof o === 'string' && o.length > 0);
+  assert.ok(o.indexOf('undefined') < 0);
 });
 
 test('gọi không truyền opts vẫn chạy', () => {
   const o = app.omniMasterPrompt(video);
-  assert.ok(/TIMELINE/.test(o));
+  assert.ok(/6-8 quick cuts/i.test(o));
+  assert.ok(o.indexOf('undefined') < 0);
 });
 
 console.log(failed ? `\n${failed} test FAIL\n` : '\nTất cả test PASS\n');
