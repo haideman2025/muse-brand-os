@@ -2455,6 +2455,45 @@ function renderContent(m){
 
 /* --- 🎬 VIDEO OMNI (bộ prompt cho Google Flow — biến hình × tài năng) --- */
 /* [key, nhãn, action EN, âm thanh EN] */
+/* ================= STYLE BRAIN — bộ não phối đồ ================= */
+/* == STYLE PLAN VALIDATOR (test/style-plan.test.js trích đúng đoạn giữa 2 mốc này) == */
+function styleValidatePlan(plan){
+  const errors=[];
+  const sets=Array.isArray(plan)?plan:(plan&&Array.isArray(plan.sets)?plan.sets:null);
+  if(!sets||!sets.length)return {ok:false,errors:['AI không trả về bộ nào — thử lại hoặc rút gọn đầu vào']};
+  if(sets.length>5)errors.push('AI trả về '+sets.length+' bộ, tối đa 5');
+  sets.forEach((s,i)=>{
+    const at='Bộ '+(i+1)+': ';
+    if(!s||typeof s!=='object'){errors.push(at+'không phải object');return;}
+    if(!String(s.styleName||'').trim())errors.push(at+'thiếu tên phong cách');
+    if(!s.base||!String(s.base.prompt_en||'').trim())errors.push(at+'thiếu ảnh gốc (base.prompt_en)');
+    const looks=Array.isArray(s.looks)?s.looks:[];
+    if(looks.length!==4)errors.push(at+'có '+looks.length+' look, phải đúng 4');
+    looks.forEach((l,li)=>{
+      if(!l||!String(l.name||'').trim())errors.push(at+'look '+(li+1)+' thiếu tên phong cách');
+      if(!l||!String(l.prompt_en||'').trim())errors.push(at+'look '+(li+1)+' thiếu prompt_en');
+    });
+    const vids=Array.isArray(s.videos)?s.videos:[];
+    if(vids.length!==3)errors.push(at+'có '+vids.length+' video, phải đúng 3');
+    vids.forEach((v,vi)=>{
+      const cl=(v&&Array.isArray(v.clips))?v.clips:[];
+      if(cl.length<6||cl.length>8)errors.push(at+'video '+(vi+1)+' có '+cl.length+' clip, phải 6-8');
+      cl.forEach((c,ci)=>{
+        const w='video '+(vi+1)+' clip '+(ci+1)+' ';
+        if(!c||!String(c.prompt_en||'').trim())errors.push(at+w+'thiếu prompt_en');
+        const ov=String((c&&c.overlay)||'').trim();
+        if(!ov)errors.push(at+w+'thiếu text overlay');
+        else if(ov.split(/\s+/).length>12)errors.push(at+w+'overlay dài quá 12 từ');
+        if(!c||ANGLES.indexOf(c.angle)<0)errors.push(at+w+'góc máy không nằm trong danh sách cho phép');
+      });
+    });
+    const p=(s.post&&typeof s.post==='object')?s.post:{};
+    ['knowledge','emotion','insight'].forEach(k=>{if(!String(p[k]||'').trim())errors.push(at+'bài post thiếu tầng '+k);});
+  });
+  return {ok:!errors.length,errors:errors};
+}
+/* == END STYLE PLAN VALIDATOR == */
+
 const VID_TALENTS=[
   ['guitar','🎸 Chơi guitar','playing an acoustic guitar, fingers gently on the strings','natural warm acoustic guitar melody'],
   ['piano','🎹 Chơi piano','playing a grand piano gracefully','a soft delicate piano melody'],
