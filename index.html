@@ -2487,6 +2487,9 @@ function styleValidatePlan(plan){
         if(!ov)errors.push(at+w+'thiếu text overlay');
         else if(ov.split(/\s+/).length>12)errors.push(at+w+'overlay dài quá 12 từ');
         if(!c||ANGLES.indexOf(c.angle)<0)errors.push(at+w+'góc máy không nằm trong danh sách cho phép');
+        /* end_state bàn giao vị trí/hướng mặt/vật trong tay/đà chuyển động cho cut kế tiếp — thiếu nó
+           thì 6-8 quick-cut thành 6-8 mảnh rời. Cut cuối không cần bàn giao cho ai. */
+        if(ci<cl.length-1&&(!c||!String(c.end_state||'').trim()))errors.push(at+w+'thiếu trạng thái kết thúc (end_state)');
       });
     });
     const p=(s.post&&typeof s.post==='object')?s.post:{};
@@ -2495,6 +2498,47 @@ function styleValidatePlan(plan){
   return {ok:!errors.length,errors:errors};
 }
 /* == END STYLE PLAN VALIDATOR == */
+
+/* == OMNI MASTER PROMPT (test/omni-prompt.test.js trích đúng đoạn giữa 2 mốc này) ==
+   Một prompt hoàn chỉnh cho mô hình video omni, theo công thức:
+     quy cách chung + khoá chủ thể + đơn vị cảnh × N + liên tục xuyên cảnh + ràng buộc phủ định
+   Mỗi đơn vị cảnh: mốc thời gian + cỡ cảnh/góc máy + MỘT hành động chính + chuyển động máy
+   + âm thanh + ON-SCREEN TEXT + END STATE.
+   END STATE là mấu chốt: bàn giao vị trí, hướng mặt, vật trong tay, đà chuyển động và cảm xúc
+   cho cut kế tiếp. Không có nó thì 6-8 quick-cut thành 6-8 mảnh rời.
+   Trường nào trống thì BỎ QUA hẳn — bộ dữ liệu cũ chưa có camera/sound/end_state vẫn dựng được. */
+function omniMasterPrompt(video,opts){
+  opts=opts||{};
+  const clips=(video&&Array.isArray(video.clips))?video.clips:[];
+  const total=opts.seconds||10,ratio=opts.ratio||'9:16',n=clips.length||1;
+  const step=total/n;
+  const mark=x=>{const s=Math.round(x*10)/10;return '00:'+(s<10?'0':'')+s.toFixed(1);};
+  const L=[];
+  L.push('Generate a '+total+'-second '+ratio+' vertical short film, '+clips.length+' quick cuts, one continuous scene logic.');
+  if(opts.globalStyle)L.push('\nGLOBAL STYLE: '+opts.globalStyle);
+  const lock=[];
+  if(opts.subject)lock.push(opts.subject);
+  if(opts.immutables)lock.push('IMMUTABLE ITEMS: '+opts.immutables+' — identical in every cut. Exactly one person on screen.');
+  if(lock.length)L.push('\nSUBJECT LOCK: '+lock.join(' '));
+  if(opts.dnaLock&&String(opts.dnaLock).trim())L.push(String(opts.dnaLock).trim());
+  L.push('\nTIMELINE');
+  clips.forEach((c,i)=>{
+    c=c||{};
+    const seg=['['+mark(step*i)+'-'+mark(step*(i+1))+']'];
+    seg.push((c.angle||'medium shot')+'.');
+    const act=String(c.action||c.prompt_en||'').trim();
+    if(act)seg.push(act.replace(/\.?$/,'.'));
+    if(String(c.camera||'').trim())seg.push('CAMERA: '+String(c.camera).trim().replace(/\.?$/,'.'));
+    if(String(c.sound||'').trim())seg.push('SOUND: '+String(c.sound).trim().replace(/\.?$/,'.'));
+    if(opts.drawText!==false&&String(c.overlay||'').trim())seg.push('ON-SCREEN TEXT: "'+String(c.overlay).trim()+'"');
+    if(String(c.end_state||'').trim())seg.push('END STATE: '+String(c.end_state).trim().replace(/\.?$/,'.'));
+    L.push(seg.join(' '));
+  });
+  L.push("\nCONTINUITY: face, garment, accessories, hair, scene direction, light quality and emotional tone stay consistent across all cuts. Each cut begins EXACTLY from the previous cut's END STATE — same position, same facing, same object in hand, same motion momentum.");
+  L.push('NEGATIVE: no extra people, no identity swap, no wardrobe change, no unmotivated jump cuts, no action reset, no exaggerated transitions, no commercial advertisement feel, no logos, no watermark.');
+  return L.join('\n');
+}
+/* == END OMNI MASTER PROMPT == */
 
 /* ---- DNA thời trang: nền chung cho mọi ảnh/video/bài viết của tab Phối đồ ---- */
 const FASHION_FIELDS=[
