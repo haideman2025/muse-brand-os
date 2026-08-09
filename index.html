@@ -2606,6 +2606,94 @@ function renderStyleBrain(b){
 }
 function renderStyleSets(){const el=document.getElementById('styleSetList');if(el)el.innerHTML='';}
 
+/* ---- Giai đoạn 1: sinh kế hoạch (1 lần gọi text, rẻ) ---- */
+function styleSourceLine(it,i){
+  if(it.kind==='wardrobe'){const x=styleSrcItems().find(s=>s.key===it.key);
+    return (i+1)+'. MÓN ĐỒ CÓ SẴN: "'+((x&&x.name)||'món đồ')+'"'+((x&&x.desc)?(' — '+x.desc):'');}
+  if(it.kind==='occasion')return (i+1)+'. DỊP MẶC: '+(it.text||'đời thường');
+  return (i+1)+'. MÔ TẢ: '+(it.text||'một bộ đồ hợp nhân vật');
+}
+function stylePlanPrompt(inputs){
+  const p=S.persona||{};const d=S.fashionDna||{};
+  const lang=(typeof CC!=='undefined'&&CC.lang==='en')?'English':'tiếng Việt';
+  return `Bạn là giám đốc sáng tạo thời trang kiêm biên kịch video ngắn.
+
+NHÂN VẬT: ${p.name||''} · ${p.gender||''} ${p.age||''} · ${p.ethnicityLook||''} · thần thái: ${p.vibe||''}
+DNA THỜI TRANG (bắt buộc bám):
+- Archetype: ${d.archetype||'(chưa có — tự suy từ nhân vật)'}
+- Dáng đồ: ${d.silhouette||''} · Bảng màu: ${d.palette||''} · Chất liệu: ${d.fabrics||''}
+- Phụ kiện: ${d.accessories||''} · Tóc/makeup: ${d.hairMakeup||''}
+- TUYỆT ĐỐI KHÔNG: ${d.avoid||'(không có)'}
+
+ĐẦU VÀO ${inputs.length} BỘ:
+${inputs.map(styleSourceLine).join('\n')}
+
+Với MỖI bộ, tạo:
+A. 1 ảnh gốc: nhân vật mặc món đồ đó ĐƠN GIẢN nhất, nền sạch, đủ thấy toàn bộ trang phục.
+B. ĐÚNG 4 look phối cùng món đồ đó theo 4 phong cách KHÁC NHAU RÕ RỆT, phong cách nào cũng phải nằm trong DNA thời trang. Mỗi look kèm 1 câu "why" giải thích nguyên tắc phối.
+C. ĐÚNG 3 video 10 giây dạy người xem phối đồ. Mỗi video 6-8 clip quick-cut, MỖI CLIP MỘT GÓC MÁY KHÁC NHAU, chuyển mượt.
+D. 1 bài đăng 3 tầng giá trị.
+
+Trả về DUY NHẤT JSON:
+{"sets":[{
+ "styleName":"tên phong cách chung của bộ",
+ "base":{"prompt_en":"mô tả ảnh gốc bằng tiếng Anh"},
+ "looks":[{"name":"tên phong cách look","why":"nguyên tắc phối, ${lang}","prompt_en":"mô tả ảnh bằng tiếng Anh"}],
+ "videos":[{"title":"","hook":"câu hook mở đầu","audio":"mô tả nhạc nền tiếng Anh","clips":[
+   {"seq":1,"angle":"PHẢI copy nguyên văn 1 giá trị trong DANH SÁCH GÓC MÁY","action":"hành động trong clip, tiếng Anh","overlay":"chữ hiện trên màn hình, TỐI ĐA 12 TỪ, ${lang}","prompt_en":"mô tả cảnh quay bằng tiếng Anh"}]}],
+ "post":{"knowledge":"","emotion":"","insight":"","caption":"","hashtags":"#..."}
+}]}
+
+DANH SÁCH GÓC MÁY (chỉ được dùng đúng các chuỗi này):
+${ANGLES.map(a=>'- '+a).join('\n')}
+
+LUẬT BẮT BUỘC:
+- Đúng 4 look, đúng 3 video, mỗi video 6-8 clip. Sai số lượng là hỏng.
+- overlay KHÔNG ĐƯỢC rỗng và không quá 12 từ.
+- prompt_en tả HÀNH ĐỘNG và BỐI CẢNH, KHÔNG tả khuôn mặt nhân vật (ảnh tham chiếu lo phần đó).
+- 3 tầng bài post viết bằng ${lang}: "knowledge" = nguyên tắc phối áp dụng được ngay (tỉ lệ/màu/chất liệu); "emotion" = tả khoảnh khắc và góc máy bắt mắt, cảm giác khi mặc; "insight" = chi tiết ít người biết (gốc gác món đồ, mẹo, lỗi thường gặp). Không tầng nào được rỗng.
+- Không nhắc tên thương hiệu thật, không claim y khoa.`;
+}
+async function styleDropImages(set){
+  if(!set)return;
+  const gids=[set.base&&set.base.gid].concat((set.looks||[]).map(l=>l.gid)).filter(Boolean);
+  for(const g of gids){try{await mediaDel('g:'+g);}catch(e){}}
+  S.gallery=(S.gallery||[]).filter(x=>gids.indexOf(x.id)<0);
+}
+async function styleGenPlan(){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  styleReadInputs();
+  const inputs=STYLE.inputs.slice(0,5);
+  const err=document.getElementById('stylePlanErr');if(err)err.style.display='none';
+  const b=document.getElementById('stylePlanBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang dựng kế hoạch...';}
+  try{
+    const plan=parseJSON(await geminiText(stylePlanPrompt(inputs),true));
+    const v=styleValidatePlan(plan);
+    if(!v.ok){
+      const e2=document.getElementById('stylePlanErr');
+      if(e2){e2.style.display='block';e2.innerHTML='<b>AI trả sai cấu trúc — chưa lưu gì cả:</b><br>'+v.errors.slice(0,8).map(esc).join('<br>');}
+      toast('Kế hoạch không hợp lệ — bấm sinh lại');return;
+    }
+    const sets=Array.isArray(plan)?plan:plan.sets;
+    sets.forEach((s,i)=>{
+      const src=inputs[i]||inputs[inputs.length-1];
+      S.styleSets.unshift({id:uid(),createdAt:_today10(),ratio:STYLE.ratio,
+        source:{kind:src.kind,key:src.key||'',text:src.text||''},
+        styleName:s.styleName,base:{prompt_en:s.base.prompt_en,gid:''},
+        looks:s.looks.map(l=>({name:l.name,why:l.why||'',prompt_en:l.prompt_en,gid:''})),
+        videos:s.videos,post:s.post});
+    });
+    while(S.styleSets.length>20){const old=S.styleSets.pop();await styleDropImages(old);}
+    save();renderStyleBrain(document.getElementById('studioBody'));
+    toast('✓ Xong kế hoạch '+sets.length+' bộ — xem lại rồi bấm render ảnh');
+  }catch(e){
+    const e3=document.getElementById('stylePlanErr');
+    if(e3){e3.style.display='block';e3.textContent='Lỗi AI: '+(e.message||e);}
+    toast('Lỗi AI: '+(e.message||e));
+  }finally{const bb=document.getElementById('stylePlanBtn');if(bb){bb.disabled=false;bb.innerHTML='🧠 Sinh kế hoạch '+STYLE.inputs.length+' bộ';}}
+}
+
 const VID_TALENTS=[
   ['guitar','🎸 Chơi guitar','playing an acoustic guitar, fingers gently on the strings','natural warm acoustic guitar melody'],
   ['piano','🎹 Chơi piano','playing a grand piano gracefully','a soft delicate piano melody'],
