@@ -2494,6 +2494,70 @@ function styleValidatePlan(plan){
 }
 /* == END STYLE PLAN VALIDATOR == */
 
+/* ---- DNA thời trang: nền chung cho mọi ảnh/video/bài viết của tab Phối đồ ---- */
+const FASHION_FIELDS=[
+ {k:'archetype',label:'Archetype phong cách',ph:'VD: gothic romantic × tailoring tối giản'},
+ {k:'silhouette',label:'Dáng đồ / tỉ lệ',ph:'eo siết, chân váy xoè dài, vai cấu trúc'},
+ {k:'palette',label:'Bảng màu',ph:'đen chủ đạo · đỏ rượu accent · bạc lạnh'},
+ {k:'fabrics',label:'Chất liệu',ph:'ren, nhung, da lộn, voan'},
+ {k:'accessories',label:'Phụ kiện đặc trưng',ph:'choker bạc, boots cao cổ, găng ren'},
+ {k:'hairMakeup',label:'Tóc & makeup đi kèm',ph:'tóc đen dài, môi berry, mắt khói nhẹ'},
+ {k:'avoid',label:'TỪ CẤM — không bao giờ mặc',ph:'pastel, hoạ tiết hoa nhí, đồ thể thao'}
+];
+/* Khoá phong cách bơm vào MỌI prompt ảnh/video của tab này. avoid đi vào dạng phủ định. */
+function fashionDnaEN(){
+  const d=S.fashionDna||{};
+  const on=[['STYLE ARCHETYPE',d.archetype],['SILHOUETTE',d.silhouette],['COLOR PALETTE',d.palette],
+    ['FABRICS',d.fabrics],['SIGNATURE ACCESSORIES',d.accessories],['HAIR & MAKEUP',d.hairMakeup]]
+    .filter(x=>String(x[1]||'').trim()).map(x=>x[0]+': '+String(x[1]).trim()).join(' · ');
+  const no=String(d.avoid||'').trim();
+  return (on?(' FASHION DNA LOCK — '+on+'.'):'')+(no?(' NEVER include: '+no+'.'):'');
+}
+function fashionDnaFilled(){return FASHION_FIELDS.some(f=>String((S.fashionDna||{})[f.k]||'').trim());}
+function fashionDnaHTML(){
+  const d=S.fashionDna||{};
+  return `<div class="card">
+    <h2>🧬 DNA thời trang của nhân vật</h2>
+    <p class="hint" style="margin-top:2px">Bơm vào mọi ảnh, video và bài viết của tab này — thứ giữ cho các bộ sinh cách nhau vẫn cùng một gốc phong cách.</p>
+    <div class="bar"><button class="btn gold" id="fdnaBtn" onclick="genFashionDna()" ${personaOK()?'':'disabled'}>✨ AI viết DNA thời trang</button>
+      <button class="btn" onclick="saveFashionDna()">Lưu DNA</button></div>
+    ${FASHION_FIELDS.map(f=>`<label style="margin-top:8px">${esc(f.label)}</label>
+      <input data-fdna="${f.k}" value="${esc(d[f.k]||'')}" placeholder="${esc(f.ph)}">`).join('')}
+  </div>`;
+}
+function saveFashionDna(){
+  const d={};document.querySelectorAll('#main [data-fdna]').forEach(el=>{d[el.dataset.fdna]=el.value.trim();});
+  S.fashionDna=d;save();toast('Đã lưu DNA thời trang');
+}
+async function genFashionDna(){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  const b=document.getElementById('fdnaBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang viết...';}
+  const p=S.persona||{};
+  const prompt=`Bạn là stylist trưởng. Từ hồ sơ nhân vật dưới đây, viết DNA THỜI TRANG riêng của người này.
+
+NHÂN VẬT: ${p.name||''} · ${p.age||''} · ${p.gender||''}
+Ngoại hình: ${p.ethnicityLook||''}
+Thần thái: ${p.vibe||''}
+Phong cách hình ảnh kênh: ${p.visualStyle||''}
+Nghề/định vị: ${p.occupation||''} · Niche: ${p.niche||''}
+
+Trả về DUY NHẤT JSON:
+{"archetype":"","silhouette":"","palette":"","fabrics":"","accessories":"","hairMakeup":"","avoid":""}
+
+LUẬT:
+- Mỗi field 1 dòng ngắn, cụ thể, dùng được ngay làm chỉ dẫn cho stylist. Tiếng Việt.
+- "archetype" nêu 1-2 trường phái thời trang có thật, ghép lại (VD: "gothic romantic × tailoring tối giản").
+- "avoid" liệt kê 3-5 thứ nhân vật này KHÔNG BAO GIỜ mặc — phải mâu thuẫn thật với archetype.
+- Không nhắc tên thương hiệu thật.`;
+  try{
+    const d=parseJSON(await geminiText(prompt,true));
+    S.fashionDna=Object.assign({},S.fashionDna||{},d);save();
+    renderStudio(document.getElementById('main'));toast('✓ Đã viết DNA thời trang — sửa cho đúng ý rồi bấm Lưu');
+  }catch(e){toast('Lỗi AI: '+(e.message||e));}
+  finally{const bb=document.getElementById('fdnaBtn');if(bb){bb.disabled=false;bb.innerHTML='✨ AI viết DNA thời trang';}}
+}
+
 const VID_TALENTS=[
   ['guitar','🎸 Chơi guitar','playing an acoustic guitar, fingers gently on the strings','natural warm acoustic guitar melody'],
   ['piano','🎹 Chơi piano','playing a grand piano gracefully','a soft delicate piano melody'],
