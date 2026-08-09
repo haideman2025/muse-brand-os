@@ -371,11 +371,11 @@ aside{display:flex;flex-direction:column;gap:13px}
    Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
-const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory','calendar','products'];
+const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory','calendar','products','fashionDna','styleSets'];
 /* Field nào là MẢNG — nguồn sự thật duy nhất. Thêm field mảng mới vào CHAR_FIELDS thì PHẢI thêm vào đây,
    nếu không activeChar() sẽ khởi tạo nó thành {} và mọi .push/.unshift/.filter sẽ nổ. */
-const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content','vidHistory','products'];
-function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[],content:[],vidHistory:[]};}
+const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content','vidHistory','products','styleSets'];
+function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[],content:[],vidHistory:[],products:[],styleSets:[]};}
 let __migratedLegacy=false;
 /* Migration → workspace đa nhân vật (v2). Giữ settings toàn cục ở gốc; mỗi nhân vật 1 gói dna riêng. */
 function migrateWS(r){
