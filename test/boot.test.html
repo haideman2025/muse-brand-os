@@ -26,9 +26,11 @@ async function main(){
   ok((w.__errs||[]).length===0,'khởi động không có lỗi JS'+(errs()?': '+errs():''));
   ok(w.eval('typeof S')==='object','state S dựng được');
   ok(w.eval('Array.isArray(S.content)'),'S.content là mảng (lỗi TypeError cũ)');
+  ok(w.eval('Array.isArray(S.styleSets)'),'S.styleSets là mảng');
+  ok(w.eval('typeof S.fashionDna')==='object','S.fashionDna là object');
 
   // Các hàm của bản vá OOM
-  for(const fn of ['mediaThumb','vidTalentChipsHTML','paintVidPicked','paintVidOutfitSel','vidOutfit','vidTalent','renderVideo','scaleDataUrl']){
+  for(const fn of ['mediaThumb','vidTalentChipsHTML','paintVidPicked','paintVidOutfitSel','vidOutfit','vidTalent','renderVideo','scaleDataUrl','renderStyleBrain','styleGenPlan','styleRenderSet','styleFlowPack','styleValidatePlan','styleBuildPack','genFashionDna']){
     ok(typeof w[fn]==='function','có hàm '+fn+'()');
   }
 
