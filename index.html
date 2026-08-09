@@ -1373,6 +1373,7 @@ function renderStudio(m){
     <button class="tab ${t==='photoshoot'?'active':''}" onclick="studioTab('photoshoot')">📸 Photoshoot</button>
     <button class="tab ${t==='clone'?'active':''}" onclick="studioTab('clone')">🎯 Clone từ ảnh</button>
     <button class="tab ${t==='product'?'active':''}" onclick="studioTab('product')">🛍️ Bộ ảnh SP</button>
+    <button class="tab ${t==='style'?'active':''}" onclick="studioTab('style')">👠 Phối đồ</button>
     <button class="tab ${t==='poster'?'active':''}" onclick="studioTab('poster')">🎞️ Poster</button>
     <button class="tab ${t==='wardrobe'?'active':''}" onclick="studioTab('wardrobe')">👗 Tủ đồ</button>
     <button class="tab ${t==='gallery'?'active':''}" onclick="studioTab('gallery')">🖼️ Thư viện (${S.gallery.length})</button>
@@ -1385,6 +1386,7 @@ function renderStudio(m){
   if(t==='photoshoot')renderPhotoshoot(body);
   else if(t==='clone')renderClone(body);
   else if(t==='product')renderProductSet(body);
+  else if(t==='style')renderStyleBrain(body);
   else if(t==='poster')renderPoster(body);
   else if(t==='wardrobe')renderWardrobe(body);
   else if(t==='video')renderVideo(body);
@@ -2557,6 +2559,52 @@ LUẬT:
   }catch(e){toast('Lỗi AI: '+(e.message||e));}
   finally{const bb=document.getElementById('fdnaBtn');if(bb){bb.disabled=false;bb.innerHTML='✨ AI viết DNA thời trang';}}
 }
+
+/* ---- Khối nhập: tối đa 5 bộ, 3 kiểu đầu vào ---- */
+const STYLE={inputs:[{kind:'wardrobe',key:'',text:''}],ratio:'4:5',busy:false,openId:'',exportIds:[]};
+const STYLE_KINDS=[['wardrobe','👗 Món đồ có sẵn'],['text','✍️ Mô tả tự gõ'],['occasion','📅 Dịp mặc']];
+function styleSrcItems(){
+  const out=[];
+  (S.wardrobe||[]).forEach(w=>out.push({key:'wb:'+w.id,name:w.name||'Outfit',desc:w.masterPrompt||w.name||''}));
+  (S.products||[]).forEach(p=>{if(p.imgKey)out.push({key:p.imgKey,name:p.name||'Sản phẩm',desc:p.desc||p.name||''});});
+  return out;
+}
+function styleAddInput(){if(STYLE.inputs.length>=5){toast('Tối đa 5 bộ một lần');return;}STYLE.inputs.push({kind:'wardrobe',key:'',text:''});renderStyleBrain(document.getElementById('studioBody'));}
+function styleDelInput(i){STYLE.inputs.splice(i,1);if(!STYLE.inputs.length)STYLE.inputs.push({kind:'wardrobe',key:'',text:''});renderStyleBrain(document.getElementById('studioBody'));}
+function styleSetKind(i,k){STYLE.inputs[i].kind=k;renderStyleBrain(document.getElementById('studioBody'));}
+function styleReadInputs(){
+  document.querySelectorAll('#styleInputs [data-si]').forEach(el=>{
+    const i=parseInt(el.dataset.si,10);if(!STYLE.inputs[i])return;
+    if(el.dataset.f==='key')STYLE.inputs[i].key=el.value;else STYLE.inputs[i].text=el.value;
+  });
+  const r=document.getElementById('styleRatio');if(r)STYLE.ratio=r.value;
+}
+function styleInputsHTML(){
+  const items=styleSrcItems();
+  return `<div class="card">
+    <h2>👠 Tạo bộ phối đồ <span class="hint">(tối đa 5 bộ / lần)</span></h2>
+    ${fashionDnaFilled()?'':'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Chưa có DNA thời trang — nên viết trước để 5 bộ đồng nhất phong cách.</div>'}
+    <div id="styleInputs">${STYLE.inputs.map((it,i)=>`<div class="card" style="margin-top:10px;padding:12px">
+      <div class="bar" style="justify-content:space-between"><b>Bộ ${i+1}</b>
+        <button class="btn ghost sm" onclick="styleDelInput(${i})">✕</button></div>
+      <div>${STYLE_KINDS.map(k=>`<span class="chip" style="${it.kind===k[0]?'border-color:var(--gold);color:var(--gold)':''}" onclick="styleReadInputs();styleSetKind(${i},'${k[0]}')">${k[1]}</span>`).join(' ')}</div>
+      ${it.kind==='wardrobe'
+        ? `<select data-si="${i}" data-f="key" style="margin-top:8px">${items.length?items.map(x=>`<option value="${esc(x.key)}" ${it.key===x.key?'selected':''}>${esc(x.name)}</option>`).join(''):'<option value="">— chưa có món đồ nào trong Tủ đồ / Kho SP —</option>'}</select>`
+        : `<input data-si="${i}" data-f="text" value="${esc(it.text)}" placeholder="${it.kind==='occasion'?'VD: đi làm ngày mưa, hẹn hò tối, du lịch biển':'VD: đầm đen dài ren tay phồng'}" style="margin-top:8px">`}
+    </div>`).join('')}</div>
+    <div class="bar" style="margin-top:10px;flex-wrap:wrap">
+      <button class="btn ghost sm" onclick="styleReadInputs();styleAddInput()">+ Thêm bộ</button>
+      <div><label style="margin:0 0 2px">Tỉ lệ ảnh</label><select id="styleRatio">${['1:1','4:5','9:16'].map(r=>`<option value="${r}" ${STYLE.ratio===r?'selected':''}>${r}</option>`).join('')}</select></div>
+      <button class="btn gold" id="stylePlanBtn" onclick="styleGenPlan()" ${personaOK()?'':'disabled'}>🧠 Sinh kế hoạch ${STYLE.inputs.length} bộ</button>
+    </div>
+    <div id="stylePlanErr" class="note" style="display:none;border-color:var(--coral);color:#ffb3b3"></div>
+  </div>`;
+}
+function renderStyleBrain(b){
+  b.innerHTML=fashionDnaHTML()+styleInputsHTML()+'<div id="styleSetList"></div>';
+  renderStyleSets();
+}
+function renderStyleSets(){const el=document.getElementById('styleSetList');if(el)el.innerHTML='';}
 
 const VID_TALENTS=[
   ['guitar','🎸 Chơi guitar','playing an acoustic guitar, fingers gently on the strings','natural warm acoustic guitar melody'],
