@@ -47,13 +47,23 @@ CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
   --dump-dom "file://$PWD/test/style-pack.test.html"  # flow-pack đúng schema, ảnh nhúng đã thu nhỏ
 ```
 
-### Luật prompt video (đọc trước khi sửa phần video)
-Prompt cho mô hình Omni theo công thức 5 khối: **quy cách chung + khoá chủ thể + đơn vị cảnh×N +
-liên tục xuyên cảnh + ràng buộc phủ định** (`omniMasterPrompt()`).
+### Luật prompt video (đọc trước khi sửa `omniMasterPrompt()`)
 
-Mỗi đơn vị cảnh phải có **`end_state`** — khi cut kết thúc thì nhân vật ở đâu, mặt quay hướng nào,
-tay cầm gì, hành động đang có đà gì. `action` của cut sau bắt đầu đúng từ đó. Đây là thứ duy nhất
-làm 6–8 quick-cut liền mạch; bỏ nó đi là video giật cục ngay.
+**1. Không bao giờ nhắc nhận dạng con người.** Không "ảnh tham chiếu", không tả khuôn mặt, không
+"giữ đúng gương mặt". Google Flow chặn thẳng với lý do *vi phạm chính sách tạo video về người nổi
+tiếng*. Chủ thể để chung chung (`a generic stylish young woman`); ảnh tham chiếu upload riêng trong
+Flow lo phần giữ mặt. Luật này đã có sẵn trong `aiPromptSafe()` — mọi prompt video phải theo.
+Khoá **trang phục** thì được, đó không phải nhận dạng người.
+
+**2. Không kịch bản hoá từng cut.** Chỉ nêu `6-8 quick cuts` + ý tưởng + text overlay + luật nối
+cut, rồi để model tự quyết nhịp, khuôn hình, góc máy. Chỉ định cứng từng cut vừa làm prompt dài
+vừa ra video cứng hơn.
+
+**3. Giữ luật nối cut.** `each cut must continue EXACTLY from where the previous cut ended — same
+position, same facing, same object in hand, same motion momentum`. Nêu một lần làm luật chung là đủ
+để 6–8 quick-cut liền mạch.
+
+`test/omni-prompt.test.js` khoá cả 3 luật này lại.
 
 ### Luật ảnh (đọc trước khi thêm lưới ảnh mới)
 Thư viện chứa tới **600 ảnh**, mỗi ảnh gốc **1–7MB base64**. Nạp cả lưới bằng ảnh gốc = **1–4GB** →
