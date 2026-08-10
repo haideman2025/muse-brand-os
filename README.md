@@ -65,6 +65,10 @@ position, same facing, same object in hand, same motion momentum`. Nêu một l�
 
 `test/omni-prompt.test.js` khoá cả 3 luật này lại.
 
+**4. Hình dạng flow-pack: 1 bộ = 1 ngày, 1 video = 1 shot.** Mỗi shot mang nguyên prompt omni của cả
+video 10s. Tool dựng video coi mỗi shot là **một video phải render** — tách 6–8 quick-cut thành 6–8
+shot là 1 bộ hoá thành 18–19 video. `test/style-pack.test.html` khoá con số này lại.
+
 ### Luật ảnh (đọc trước khi thêm lưới ảnh mới)
 Thư viện chứa tới **600 ảnh**, mỗi ảnh gốc **1–7MB base64**. Nạp cả lưới bằng ảnh gốc = **1–4GB** →
 tab chết với `Aw Snap: Out of Memory`.
