@@ -2791,6 +2791,10 @@ async function styleBuildPack(sets,getImg){
   const face=await getImg('face');
   const products=[],days=[],nvShots=[];
   let pi=0,dn=0;
+  /* HÌNH DẠNG PACK — 1 BỘ = 1 NGÀY, 1 VIDEO = 1 SHOT.
+     Mỗi shot mang nguyên prompt omni của cả video 10s (6-8 quick cut nằm TRONG một prompt).
+     Không được tách clip thành shot: tool dựng video coi mỗi shot là một video phải render,
+     tách ra là 1 bộ hoá thành 18-19 video. */
   for(const s of sets){
     const looks=[{name:'Mặc đơn giản',gid:s.base&&s.base.gid}].concat((s.looks||[]).map(l=>({name:l.name,gid:l.gid})));
     const mine=[];
@@ -2802,23 +2806,18 @@ async function styleBuildPack(sets,getImg){
         xuat_hien_o:[],prompt_anh:'',co_anh:!!u,anh_base64:u?await scaleDataUrl(u,1024):''};
       products.push(ent);mine.push(ent);
     }
-    (s.videos||[]).forEach(v=>{
-      dn++;const day='N'+dn;
-      const shots=(v.clips||[]).map((c,ci)=>{
-        const sid=day+'-S'+(ci+1);nvShots.push(sid);
-        const ent=mine.length?mine[ci%mine.length]:null;
-        if(ent)ent.xuat_hien_o.push(sid);
-        return {seq:ci+1,thoi_luong:'10s',nhan_vat:['NV1'],san_pham:ent?[ent.id]:[],no_product:!ent,
-          canh:'',cam_xuc:'',goc_may:c.angle||'',
-          overlay:{text:c.overlay||'',do_hoa:'',sfx:'',nhac:v.audio||''},
-          ly_do_gan:s.styleName||'',prompt_en:c.prompt_en||'',voiceover:''};
-      });
-      /* prompt_omni = cả video trong 1 prompt (mô hình omni sinh liền mạch nhiều cut).
-         prompt_en từng shot vẫn giữ nguyên cho tool render từng cảnh — không phá schema cũ. */
-      days.push({ngay:day,series:(s.styleName||'')+' — '+(v.title||''),
-        voice:{ngon_ngu:'Vietnamese',ma_ngon_ngu:'vi-VN',phong_cach:''},arc_cam_xuc:[],
-        prompt_omni:omniMasterPrompt(v,styleOmniOpts(s)),shots:shots});
+    dn++;const day='N'+dn;
+    const shots=(s.videos||[]).map((v,vi)=>{
+      const sid=day+'-S'+(vi+1);nvShots.push(sid);
+      mine.forEach(ent=>ent.xuat_hien_o.push(sid));
+      return {seq:vi+1,thoi_luong:'10s',nhan_vat:['NV1'],san_pham:mine.map(e=>e.id),no_product:!mine.length,
+        canh:'',cam_xuc:'',goc_may:'',
+        overlay:{text:(v.clips||[]).map(c=>c&&c.overlay).filter(Boolean).join(' | '),do_hoa:'',sfx:'',nhac:v.audio||''},
+        ly_do_gan:(s.styleName||'')+(v.title?(' — '+v.title):''),
+        prompt_en:omniMasterPrompt(v,styleOmniOpts(s)),voiceover:''};
     });
+    days.push({ngay:day,series:s.styleName||'',
+      voice:{ngon_ngu:'Vietnamese',ma_ngon_ngu:'vi-VN',phong_cach:''},arc_cam_xuc:[],shots:shots});
   }
   return {schema:'flow-pack/v1',
     meta:{kenh:p.name?('@'+String(p.name).toLowerCase().replace(/[^a-z0-9]+/g,'')):'',doi_tuong:'',
@@ -2840,7 +2839,8 @@ async function styleFlowPack(){
   toast('Đang dựng file...');
   const pack=await styleBuildPack(sets,async k=>k==='face'?(await getRef()):(await mediaGet(k)));
   dl('style-pack-'+_today10()+'.json',JSON.stringify(pack,null,1),'application/json');
-  toast('✓ Đã xuất '+pack.days.length+' video');
+  const nvid=pack.days.reduce((n,d)=>n+d.shots.length,0);
+  toast('✓ Đã xuất '+pack.days.length+' ngày · '+nvid+' video 10s · '+pack.products.length+' ảnh tham chiếu');
 }
 async function styleDlOriginals(){
   const all=S.styleSets||[];

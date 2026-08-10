@@ -39,14 +39,22 @@ async function main(){
   // styleBuildPack nhận hàm lấy ảnh từ ngoài → test không phụ thuộc IndexedDB
   const pack=await w.styleBuildPack([set],async()=>big);
 
+  /* HÌNH DẠNG PACK — chỗ này từng sai và làm Lò Video Pro hiểu thành 19 video:
+     1 BỘ = 1 NGÀY, 1 VIDEO = 1 SHOT. Mỗi shot mang nguyên prompt omni của cả video 10s,
+     KHÔNG tách 6-8 clip thành 6-8 shot (tool sẽ tưởng phải render 6-8 video riêng). */
   ok(pack.schema==='flow-pack/v1','schema đúng flow-pack/v1');
-  ok(Array.isArray(pack.days)&&pack.days.length===3,'3 video → 3 ngày (được '+(pack.days||[]).length+')');
-  ok(pack.days[0].shots.length===6,'video 6 clip → 6 shot (được '+pack.days[0].shots.length+')');
+  ok(Array.isArray(pack.days)&&pack.days.length===1,'1 bộ → 1 ngày (được '+(pack.days||[]).length+')');
+  ok(pack.days[0].shots.length===3,'3 video → 3 shot (được '+pack.days[0].shots.length+')');
+  const totalShots=pack.days.reduce((n,d)=>n+d.shots.length,0);
+  ok(totalShots===3,'tổng cộng đúng 3 shot cần render, không phải 18-19 (được '+totalShots+')');
+  ok(pack.days[0].shots[0].thoi_luong==='10s','mỗi shot là 1 video 10s');
   ok(!!pack.days[0].shots[0].prompt_en,'shot có prompt_en');
-  ok(pack.days[0].shots[0].overlay.text==='Phối áo dài','overlay giữ nguyên text');
-  ok(!!pack.days[0].shots[0].goc_may,'shot có góc máy');
   ok(Array.isArray(pack.characters)&&pack.characters.length===1,'có 1 nhân vật');
   ok(pack.products.length===5,'5 ảnh của bộ → 5 reference (được '+pack.products.length+')');
+  ok(pack.days[0].shots[0].san_pham.length===5,'mỗi shot đính sẵn cả 5 ảnh tham chiếu (được '+pack.days[0].shots[0].san_pham.length+')');
+  ok(pack.products[0].xuat_hien_o.length===3,'ảnh tham chiếu được gắn vào cả 3 shot');
+  ok(pack.characters[0].xuat_hien_o.length===3,'nhân vật xuất hiện ở cả 3 shot');
+  ok(/Phối áo dài/.test(pack.days[0].shots[0].overlay.text),'overlay gom đủ chữ của video');
 
   const embeds=[pack.characters[0].anh_base64].concat(pack.products.map(p=>p.anh_base64)).filter(Boolean);
   ok(embeds.length===6,'6 ảnh được nhúng (được '+embeds.length+')');
@@ -56,15 +64,14 @@ async function main(){
   ok(biggest<big.length*0.2,'ảnh nhúng nhỏ hơn 20% ảnh gốc');
 
   // Mỗi ngày phải kèm 1 prompt hoàn chỉnh cho mô hình omni (ngoài prompt_en từng shot).
-  const po=pack.days[0].prompt_omni||'';
-  ok(!!po,'ngày có prompt_omni');
-  ['LOOK:','SUBJECT:','IDEA','CUT FLOW:','NEGATIVE:'].forEach(k=>ok(po.indexOf(k)>=0,'prompt_omni có khối '+k));
-  ok(/6-8 quick cuts/.test(po),'prompt_omni để model tự dựng 6-8 cut');
-  ok(/continue EXACTLY from where the previous cut ended/.test(po),'prompt_omni có luật nối cut');
-  ok(po.indexOf('"Phối áo dài"')>=0,'prompt_omni giữ text overlay');
+  // prompt_en của shot CHÍNH LÀ prompt omni hoàn chỉnh — import xong là dán chạy được ngay.
+  const po=pack.days[0].shots[0].prompt_en||'';
+  ['LOOK:','SUBJECT:','IDEA','CUT FLOW:','NEGATIVE:'].forEach(k=>ok(po.indexOf(k)>=0,'prompt shot có khối '+k));
+  ok(/6-8 quick cuts/.test(po),'prompt shot để model tự dựng 6-8 cut');
+  ok(/continue EXACTLY from where the previous cut ended/.test(po),'prompt shot có luật nối cut');
+  ok(po.indexOf('"Phối áo dài"')>=0,'prompt shot giữ text overlay');
   // Chốt chặn policy: nhắc nhận dạng là Flow chặn theo chính sách người nổi tiếng.
-  ok(!/reference image|facial identity|facial features/i.test(po),'prompt_omni KHÔNG nhắc ảnh tham chiếu / nhận dạng');
-  ok(!!pack.days[0].shots[0].prompt_en,'vẫn giữ prompt_en từng shot (schema cũ không vỡ)');
+  ok(!/reference image|facial identity|facial features/i.test(po),'prompt shot KHÔNG nhắc ảnh tham chiếu / nhận dạng');
 
   const json=JSON.stringify(pack);
   lines.push('Cả file pack: '+(json.length/1024/1024).toFixed(2)+' MB');

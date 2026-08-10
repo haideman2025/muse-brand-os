@@ -137,8 +137,11 @@ sẵn mọi bộ đã có ít nhất 1 ảnh. Thư viện giữ tới 20 bộ n�
 - `characters[]`: 1 phần tử `NV1`, `anh_base64` = ảnh neo qua `scaleDataUrl(u,1024)`
 - `products[]`: mỗi look **đã có ảnh** = 1 phần tử, `anh_base64` = ảnh look thu nhỏ 1024px,
   `xuat_hien_o` = danh sách shot dùng nó
-- `days[]`: mỗi video = 1 ngày (`N1`…), mỗi clip = 1 shot với `prompt_en`, `overlay.text`,
-  `goc_may`, `thoi_luong:'10s'`. Một mẻ 5 bộ → 15 ngày; tick nhiều bộ hơn thì nhiều ngày hơn.
+- `days[]`: **1 bộ = 1 ngày** (`N1`…), **1 video = 1 shot**. Mỗi shot mang nguyên prompt omni của cả
+  video 10s và đính sẵn toàn bộ ảnh tham chiếu của bộ. Một mẻ 5 bộ → 5 ngày × 3 shot = 15 video.
+
+  > **Không được tách clip thành shot.** Tool dựng video coi mỗi shot là một video phải render;
+  > tách 6–8 clip ra là 1 bộ hoá thành 18–19 video (lỗi đã xảy ra 2026-08-10, xem `style-pack.test.html`).
 - Thu nhỏ **trước** khi nhúng, dựng chuỗi JSON một lần rồi `dl()` qua Blob
 
 Nút phụ `⬇ Tải ảnh gốc` tải bản full-res, nạp trong hẹn giờ từng tấm (theo `dlGalleryAll`).
