@@ -73,6 +73,15 @@ async function main(){
   // Chốt chặn policy: nhắc nhận dạng là Flow chặn theo chính sách người nổi tiếng.
   ok(!/reference image|facial identity|facial features/i.test(po),'prompt shot KHÔNG nhắc ảnh tham chiếu / nhận dạng');
 
+  // Ô tích "chữ cháy sẵn trên video" phải ăn vào cả file xuất, không chỉ nút Copy.
+  w.eval('S.drawText=false');
+  const packNoText=await w.styleBuildPack([set],async()=>big);
+  const pnt=packNoText.days[0].shots[0].prompt_en||'';
+  ok(pnt.indexOf('ON-SCREEN TEXT')<0,'tắt chữ: prompt trong flow-pack không còn khối chữ');
+  ok(/no on-screen text/i.test(pnt.slice(pnt.indexOf('NEGATIVE:'))),'tắt chữ: flow-pack cấm hẳn chữ');
+  ok(/Phối áo dài/.test(packNoText.days[0].shots[0].overlay.text),'tắt chữ: overlay.text vẫn giữ để tự chèn khi edit');
+  w.eval('S.drawText=true');
+
   const json=JSON.stringify(pack);
   lines.push('Cả file pack: '+(json.length/1024/1024).toFixed(2)+' MB');
   ok(json.length<20*1024*1024,'file pack dưới 20MB');
