@@ -232,6 +232,25 @@ KHÔNG cấm chữ và mỗi đơn vị cảnh ghi `ON-SCREEN TEXT: "..."`. Rủ
 hay bị méo và không sửa được, phải sinh lại cả clip. Bảng "giây nào — chữ gì" vẫn hiển thị ở card
 để dán tay ở CapCut khi cần.
 
+## Nâng cấp 2026-08-10 — chế độ "📤 Ảnh thật của tôi"
+
+Người dùng tự tải **2–6 ảnh chụp thật** của một bộ đồ, AI **nhìn ảnh** rồi viết kế hoạch. Không sinh
+ảnh → không tốn tiền ảnh, và mặt/món đồ chuẩn tuyệt đối vì là ảnh thật.
+
+| Thành phần | Chi tiết |
+|---|---|
+| Vị trí | 2 nút chuyển chế độ trong tab Phối đồ: `🎨 AI sinh ảnh` · `📤 Ảnh thật của tôi`. Chung danh sách bộ, chung nút xuất |
+| Upload | chọn nhiều file một lượt, tối đa 6. **Thu nhỏ 1536px trước khi lưu** IndexedDB (ảnh điện thoại 3–8MB) |
+| Chọn ảnh gốc | bấm vào ảnh bất kỳ để đặt làm *Gốc*; các ảnh còn lại thành Look theo thứ tự |
+| `geminiVisionMulti(prompt,imgs,jsonMode)` | gửi **nhiều ảnh** trong một lượt gọi (bản `geminiVision` cũ chỉ nhận 1 ảnh) |
+| `styleVisionPrompt(nPhotos,baseIdx)` | ép AI mô tả đúng đồ **có thật trong ảnh**, cấm bịa, ép đúng thứ tự look ↔ ảnh, ép đúng `nPhotos-1` look |
+| `styleValidatePlan(plan,expectLooks)` | tham số thứ 2 mới; mặc định 4 cho luồng AI, luồng ảnh thật truyền số thực tế |
+| Card | badge `📤 ảnh thật`, **ẩn nút Render** (ảnh đã có sẵn), đếm `n/n ảnh` theo số ảnh thật |
+| Xuất | không đổi — ảnh thật thành reference nhúng 1024px |
+
+Sau khi sinh kế hoạch xong, khay upload được dọn sạch: ảnh đã thuộc về bộ, bấm "Xoá hết" không
+động tới chúng nữa.
+
 ## Không làm (YAGNI)
 
 - Không tự đăng mạng xã hội — đã có Zernio riêng

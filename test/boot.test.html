@@ -30,9 +30,16 @@ async function main(){
   ok(w.eval('typeof S.fashionDna')==='object','S.fashionDna là object');
 
   // Các hàm của bản vá OOM
-  for(const fn of ['mediaThumb','vidTalentChipsHTML','paintVidPicked','paintVidOutfitSel','vidOutfit','vidTalent','renderVideo','scaleDataUrl','renderStyleBrain','styleGenPlan','styleRenderSet','styleFlowPack','styleValidatePlan','styleBuildPack','genFashionDna','omniMasterPrompt','styleCopyOmni','copyVidOmni','styleOmniOpts']){
+  for(const fn of ['mediaThumb','vidTalentChipsHTML','paintVidPicked','paintVidOutfitSel','vidOutfit','vidTalent','renderVideo','scaleDataUrl','renderStyleBrain','styleGenPlan','styleRenderSet','styleFlowPack','styleValidatePlan','styleBuildPack','genFashionDna','omniMasterPrompt','styleCopyOmni','copyVidOmni','styleOmniOpts','geminiVisionMulti','styleVisionPrompt','stylePhotoUpload','styleGenPhotoPlan','styleMode']){
     ok(typeof w[fn]==='function','có hàm '+fn+'()');
   }
+
+  // Chuyển chế độ Phối đồ khi chưa mở tab: phải im lặng, không ném lỗi
+  try{ w.styleMode('photo'); ok(w.eval("STYLE.mode")==='photo','đổi sang chế độ ảnh thật được'); }
+  catch(e){ ok(false,'styleMode() ném lỗi: '+e.message); }
+  try{ w.stylePhotoDel(0); w.stylePhotoClear(); ok(true,'thao tác ảnh khi khay rỗng không ném lỗi'); }
+  catch(e){ ok(false,'thao tác ảnh ném lỗi: '+e.message); }
+  w.styleMode('ai');
 
   // Tick outfit khi lưới chưa dựng: phải im lặng, không được ném lỗi
   w.eval('VID.outfits=[]');

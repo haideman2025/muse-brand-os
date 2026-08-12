@@ -67,9 +67,28 @@ test('quá 5 bộ thì báo lỗi', () => {
   assert.ok(r.errors.some(e => /tối đa 5/.test(e)));
 });
 
-test('phải đúng 4 look', () => {
+test('mặc định phải đúng 4 look', () => {
   const s = goodSet(); s.looks = [goodLook(1), goodLook(2)];
   assert.ok(app.styleValidatePlan([s]).errors.some(e => /phải đúng 4/.test(e)));
+});
+
+/* Luồng "ảnh thật của tôi" cho up 2-6 ảnh → số look thay đổi theo số ảnh, nên validator
+   nhận số look mong đợi từ ngoài. */
+test('truyền số look mong đợi thì ép theo số đó', () => {
+  const s = goodSet(); s.looks = [goodLook(1), goodLook(2)];
+  const r = app.styleValidatePlan([s], 2);
+  assert.ok(r.ok, 'phải hợp lệ với expectLooks=2, lỗi: ' + r.errors.join(' | '));
+});
+
+test('truyền số look mong đợi mà AI trả sai thì báo đúng số', () => {
+  const s = goodSet(); // 4 look
+  assert.ok(app.styleValidatePlan([s], 5).errors.some(e => /phải đúng 5/.test(e)));
+});
+
+test('expectLooks không hợp lệ thì quay về mặc định 4', () => {
+  const s = goodSet();
+  assert.ok(app.styleValidatePlan([s], 0).ok, 'expectLooks=0 phải dùng mặc định 4');
+  assert.ok(app.styleValidatePlan([s], 'x').ok, 'expectLooks sai kiểu phải dùng mặc định 4');
 });
 
 test('phải đúng 3 video', () => {
