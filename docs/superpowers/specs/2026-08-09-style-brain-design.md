@@ -228,9 +228,24 @@ Thứ giữ lại từ công thức tham khảo là phần đắt nhất: luật
 trước* (vị trí, hướng người, vật trong tay, đà chuyển động).
 
 **Quyết định về text overlay:** người dùng chọn **để model tự vẽ chữ vào video**, nên khối phủ định
-KHÔNG cấm chữ và mỗi đơn vị cảnh ghi `ON-SCREEN TEXT: "..."`. Rủi ro đã nêu: chữ tiếng Việt có dấu
+KHÔNG cấm chữ và prompt ghi `ON-SCREEN TEXT: "..."`. Rủi ro đã nêu: chữ tiếng Việt có dấu
 hay bị méo và không sửa được, phải sinh lại cả clip. Bảng "giây nào — chữ gì" vẫn hiển thị ở card
 để dán tay ở CapCut khi cần.
+
+### Nâng cấp 2026-08-10 — ô tích bật/tắt chữ
+
+`S.drawText` (mặc định **bật**, lưu ở gốc `S` nên giữ qua các phiên). Ô tích *"chữ cháy sẵn trên
+video"* xuất hiện ở **cả hai** thanh: xuất của tab Phối đồ và kết quả của tab Video Omni — cùng đọc
+ghi một cờ qua `drawTextToggleHTML()`.
+
+- **Bật**: prompt có khối `ON-SCREEN TEXT`, khối phủ định không cấm chữ (như cũ).
+- **Tắt**: bỏ hẳn khối chữ **và** khối phủ định cấm thẳng `no on-screen text, no subtitles,
+  no captions, no typography of any kind`. Phải cấm chủ động chứ không im lặng bỏ qua — model hay
+  tự bịa chữ vào khung hình.
+- Dù bật hay tắt, `overlay.text` trong flow-pack và các dòng chữ trên card **luôn giữ nguyên** để
+  tự chèn lúc edit. Card hiện cảnh báo vàng khi đang tắt.
+
+Cờ này ăn vào cả nút Copy lẫn file flow-pack xuất ra (`style-pack.test.html` khoá lại).
 
 ## Nâng cấp 2026-08-10 — chế độ "📤 Ảnh thật của tôi"
 

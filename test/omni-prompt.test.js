@@ -105,9 +105,31 @@ test('giữ khối ràng buộc phủ định', () => {
     .forEach(k => assert.ok(out.indexOf(k) >= 0, 'thiếu ràng buộc "' + k + '"'));
 });
 
-test('khối phủ định KHÔNG cấm chữ (người dùng chọn cho model vẽ chữ)', () => {
+test('bật chữ (mặc định): khối phủ định KHÔNG cấm chữ', () => {
   const neg = out.slice(out.indexOf('NEGATIVE:'));
   assert.ok(!/no text|no subtitle|no on-screen text/i.test(neg), 'khối phủ định không được cấm chữ');
+});
+
+/* ---- Nhóm 3b: người dùng tắt chữ để tự edit ---- */
+const noText = app.omniMasterPrompt(video, Object.assign({}, opts, { drawText: false }));
+
+test('tắt chữ: KHÔNG còn khối ON-SCREEN TEXT', () => {
+  assert.ok(noText.indexOf('ON-SCREEN TEXT') < 0, 'vẫn còn khối ON-SCREEN TEXT');
+  assert.ok(noText.indexOf('"Siết eo tạo tỉ lệ"') < 0, 'vẫn còn nội dung chữ trong prompt');
+});
+
+test('tắt chữ: khối phủ định CẤM hẳn chữ trong khung hình', () => {
+  const neg = noText.slice(noText.indexOf('NEGATIVE:'));
+  assert.ok(/no on-screen text/i.test(neg), 'thiếu lệnh cấm chữ');
+  assert.ok(/no subtitles/i.test(neg), 'thiếu lệnh cấm phụ đề');
+});
+
+test('tắt chữ: mọi thứ còn lại giữ nguyên', () => {
+  assert.ok(/6-8 quick cuts/.test(noText), 'mất số cut');
+  assert.ok(/continue EXACTLY from where the previous cut ended/.test(noText), 'mất luật nối cut');
+  assert.ok(noText.indexOf('black lace maxi dress') >= 0, 'mất khoá trang phục');
+  assert.ok(noText.indexOf('she adjusts the collar') >= 0, 'mất beat nội dung');
+  assert.ok(!/reference image|facial identity/i.test(noText), 'lọt câu bị Flow chặn');
 });
 
 /* ---- Nhóm 4: bền với dữ liệu thiếu ---- */

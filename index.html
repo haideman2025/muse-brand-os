@@ -2559,7 +2559,10 @@ function omniMasterPrompt(video,opts){
 
   L.push("\nCUT FLOW: each cut must continue EXACTLY from where the previous cut ended — same position, same facing, same object in hand, same motion momentum. No action resets, no unmotivated jumps. The whole video should read as one continuous moment sliced into quick cuts.");
   L.push('CONSISTENCY: outfit, accessories, hair, location, light quality and mood stay the same across every cut.');
-  L.push('NEGATIVE: no extra people, no wardrobe change, no unmotivated jump cuts, no action reset, no exaggerated transitions, no commercial advertisement feel, no logos, no watermark.');
+  const neg=['no extra people','no wardrobe change','no unmotivated jump cuts','no action reset','no exaggerated transitions','no commercial advertisement feel','no logos','no watermark'];
+  /* Tắt chữ thì phải CẤM hẳn, không chỉ im lặng bỏ qua — model hay tự bịa chữ vào khung hình. */
+  if(opts.drawText===false)neg.unshift('no on-screen text','no subtitles','no captions','no typography of any kind');
+  L.push('NEGATIVE: '+neg.join(', ')+'.');
   return L.join('\n');
 }
 /* == END OMNI MASTER PROMPT == */
@@ -2789,6 +2792,7 @@ function styleSetCardHTML(s){
       <div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.6))"><span style="font-size:10px;padding:3px 5px">${esc(x.t)} · ${esc(x.n||'')}</span></div></div>`).join('')}</div>
     <div id="styleerr_${s.id}" class="hint" style="color:var(--coral)"></div>
     <details style="margin-top:10px"><summary class="hint">🎬 ${(s.videos||[]).length} prompt video — bấm xem</summary>
+      ${styleDrawText()?'':'<div class="note" style="border-color:var(--gold);color:var(--gold);margin-top:8px">Chữ đang TẮT — prompt cấm model vẽ chữ lên hình. Các dòng chữ dưới đây vẫn giữ nguyên để mày tự chèn lúc edit.</div>'}
       ${(s.videos||[]).map((v,vi)=>`<div class="note" style="margin-top:8px"><b>Video ${vi+1}: ${esc(v.title||'')}</b> <span class="hint">${esc(v.hook||'')}</span>
         ${(v.clips||[]).map(c=>`<div style="margin-top:6px;padding-left:8px;border-left:2px solid var(--line)">
           <div class="hint">Clip ${c.seq} · ${esc(c.angle)}${c.camera?(' · '+esc(c.camera)):''} · overlay: <b>${esc(c.overlay)}</b></div>
@@ -2817,6 +2821,7 @@ function renderStyleSets(){
   el.innerHTML=`<div class="bar" style="margin-top:16px;flex-wrap:wrap">
       <button class="btn gold" onclick="styleFlowPack()">⬇ Xuất flow-pack cho Flow</button>
       <button class="btn ghost" onclick="styleDlOriginals()">⬇ Tải ảnh gốc</button>
+      ${drawTextToggleHTML()}
       <span class="hint" style="align-self:center">${list.length} bộ đã lưu (giữ tối đa 20)</span>
     </div>`+list.map(styleSetCardHTML).join('');
   /* Lưới ảnh: chỉ thumb, không bao giờ mediaGet trong vòng lặp — xem "Luật ảnh" trong README. */
@@ -2836,6 +2841,18 @@ function styleCopyVideo(id,vi){
   if(navigator.clipboard)navigator.clipboard.writeText(t);toast('Đã copy prompt video '+(vi+1));
 }
 /* Gom bối cảnh của 1 bộ thành opts cho omniMasterPrompt — dùng chung cho copy lẻ và flow-pack. */
+/* Bật/tắt chữ cháy sẵn trên video. Lưu ở gốc S nên giữ qua các lần mở lại app.
+   Mặc định BẬT để không đổi hành vi của người đang dùng. */
+function styleDrawText(){return S.drawText!==false;}
+/* Ô tích dùng chung cho tab Phối đồ và tab Video Omni — cùng đọc/ghi một cờ. */
+function drawTextToggleHTML(){
+  return `<label class="hint" style="align-self:center;margin:0;cursor:pointer" title="Bỏ tích nếu muốn video sạch chữ để tự chèn khi edit">
+    <input type="checkbox" ${styleDrawText()?'checked':''} onchange="styleSetDrawText(this.checked)"> chữ cháy sẵn trên video</label>`;
+}
+function styleSetDrawText(v){
+  S.drawText=!!v;save();
+  toast(v?'Video sẽ có sẵn chữ trên hình':'Video không chữ — tự chèn khi edit');
+}
 function styleOmniOpts(s){
   const d=S.fashionDna||{};
   /* Chỉ khoá TRANG PHỤC, không khoá con người — nhắc nhận dạng là bị Flow chặn theo chính sách
@@ -2843,7 +2860,7 @@ function styleOmniOpts(s){
   const wardrobe=[s.styleName,d.accessories].filter(x=>String(x||'').trim()).join(', ');
   return {seconds:10,ratio:'9:16',
     globalStyle:'contemporary editorial fashion film, natural daylight with soft rim light, shot on a full-frame mirrorless camera',
-    wardrobe:wardrobe,dnaLock:fashionDnaEN()};
+    wardrobe:wardrobe,dnaLock:fashionDnaEN(),drawText:styleDrawText()};
 }
 function styleCopyOmni(id,vi){
   const s=(S.styleSets||[]).find(x=>x.id===id);if(!s)return;const v=(s.videos||[])[vi];if(!v)return;
@@ -3471,8 +3488,9 @@ function vidHistoryPanelHTML(){
 function renderVideoOut(){
   const o=document.getElementById('vidOut');if(!o)return;
   const totalClips=__vidVideos.reduce((s,v)=>s+v.clips.length,0);
-  o.innerHTML=`<div class="bar" style="margin:14px 0 4px"><button class="btn sm" onclick="copyAllVid()">📋 Copy tất cả prompt</button>
+  o.innerHTML=`<div class="bar" style="margin:14px 0 4px;flex-wrap:wrap"><button class="btn sm" onclick="copyAllVid()">📋 Copy tất cả prompt</button>
     <button class="btn ghost sm" onclick="dlVideoPack()">⬇ Tải flow-pack/v1 (import tool Flow)</button>
+    ${drawTextToggleHTML()}
     <span class="hint">${__vidVideos.length} video · ${totalClips} clip · dán prompt vào Flow + chọn ảnh tham chiếu</span></div>`
     +__vidVideos.map((v,vi)=>`<div style="margin-top:16px"><h3 style="margin:0 0 6px;font-size:16px">🎬 Video ${vi+1}: ${esc(v.series)}</h3>
       <button class="btn gold sm" onclick="copyVidOmni(${vi})">📋 Copy prompt Omni (cả video ${v.clips.length} cut)</button>`
@@ -3499,7 +3517,7 @@ function copyVidOmni(vi){
   const t=omniMasterPrompt({title:v.series||'',hook:'',clips:(v.clips||[]).map(c=>({action:c.prompt,overlay:c.overlayText||''}))},
     {seconds:10,ratio:'9:16',
      globalStyle:'authentic short-form video, real smartphone / mirrorless look, natural light, documentary realism',
-     wardrobe:'',dnaLock:(typeof fashionDnaEN==='function'?fashionDnaEN():'')});
+     wardrobe:'',dnaLock:(typeof fashionDnaEN==='function'?fashionDnaEN():''),drawText:styleDrawText()});
   navigator.clipboard.writeText(t);toast('Đã copy prompt Omni video '+(vi+1));
 }
 function copyAllVid(){let out=[];__vidVideos.forEach((v,vi)=>{out.push('=== VIDEO '+(vi+1)+': '+v.series+' ===');v.clips.forEach(c=>out.push('[Clip '+c.seq+' · '+c.talentLabel+']\n'+c.prompt));});navigator.clipboard.writeText(out.join('\n\n'));toast('Đã copy tất cả prompt');}
