@@ -769,6 +769,19 @@ async function geminiVision(prompt,imgDataUrl,jsonMode){
   const d=await r.json();
   return d?.candidates?.[0]?.content?.parts?.map(p=>p.text).filter(Boolean).join("")||"";
 }
+/* Như geminiVision nhưng gửi NHIỀU ảnh trong một lượt — để model nhìn cả bộ ảnh thật cùng lúc
+   rồi mới viết kế hoạch, thay vì đoán từng tấm rời. */
+async function geminiVisionMulti(prompt,imgs,jsonMode){
+  if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
+  const parts=[{text:prompt}];
+  (imgs||[]).forEach(u=>{if(u)parts.push({inlineData:{mimeType:"image/jpeg",data:String(u).replace(/^data:image\/\w+;base64,/,'')}});});
+  const body={contents:[{parts:parts}],generationConfig:{}};
+  if(jsonMode) body.generationConfig.responseMimeType="application/json";
+  const r=await fetch(txtUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok){let t=await r.text();throw new Error("Gemini "+r.status+": "+t.slice(0,300));}
+  const d=await r.json();
+  return d?.candidates?.[0]?.content?.parts?.map(p=>p.text).filter(Boolean).join("")||"";
+}
 // opts: {ref:dataUrl|null|undefined}. undefined => dùng ref nhân vật nếu có.
 async function geminiImageOnce(prompt,ref){
   const parts=[{text:prompt}];
@@ -2459,8 +2472,11 @@ function renderContent(m){
 /* [key, nhãn, action EN, âm thanh EN] */
 /* ================= STYLE BRAIN — bộ não phối đồ ================= */
 /* == STYLE PLAN VALIDATOR (test/style-plan.test.js trích đúng đoạn giữa 2 mốc này) == */
-function styleValidatePlan(plan){
+function styleValidatePlan(plan,expectLooks){
   const errors=[];
+  /* Luồng AI sinh ảnh luôn 4 look. Luồng "ảnh thật của tôi" cho up 2-6 ảnh nên số look
+     thay đổi theo số ảnh — chỗ gọi truyền số mong đợi vào. */
+  const wantLooks=(typeof expectLooks==='number'&&expectLooks>0)?expectLooks:4;
   const sets=Array.isArray(plan)?plan:(plan&&Array.isArray(plan.sets)?plan.sets:null);
   if(!sets||!sets.length)return {ok:false,errors:['AI không trả về bộ nào — thử lại hoặc rút gọn đầu vào']};
   if(sets.length>5)errors.push('AI trả về '+sets.length+' bộ, tối đa 5');
@@ -2470,7 +2486,7 @@ function styleValidatePlan(plan){
     if(!String(s.styleName||'').trim())errors.push(at+'thiếu tên phong cách');
     if(!s.base||!String(s.base.prompt_en||'').trim())errors.push(at+'thiếu ảnh gốc (base.prompt_en)');
     const looks=Array.isArray(s.looks)?s.looks:[];
-    if(looks.length!==4)errors.push(at+'có '+looks.length+' look, phải đúng 4');
+    if(looks.length!==wantLooks)errors.push(at+'có '+looks.length+' look, phải đúng '+wantLooks);
     looks.forEach((l,li)=>{
       if(!l||!String(l.name||'').trim())errors.push(at+'look '+(li+1)+' thiếu tên phong cách');
       if(!l||!String(l.prompt_en||'').trim())errors.push(at+'look '+(li+1)+' thiếu prompt_en');
@@ -2613,7 +2629,10 @@ LUẬT:
 }
 
 /* ---- Khối nhập: tối đa 5 bộ, 3 kiểu đầu vào ---- */
-const STYLE={inputs:[{kind:'wardrobe',key:'',text:''}],ratio:'4:5',busy:false,openId:'',exportIds:[]};
+const STYLE={inputs:[{kind:'wardrobe',key:'',text:''}],ratio:'4:5',busy:false,openId:'',exportIds:[],
+  mode:'ai',photos:[],baseIdx:0};
+const STYLE_MAX_PHOTOS=6,STYLE_MIN_PHOTOS=2;
+function styleMode(m){STYLE.mode=m;renderStyleBrain(document.getElementById('studioBody'));}
 const STYLE_KINDS=[['wardrobe','👗 Món đồ có sẵn'],['text','✍️ Mô tả tự gõ'],['occasion','📅 Dịp mặc']];
 function styleSrcItems(){
   const out=[];
@@ -2652,21 +2671,116 @@ function styleInputsHTML(){
     <div id="stylePlanErr" class="note" style="display:none;border-color:var(--coral);color:#ffb3b3"></div>
   </div>`;
 }
+/* ---- Chế độ "Ảnh thật của tôi": up 2-6 ảnh, AI nhìn ảnh rồi viết kế hoạch, không sinh ảnh ---- */
+function stylePhotosHTML(){
+  const n=STYLE.photos.length;
+  return `<div class="card">
+    <h2>📤 Ảnh thật của tôi <span class="hint">(${STYLE_MIN_PHOTOS}–${STYLE_MAX_PHOTOS} ảnh · AI nhìn ảnh thật để viết kế hoạch)</span></h2>
+    ${fashionDnaFilled()?'':'<div class="note" style="border-color:var(--gold);color:var(--gold)">💡 Chưa có DNA thời trang — nên viết trước để AI đối chiếu ảnh với phong cách nhân vật.</div>'}
+    <input type="file" id="stylePhotoFile" accept="image/*" multiple style="display:none" onchange="stylePhotoUpload(event)">
+    <div class="bar" style="flex-wrap:wrap">
+      <button class="btn" onclick="document.getElementById('stylePhotoFile').click()" ${n>=STYLE_MAX_PHOTOS?'disabled':''}>＋ Chọn ảnh (${n}/${STYLE_MAX_PHOTOS})</button>
+      ${n?`<button class="btn ghost sm" onclick="stylePhotoClear()">Xoá hết</button>`:''}
+    </div>
+    ${n?`<p class="hint" style="margin-top:8px">Bấm vào ảnh để đặt làm <b>Ảnh gốc</b> (mặc đơn giản nhất). Các ảnh còn lại thành Look 1…${Math.max(1,n-1)} theo thứ tự.</p>
+    <div class="imgrid" id="stylePhotoGrid">${STYLE.photos.map((ph,i)=>`<div class="imgcard" style="cursor:pointer;${STYLE.baseIdx===i?'outline:3px solid var(--gold)':''}" onclick="stylePhotoBase(${i})">
+      <img data-ik="g:${ph.gid}" loading="lazy" style="aspect-ratio:3/4;object-fit:cover" alt="">
+      <div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.65))"><span style="font-size:10px;padding:3px 5px">${STYLE.baseIdx===i?'★ Gốc':'Look '+(i<STYLE.baseIdx?i+1:i)}</span></div>
+      <button class="btn ghost sm" style="position:absolute;top:4px;right:4px;padding:2px 6px" onclick="event.stopPropagation();stylePhotoDel(${i})">✕</button>
+    </div>`).join('')}</div>`:'<div class="hint" style="margin-top:8px">Chưa có ảnh nào — chọn ảnh chụp thật của bộ đồ (1 ảnh mặc đơn giản + các ảnh phối khác nhau).</div>'}
+    <div class="bar" style="margin-top:10px;flex-wrap:wrap">
+      <button class="btn gold" id="stylePhotoBtn" onclick="styleGenPhotoPlan()" ${(n>=STYLE_MIN_PHOTOS&&personaOK())?'':'disabled'}>🧠 Sinh kế hoạch từ ${n} ảnh thật</button>
+      <span class="hint" style="align-self:center">Không tốn tiền sinh ảnh — chỉ 1 lần đọc ảnh</span>
+    </div>
+    <div id="stylePhotoErr" class="note" style="display:none;border-color:var(--coral);color:#ffb3b3"></div>
+  </div>`;
+}
+async function stylePhotoUpload(ev){
+  const files=Array.prototype.slice.call(ev.target.files||[]);
+  ev.target.value='';
+  if(!files.length)return;
+  const room=STYLE_MAX_PHOTOS-STYLE.photos.length;
+  if(room<=0){toast('Tối đa '+STYLE_MAX_PHOTOS+' ảnh mỗi bộ');return;}
+  const take=files.slice(0,room);
+  if(files.length>room)toast('Chỉ nhận thêm '+room+' ảnh nữa');
+  for(const f of take){
+    try{
+      /* Ảnh điện thoại 3-8MB mà nhét nguyên vào IndexedDB là đụng đúng bẫy hết RAM — thu nhỏ trước. */
+      const small=await scaleDataUrl(await fileToDataUrl(f),1536);
+      const gid=await addToGallery(small,'Ảnh thật — phối đồ','style');
+      STYLE.photos.push({gid:gid});
+    }catch(e){toast('Lỗi đọc ảnh: '+(e.message||e));}
+  }
+  if(STYLE.baseIdx>=STYLE.photos.length)STYLE.baseIdx=0;
+  renderStyleBrain(document.getElementById('studioBody'));
+}
+function stylePhotoBase(i){STYLE.baseIdx=i;renderStyleBrain(document.getElementById('studioBody'));}
+function stylePhotoDel(i){
+  STYLE.photos.splice(i,1);
+  if(STYLE.baseIdx>=STYLE.photos.length)STYLE.baseIdx=Math.max(0,STYLE.photos.length-1);
+  renderStyleBrain(document.getElementById('studioBody'));
+}
+function stylePhotoClear(){STYLE.photos=[];STYLE.baseIdx=0;renderStyleBrain(document.getElementById('studioBody'));}
+async function styleGenPhotoPlan(){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  const n=STYLE.photos.length;
+  if(n<STYLE_MIN_PHOTOS){toast('Cần ít nhất '+STYLE_MIN_PHOTOS+' ảnh');return;}
+  const err=document.getElementById('stylePhotoErr');if(err)err.style.display='none';
+  const b=document.getElementById('stylePhotoBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> AI đang xem ảnh...';}
+  try{
+    const imgs=[];for(const ph of STYLE.photos){const u=await mediaGet('g:'+ph.gid);if(u)imgs.push(u);}
+    const plan=parseJSON(await geminiVisionMulti(styleVisionPrompt(n,STYLE.baseIdx),imgs,true));
+    const v=styleValidatePlan(plan,Math.max(1,n-1));
+    if(!v.ok){
+      const e2=document.getElementById('stylePhotoErr');
+      if(e2){e2.style.display='block';e2.innerHTML='<b>AI trả sai cấu trúc — chưa lưu gì cả:</b><br>'+v.errors.slice(0,8).map(esc).join('<br>');}
+      toast('Kế hoạch không hợp lệ — bấm sinh lại');return;
+    }
+    const s=(Array.isArray(plan)?plan:plan.sets)[0];
+    const others=STYLE.photos.filter((_,i)=>i!==STYLE.baseIdx);
+    S.styleSets.unshift({id:uid(),createdAt:_today10(),ratio:STYLE.ratio,
+      source:{kind:'photo',key:'',text:'ảnh thật do người dùng tải lên'},
+      styleName:s.styleName,base:{prompt_en:s.base.prompt_en,gid:STYLE.photos[STYLE.baseIdx].gid},
+      looks:s.looks.map((l,i)=>({name:l.name,why:l.why||'',prompt_en:l.prompt_en,gid:(others[i]||{}).gid||''})),
+      videos:s.videos,post:s.post});
+    while(S.styleSets.length>20){const old=S.styleSets.pop();await styleDropImages(old);}
+    /* Ảnh đã thuộc về bộ rồi — dọn khay upload để không xoá nhầm khi bấm "Xoá hết". */
+    STYLE.photos=[];STYLE.baseIdx=0;
+    save();renderStyleBrain(document.getElementById('studioBody'));
+    toast('✓ Xong kế hoạch từ '+n+' ảnh thật');
+  }catch(e){
+    const e3=document.getElementById('stylePhotoErr');
+    if(e3){e3.style.display='block';e3.textContent='Lỗi AI: '+(e.message||e);}
+    toast('Lỗi AI: '+(e.message||e));
+  }finally{const bb=document.getElementById('stylePhotoBtn');if(bb){bb.disabled=false;bb.innerHTML='🧠 Sinh kế hoạch từ '+STYLE.photos.length+' ảnh thật';}}
+}
+function styleModeBarHTML(){
+  return `<div class="bar" style="margin-bottom:10px">
+    <span class="chip" style="cursor:pointer;${STYLE.mode==='ai'?'border-color:var(--gold);color:var(--gold)':''}" onclick="styleMode('ai')">🎨 AI sinh ảnh</span>
+    <span class="chip" style="cursor:pointer;${STYLE.mode==='photo'?'border-color:var(--gold);color:var(--gold)':''}" onclick="styleMode('photo')">📤 Ảnh thật của tôi</span>
+  </div>`;
+}
 function renderStyleBrain(b){
   /* Render 5 ảnh mất vài phút; người dùng rời trang giữa chừng thì studioBody không còn nữa. */
   if(!b)return;
-  b.innerHTML=fashionDnaHTML()+styleInputsHTML()+'<div id="styleSetList"></div>';
+  b.innerHTML=fashionDnaHTML()+styleModeBarHTML()
+    +(STYLE.mode==='photo'?stylePhotosHTML():styleInputsHTML())
+    +'<div id="styleSetList"></div>';
+  const g=document.getElementById('stylePhotoGrid');
+  if(g)g.querySelectorAll('img[data-ik]').forEach(im=>lazyThumb(im,im.getAttribute('data-ik')));
   renderStyleSets();
 }
 function styleSetCardHTML(s){
   const imgs=[{t:'Gốc',g:s.base.gid,n:'Mặc đơn giản'}].concat((s.looks||[]).map((l,i)=>({t:'Look '+(i+1),g:l.gid,n:l.name})));
   const done=imgs.filter(x=>x.g).length;
+  const isPhoto=!!(s.source&&s.source.kind==='photo');
   return `<div class="card" style="margin-top:14px">
     <div class="bar" style="justify-content:space-between;flex-wrap:wrap">
-      <div><b>${esc(s.styleName)}</b> <span class="hint">· ${esc(s.createdAt)} · ${done}/5 ảnh</span></div>
+      <div><b>${esc(s.styleName)}</b> <span class="hint">· ${esc(s.createdAt)} · ${done}/${imgs.length} ảnh${isPhoto?' · 📤 ảnh thật':''}</span></div>
       <div class="bar" style="margin:0">
         <label class="hint" style="margin:0"><input type="checkbox" ${STYLE.exportIds.indexOf(s.id)>=0?'checked':''} onchange="styleToggleExport('${s.id}')"> xuất</label>
-        <button class="btn blue sm" id="stylerender_${s.id}" onclick="styleRenderSet('${s.id}')">🖼 Render 5 ảnh</button>
+        ${isPhoto?'':`<button class="btn blue sm" id="stylerender_${s.id}" onclick="styleRenderSet('${s.id}')">🖼 Render ${imgs.length} ảnh</button>`}
         <button class="btn ghost sm" onclick="styleDelSet('${s.id}')">✕</button>
       </div>
     </div>
@@ -2907,6 +3021,56 @@ LUẬT BẮT BUỘC:
 - 3 tầng bài post viết bằng ${lang}: "knowledge" = nguyên tắc phối áp dụng được ngay (tỉ lệ/màu/chất liệu); "emotion" = tả khoảnh khắc và góc máy bắt mắt, cảm giác khi mặc; "insight" = chi tiết ít người biết (gốc gác món đồ, mẹo, lỗi thường gặp). Không tầng nào được rỗng.
 - Không nhắc tên thương hiệu thật, không claim y khoa.`;
 }
+/* == STYLE VISION PROMPT (test/vision-plan.test.js trích đúng đoạn giữa 2 mốc này) ==
+   Bảo Gemini NHÌN bộ ảnh thật rồi viết kế hoạch. Rủi ro lớn nhất là AI bịa món đồ không có
+   trong ảnh, hoặc trả sai số look so với số ảnh đã up — prompt chặn cả hai. */
+function styleVisionPrompt(nPhotos,baseIdx){
+  const p=S.persona||{};const d=S.fashionDna||{};
+  const lang=(typeof CC!=='undefined'&&CC.lang==='en')?'English':'tiếng Việt';
+  const nLooks=Math.max(1,nPhotos-1);
+  return `Bạn là giám đốc sáng tạo thời trang kiêm biên kịch video ngắn.
+
+Tôi gửi kèm ${nPhotos} ẢNH THẬT của cùng một người mẫu, cùng một bộ trang phục nền.
+Ảnh số ${baseIdx+1} là ẢNH GỐC (mặc đơn giản nhất). ${nLooks} ảnh còn lại là các look phối khác nhau.
+
+NHÌN KỸ TỪNG ẢNH. Mô tả ĐÚNG những gì THẬT SỰ có trong ảnh: món đồ, lớp áo, phụ kiện, giày, màu,
+chất liệu, bối cảnh. TUYỆT ĐỐI không bịa món đồ không có trong ảnh, không tự nghĩ ra outfit khác.
+
+NHÂN VẬT: ${p.name||''} · ${p.gender||''} ${p.age||''} · thần thái: ${p.vibe||''}
+DNA THỜI TRANG (đối chiếu, nêu ra nếu ảnh lệch DNA):
+- Archetype: ${d.archetype||''} · Bảng màu: ${d.palette||''} · Chất liệu: ${d.fabrics||''}
+- Phụ kiện: ${d.accessories||''} · TRÁNH: ${d.avoid||'(không có)'}
+
+Trả về DUY NHẤT JSON:
+{"sets":[{
+ "styleName":"tên phong cách chung của cả bộ ảnh này",
+ "base":{"prompt_en":"mô tả ngắn ảnh gốc bằng tiếng Anh"},
+ "looks":[{"name":"tên phong cách của look","why":"nguyên tắc phối, ${lang}","prompt_en":"mô tả look bằng tiếng Anh"}],
+ "videos":[{"title":"","hook":"câu hook mở đầu","audio":"mô tả nhạc nền tiếng Anh","clips":[
+   {"seq":1,"action":"MỘT hành động chính, tiếng Anh","overlay":"chữ hiện trên màn hình, TỐI ĐA 12 TỪ, ${lang}","angle":"PHẢI copy nguyên văn 1 giá trị trong DANH SÁCH GÓC MÁY","prompt_en":"mô tả cảnh quay bằng tiếng Anh"}]}],
+ "post":{"knowledge":"","emotion":"","insight":"","caption":"","hashtags":"#..."}
+}]}
+
+DANH SÁCH GÓC MÁY (chỉ được dùng đúng các chuỗi này):
+${ANGLES.map(a=>'- '+a).join('\n')}
+
+LUẬT BẮT BUỘC:
+- "looks" phải có ĐÚNG ${nLooks} look, xếp theo ĐÚNG THỨ TỰ các ảnh đã gửi (bỏ qua ảnh gốc).
+  Look thứ nhất tả ảnh look đầu tiên, look thứ hai tả ảnh thứ hai, cứ thế.
+- Mỗi "why" phải giải thích nguyên tắc phối NHÌN THẤY ĐƯỢC trong chính ảnh đó (tỉ lệ, lớp, màu,
+  chất liệu) — người đọc soi lại ảnh phải thấy đúng.
+- ĐÚNG 3 video, mỗi video 6-8 clip quick-cut, quay được bằng chính bộ đồ và bối cảnh trong ảnh.
+- overlay KHÔNG rỗng, không quá 12 từ. Mỗi clip một góc máy khác clip liền trước.
+- Các clip nối liền mạch: clip sau bắt đầu từ chỗ clip trước dừng lại.
+- prompt_en KHÔNG được tả khuôn mặt, KHÔNG nhắc "ảnh tham chiếu", KHÔNG nhắc người thật hay người
+  nổi tiếng — chủ thể để chung chung. Nhắc tới là bị công cụ dựng video chặn vì chính sách.
+- 3 tầng bài post viết bằng ${lang}: "knowledge" = nguyên tắc phối rút ra từ chính bộ ảnh này;
+  "emotion" = tả khoảnh khắc và góc máy bắt mắt trong ảnh; "insight" = chi tiết ít người biết.
+  Không tầng nào được rỗng.
+- Không nhắc tên thương hiệu thật, không claim y khoa.`;
+}
+/* == END STYLE VISION PROMPT == */
+
 async function styleDropImages(set){
   if(!set)return;
   const gids=[set.base&&set.base.gid].concat((set.looks||[]).map(l=>l.gid)).filter(Boolean);
