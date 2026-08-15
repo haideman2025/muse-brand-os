@@ -37,6 +37,8 @@ node test/char-fields.test.js   # CHAR_FIELDS ↔ blankChar/activeChar nhất qu
 node test/style-plan.test.js    # validate kế hoạch AI (số look/clip, overlay, góc máy, end_state)
 node test/omni-prompt.test.js   # prompt Omni: an toàn policy + luật nối cut
 node test/vision-plan.test.js   # prompt đọc ảnh thật: cấm bịa, đúng số look ↔ số ảnh
+node test/dupes.test.js         # KHÔNG có hai hàm trùng tên (bản sau đè bản trước, im lặng)
+node test/diversity.test.js     # chống trùng ý tưởng: avoidBlock + trục đa dạng
 
 # 3 test dưới cần Chrome; xem dòng RESULT trong output
 CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
@@ -69,6 +71,22 @@ position, same facing, same object in hand, same motion momentum`. Nêu một l�
 **4. Hình dạng flow-pack: 1 bộ = 1 ngày, 1 video = 1 shot.** Mỗi shot mang nguyên prompt omni của cả
 video 10s. Tool dựng video coi mỗi shot là **một video phải render** — tách 6–8 quick-cut thành 6–8
 shot là 1 bộ hoá thành 18–19 video. `test/style-pack.test.html` khoá con số này lại.
+
+### Luật chống trùng ý tưởng (đọc trước khi thêm lệnh sinh nội dung)
+Mỗi lệnh sáng tạo mà không biết "đã tạo gì rồi" thì lần nào cũng xuất phát từ số 0 với cùng một
+prompt → cùng một phân phối kết quả → người dùng thấy trùng. Lệnh mới **phải** có đủ:
+
+1. `avoidBlock('ĐÃ CÓ …', danhSách)` — nhét thứ đã có vào prompt và cấm lặp.
+2. `divAxisBlock(n)` (thời trang) hoặc `lifeAxisBlock(n)` (đời sống nhân vật) — ép mỗi ý tưởng bám
+   một tổ hợp trục khác nhau. **Đừng** liệt kê sẵn vài nhãn phong cách trong prompt: đó chính là
+   thứ mồi cho AI hội tụ về đúng mấy nhãn đó.
+3. Nhiệt độ: `geminiText(prompt, jsonMode, 1.1–1.15)` cho brainstorm, giữ `0.7` cho việc cần chuẩn,
+   `geminiVision(prompt, img, jsonMode, 0.35)` cho việc đọc ảnh.
+
+### Một file, một scope — coi chừng trùng tên hàm
+351+ hàm nằm chung một scope. Hai hàm cùng tên thì **bản sau đè bản trước, im lặng, không lỗi cú
+pháp**. Đã dính một lần: `clonePrompt()` định nghĩa 2 lần khiến Digital Twin phân tích ảnh bằng
+prompt sinh ảnh suốt thời gian dài. `test/dupes.test.js` chặn không cho tái diễn.
 
 ### Luật ảnh (đọc trước khi thêm lưới ảnh mới)
 Thư viện chứa tới **600 ảnh**, mỗi ảnh gốc **1–7MB base64**. Nạp cả lưới bằng ảnh gốc = **1–4GB** →

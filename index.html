@@ -748,9 +748,11 @@ const STEP_LIST=[
 /* ---------- GEMINI REST ---------- */
 function imgUrl(){return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.modelImg)}:generateContent?key=${encodeURIComponent(S.apiKey)}`;}
 function txtUrl(){return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.modelText)}:generateContent?key=${encodeURIComponent(S.apiKey)}`;}
-async function geminiText(prompt,jsonMode){
+async function geminiText(prompt,jsonMode,temp){
   if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
-  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.7}};
+  /* temp: 0.7 hợp việc cần chuẩn xác; brainstorm (outfit/concept/đời sống nhân vật) truyền cao hơn
+     để không quẩn quanh mấy ý tưởng quen thuộc. */
+  const body={contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:(typeof temp==='number'?temp:0.7)}};
   if(jsonMode) body.generationConfig.responseMimeType="application/json";
   const r=await fetch(txtUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   if(!r.ok){let t=await r.text();throw new Error("Gemini "+r.status+": "+t.slice(0,300));}
@@ -759,10 +761,12 @@ async function geminiText(prompt,jsonMode){
   if(!txt) throw new Error("Gemini trả về rỗng (có thể bị chặn an toàn).");
   return txt;
 }
-async function geminiVision(prompt,imgDataUrl,jsonMode){
+/* temp: việc ĐỌC ảnh cần chính xác → để thấp (0.3-0.4). Mặc định giữ như cũ nếu không truyền. */
+async function geminiVision(prompt,imgDataUrl,jsonMode,temp){
   if(!S.apiKey) throw new Error("Chưa nhập API key Gemini.");
   const clean=imgDataUrl.replace(/^data:image\/\w+;base64,/,'');
   const body={contents:[{parts:[{text:prompt},{inlineData:{mimeType:"image/jpeg",data:clean}}]}],generationConfig:{}};
+  if(typeof temp==='number')body.generationConfig.temperature=temp;
   if(jsonMode) body.generationConfig.responseMimeType="application/json";
   const r=await fetch(txtUrl(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   if(!r.ok){let t=await r.text();throw new Error("Gemini "+r.status+": "+t.slice(0,300));}
@@ -976,6 +980,8 @@ function ideaPrompt(idea){
   return `Bạn là Brand & Character Strategist. Từ Ý TƯỞNG thô, dựng ĐỒNG THỜI: (1) PERSONA (nhân vật KOC/UGC) và (2) BrandIntake (mục tiêu KD + chiến lược). Tiếng Việt, cụ thể, thực chiến. KHÔNG để trống field.
 ${COMPLY}
 Ý TƯỞNG: "${idea}"
+${avoidBlock('TÊN NHÂN VẬT ĐÃ DÙNG TRONG WORKSPACE',charNamesUsed())}
+Đặt tên người thật, có gốc gác vùng miền rõ; không trùng và không na ná tên đã dùng ở trên.
 Ràng buộc: persona.gender ∈ {Nữ,Nam,Khác}; age là số; intake.loai ∈ {doanh nghiệp,sản phẩm,cá nhân}; intake.mo_hinh ∈ {B2B,B2C,DTC,SaaS,Marketplace,Personal}; intake.muc_tieu định lượng + mốc.
 Trả DUY NHẤT JSON: {"persona":{"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":""},"intake":{"loai":"","ten":"","mota":"","website":"","muc_tieu":"","nganh":"","mo_hinh":"","thi_truong":"","kenh":"","san_pham":"","doi_thu":"","ngan_sach":"","pod_seed":"","noi_dau":"","founder":""}}`;
 }
@@ -987,8 +993,26 @@ PERSONA: ${JSON.stringify(S.persona)}
 Trả DUY NHẤT JSON: {"name":"","age":0,"gender":"","ethnicityLook":"","vibe":"","mbti":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","backstory":"","signaturePhrases":"","visualStyle":"","dna":{"ethnicity":"","skinTone":"","eyeColor":"","hairColor":"","hairStyle":"","bodyType":"","breastSize":"","buttSize":""}}`;
 }
 function dnaOptionsHint(){return Object.keys(DNA_LIB).map(function(cat){return cat+': '+DNA_LIB[cat].map(x=>x[0]).filter(l=>l!=='—').join(' / ');}).join('  ·  ');}
-function clonePrompt(){
-  return `Bạn là chuyên gia tạo Digital Twin. Phân tích ảnh người này để clone thành nhân vật số. Cung cấp "publicDescription" bằng TIẾNG ANH: mô tả dày, cụ thể các đặc điểm khuôn mặt CỐ ĐỊNH (hình khuôn mặt, đường hàm, dáng mắt, sống mũi, đặc điểm nhận diện) để tái tạo nhất quán. Các field text khác bằng TIẾNG VIỆT.
+/* ĐỔI TÊN từ clonePrompt() — trùng tên với hàm dựng prompt SINH ẢNH ở tab "Clone từ ảnh",
+   khiến onSelfie() gửi nhầm prompt-sinh-ảnh vào API-đọc-ảnh suốt thời gian qua.
+   test/dupes.test.js chặn không cho tái diễn. */
+function twinAnalyzePrompt(){
+  return `Bạn là chuyên gia nhân trắc học kiêm giám đốc casting. Phân tích ảnh người này để dựng Digital Twin tái tạo được NHẤT QUÁN.
+
+QUAN SÁT BẮT BUỘC — đi hết checklist rồi mới viết, không được bỏ mục nào:
+1. Khung xương mặt: hình khuôn mặt, độ rộng gò má, đường hàm, cằm, trán.
+2. Ngũ quan & TỈ LỆ: dáng mắt và khoảng cách hai mắt, nếp mí, dáng lông mày, sống mũi và cánh mũi,
+   độ dày môi trên/dưới, nhân trung, vị trí tai.
+3. Da: tông và UNDERTONE (ấm/lạnh/trung tính), kết cấu da thật.
+4. Tóc: màu, sắc độ, kết cấu, kiểu, CHÂN TÓC và đường ngôi.
+5. Dáng người: chiều cao cảm nhận, tỉ lệ thân/chân, vai, tổng thể vóc dáng.
+6. Đặc điểm nhận diện RIÊNG: nốt ruồi, tàn nhang, lúm, sẹo, răng khểnh, bất đối xứng nhẹ —
+   đây là thứ làm ảnh sinh ra "đúng người" thay vì "một người na ná".
+
+"publicDescription" viết bằng TIẾNG ANH, dày và cụ thể, gói đủ 6 mục trên thành một đoạn dùng làm
+khoá nhận dạng cho mọi ảnh sau này. Chỉ tả đặc điểm CỐ ĐỊNH — không tả trang phục, không tả trang
+điểm, không tả bối cảnh, không tả biểu cảm nhất thời.
+Các field text khác bằng TIẾNG VIỆT.
 Đọc ảnh và điền "dna" — CHỌN ĐÚNG một nhãn tiếng Việt trong mỗi nhóm (để trống nếu không rõ): ${dnaOptionsHint()}.
 ${COMPLY}
 Trả DUY NHẤT JSON: {"publicDescription":"","name":"","age":0,"gender":"Nữ|Nam|Khác","ethnicityLook":"","vibe":"","personality":"","occupation":"","niche":"","pov":"","voiceTone":"","visualStyle":"","dna":{"ethnicity":"","skinTone":"","eyeColor":"","hairColor":"","hairStyle":"","bodyType":"","breastSize":"","buttSize":""}}`;
@@ -1033,18 +1057,87 @@ function charDesignContext(){
   if(p.visualStyle)b.push('Visual style: '+p.visualStyle);
   return b.join(' · ')||'nhân vật nữ thời trang';
 }
+/* == CREATIVE DIVERSITY (test/diversity.test.js trích đúng đoạn giữa 2 mốc này) ==
+   Hai thứ chống trùng lặp ý tưởng:
+   1. avoidBlock  — nhét danh sách thứ ĐÃ CÓ vào prompt và cấm lặp. Không có nó thì mỗi lần bấm
+      AI xuất phát từ số 0 với cùng một prompt → cùng một phân phối kết quả.
+   2. divAxisBlock — ép mỗi ý tưởng rơi vào một tổ hợp TRỤC khác nhau. Thay cho kiểu liệt kê sẵn
+      vài nhãn phong cách trong prompt, vốn là thứ mồi cho AI hội tụ về đúng mấy nhãn đó. */
+const DIV_AXES={
+  'thời kỳ':['thập niên 1950 thanh lịch','thập niên 1960 mod','thập niên 1970 bohemian','thập niên 1980 power dressing','thập niên 1990 tối giản','Y2K','đương đại 2020s','tương lai gần'],
+  'vùng văn hoá':['Bắc Âu','Địa Trung Hải','Nhật đương đại','Hàn hiện đại','Pháp cổ điển','Ý tinh xảo','Việt Nam đương đại','Ấn Độ hiện đại','Mỹ workwear','Anh cổ điển'],
+  'chất liệu chủ đạo':['linen thô','lụa satin','denim','len dệt kim','da mềm','voan mỏng','nhung','cotton oxford','tweed','vải kỹ thuật'],
+  'bảng màu':['đơn sắc trung tính','tương phản đen–trắng','pastel trầm','đất nung & be','navy & kem','đỏ rượu điểm nhấn','xanh rêu & nâu','trắng toàn phần','xám khói & bạc'],
+  'dịp':['đi làm','cà phê cuối tuần','tiệc tối','du lịch biển','sự kiện nghề nghiệp','ở nhà thư giãn','dạo phố buổi tối','dự cưới','triển lãm nghệ thuật','đi tàu đường dài'],
+  'dáng':['siết eo xoè chân','suông thẳng','oversize có cấu trúc','ôm nhẹ theo dáng','layer nhiều lớp','tỉ lệ crop cao','bất đối xứng','phom hộp'],
+  'thời tiết':['nắng gắt','se lạnh đầu đông','mưa nhẹ','gió biển','nồm ẩm','tuyết rơi','đêm mát']
+};
+function charNamesUsed(){
+  const c=(typeof S!=='undefined'&&S.characters)||{};
+  return Object.keys(c).map(k=>String((c[k]&&c[k].name)||'').trim()).filter(Boolean);
+}
+function avoidBlock(title,items,max){
+  const list=(items||[]).map(x=>String(x==null?'':x).trim()).filter(Boolean).slice(0,max||40);
+  if(!list.length)return '';
+  return '\n'+title+' — TUYỆT ĐỐI không lặp lại, không làm biến thể gần giống:\n'+list.map(x=>'• '+x).join('\n')+'\n';
+}
+/* Trục đời sống — chỗ dễ lặp nhất của vlog: cứ quẩn quanh "một ngày của tôi" ở quán cà phê. */
+const LIFE_AXES={
+  'thời điểm':['sáng sớm chưa tỉnh hẳn','giờ nghỉ trưa','chiều tan việc','đêm khuya mất ngủ','cuối tuần rảnh rỗi','ngày lễ','đầu tháng','những ngày cuối năm'],
+  'nơi chốn':['bếp nhà','ban công','quán cà phê quen','chỗ làm','trên xe buýt hoặc tàu','chợ hoặc siêu thị','công viên','tiệm giặt là','nhà một người bạn','phòng tập'],
+  'mối quan hệ':['một mình','với mẹ','với em hoặc anh chị','bạn thân','đồng nghiệp','hàng xóm','một người lạ tình cờ','thú cưng','một người đã lâu không gặp'],
+  'mạch cảm xúc':['vui âm ỉ','tủi thân thoáng qua','bực rồi tự bật cười','nhớ nhà','tự hào nhỏ','lo trước một việc lớn','biết ơn','chán đều đều','háo hức'],
+  'việc đang xảy ra':['một thất bại nhỏ','một thói quen mới tập','sửa một món đồ hỏng','lần đầu tiêu tiền cho bản thân','deadline gấp','học một thứ mới','một cuộc dọn dẹp lớn','một cuộc hẹn bị huỷ','nhận một tin bất ngờ'],
+  'thời tiết':['nắng gắt','mưa rào bất chợt','se lạnh','nồm ẩm','gió mùa vừa về','trời trong sau mưa']
+};
+function __axisLines(axes,n,rnd,label){
+  n=Math.max(0,n|0);if(!n)return [];
+  rnd=rnd||Math.random;
+  const keys=Object.keys(axes),used={};
+  keys.forEach(k=>used[k]=[]);
+  const lines=[];
+  for(let i=0;i<n;i++){
+    const parts=keys.map(k=>{
+      let pool=axes[k].filter(v=>used[k].indexOf(v)<0);
+      if(!pool.length){used[k]=[];pool=axes[k];}   /* hết giá trị thì mở vòng mới */
+      const v=pool[Math.floor(rnd()*pool.length)%pool.length];
+      used[k].push(v);
+      return k+' '+v;
+    });
+    lines.push(label+' '+(i+1)+': '+parts.join(' · '));
+  }
+  return lines;
+}
+function divAxisBlock(n,rnd){
+  const lines=__axisLines(DIV_AXES,n,rnd,'Bộ');
+  if(!lines.length)return '';
+  return '\nTRỤC BẮT BUỘC — mỗi bộ phải bám ĐÚNG tổ hợp trục của nó, không được đổi sang bộ khác.\nGhi lại trục đã dùng vào field "truc":\n'+lines.join('\n')+'\n';
+}
+function lifeAxisBlock(n,rnd){
+  const lines=__axisLines(LIFE_AXES,n,rnd,'Vlog');
+  if(!lines.length)return '';
+  return '\nTRỤC ĐỜI SỐNG BẮT BUỘC — mỗi vlog bám ĐÚNG tổ hợp của nó, không được trôi sang tổ hợp khác.\nĐây là cách ép mỗi vlog chạm một góc đời sống khác, thay vì lặp lại "một ngày của tôi":\n'+lines.join('\n')+'\n';
+}
+/* == END CREATIVE DIVERSITY == */
+
 const DESIGNER_ROLE=`Bạn là NHÀ THIẾT KẾ THỜI TRANG BẬC THẦY (haute couture + stylist editorial đẳng cấp). Thiết kế trang phục ĂN KHỚP với TÍNH CÁCH và NGOẠI HÌNH của nhân vật: tôn dáng đúng body type, hợp tông da & màu tóc, đúng vibe/niche/độ tuổi. Sáng tạo & có gu nghệ thuật, GỢI CẢM TINH TẾ TRONG GIỚI HẠN AN TOÀN (tôn đường nét, chất liệu & phom đẹp — KHÔNG hở phản cảm, KHÔNG khiêu dâm, KHÔNG nudity), THỰC TẾ mặc được, an toàn nền tảng & vượt kiểm duyệt ảnh AI.`;
+function wardrobeNames(){return (S.wardrobe||[]).map(w=>String(w.name||'').trim()+(w.masterPrompt?(' — '+String(w.masterPrompt).slice(0,70)):''));}
 function outfitIdeasPrompt(n){return `${DESIGNER_ROLE}
 NHÂN VẬT: ${charDesignContext()}.
-Thiết kế ${n} bộ trang phục ĐA DẠNG phong cách (đời thường sang, dạo phố, dạ tiệc, editorial, theo niche...) — MỖI bộ HỢP tính cách + tôn ngoại hình nhân vật, sáng tạo có gu nhưng mặc được thực tế, gợi cảm tinh tế & an toàn.
-Trả DUY NHẤT JSON mảng: [{"name":"tên tiếng Việt ngắn","prompt":"detailed English visual description of the OUTFIT ONLY — fabric, silhouette, cut, colors, how it flatters her figure; elegant, tasteful, fully platform-safe","why":"vì sao hợp nhân vật (1 câu tiếng Việt)"}]`;}
+Thiết kế ${n} bộ trang phục — MỖI bộ HỢP tính cách + tôn ngoại hình nhân vật, sáng tạo có gu nhưng mặc được thực tế, gợi cảm tinh tế & an toàn.
+${avoidBlock('ĐÃ CÓ TRONG TỦ ĐỒ',wardrobeNames())}${divAxisBlock(n)}
+Mỗi bộ phải KHÁC HẲN các bộ còn lại về phom, chất liệu và câu chuyện — không được chỉ đổi màu.
+Tên bộ đặt riêng biệt, không dùng lại tên đã có, tránh mấy chữ mòn kiểu "thanh lịch/quyến rũ/tinh tế" trừ khi thật sự đúng.
+Trả DUY NHẤT JSON mảng: [{"name":"tên tiếng Việt ngắn","prompt":"detailed English visual description of the OUTFIT ONLY — fabric, silhouette, cut, colors, how it flatters her figure; elegant, tasteful, fully platform-safe","why":"vì sao hợp nhân vật (1 câu tiếng Việt)","truc":"tổ hợp trục đã dùng"}]`;}
 function sceneConceptPrompt(){return `${DESIGNER_ROLE}
 NHÂN VẬT: ${charDesignContext()}.
 Gợi ý 3 concept chụp ảnh GIÀU CẢM XÚC & CHÂN THẬT (makeup + outfit + background + mood) HỢP tính cách + ngoại hình nhân vật. Chân thực đời thường/editorial, tránh nhìn "nhựa", gợi cảm tinh tế an toàn.
+${avoidBlock('ĐÃ CÓ TRONG TỦ ĐỒ',wardrobeNames(),25)}${divAxisBlock(3)}
 Trả DUY NHẤT JSON mảng: [{"ten":"tên concept tiếng Việt","makeup":"english","outfit":"english outfit that flatters her figure","background":"english"}]`;}
 function costumeSetPrompt(theme){return `${DESIGNER_ROLE}
 NHÂN VẬT: ${charDesignContext()}.
 Thiết kế MỘT bộ trang phục hoàn chỉnh theo chủ đề "${theme}" — HỢP tính cách + tôn ngoại hình nhân vật, sáng tạo có gu, gợi cảm tinh tế an toàn, mặc được thực tế & vượt kiểm duyệt ảnh.
+${avoidBlock('ĐÃ CÓ TRONG TỦ ĐỒ',wardrobeNames(),25)}${divAxisBlock(1)}
 Trả DUY NHẤT JSON: {"name":"tên bộ tiếng Việt","items":["món 1","món 2","món 3"],"visualPrompt":"detailed English description of the full outfit — fabric, silhouette, colors, how it flatters her figure; elegant, tasteful, fully platform-safe"}`;}
 function extractOutfitPrompt(){return `Mô tả bộ trang phục trong ảnh này để tái sử dụng. Trả DUY NHẤT JSON: {"name":"tên tiếng Việt","masterPrompt":"detailed English description of the outfit only (not the person)"}`;}
 
@@ -1240,7 +1333,7 @@ async function ideaFromPerson(ev){
   ideaBusy('Đang clone nhân vật từ ảnh...');
   try{
     const dataUrl=await fileToDataUrl(f);
-    const o=parseJSON(await geminiVision(clonePrompt(),dataUrl,true));
+    const o=parseJSON(await geminiVision(twinAnalyzePrompt(),dataUrl,true,0.35));
     S.persona=Object.assign({},S.persona,normPersona(o));
     await setRef(dataUrl);S.persona.hasPortrait=true;syncCharName();save();
     toast('✓ AI đã clone nhân vật + DNA từ ảnh');go('persona');
@@ -1346,7 +1439,7 @@ async function onSelfie(ev){
   const wrap=document.getElementById('portWrap');wrap.innerHTML='<div class="note" style="text-align:center"><span class="spinner"></span> Đang clone Digital Twin...</div>';
   try{
     let dataUrl=await fileToDataUrl(f);
-    const o=parseJSON(await geminiVision(clonePrompt(),dataUrl,true));
+    const o=parseJSON(await geminiVision(twinAnalyzePrompt(),dataUrl,true,0.35));
     S.persona=Object.assign({},S.persona,normPersona(o));
     await setRef(dataUrl); S.persona.hasPortrait=true; syncCharName(); save();
     render();toast('Đã clone Digital Twin từ ảnh');
@@ -1444,7 +1537,7 @@ function val(id){const e=document.getElementById(id);return e?e.value:"";}
 async function aiConcept(){
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
   const er=document.getElementById('psErr');er.style.display='none';const b=document.getElementById('conceptBtn');b.disabled=true;b.innerHTML='<span class="spinner"></span> ...';
-  try{const arr=parseJSON(await geminiText(sceneConceptPrompt(),true));const c=Array.isArray(arr)?arr[0]:arr;
+  try{const arr=parseJSON(await geminiText(sceneConceptPrompt(),true,1.1));const c=Array.isArray(arr)?arr[0]:arr;
     if(c){document.getElementById('ps_makeup').value=c.makeup||"";document.getElementById('ps_outfit').value=c.outfit||"";document.getElementById('ps_background').value=c.background||"";toast('Đã điền concept: '+(c.ten||''));}}
   catch(e){er.style.display='block';er.textContent=e.message;}
   finally{b.disabled=false;b.innerHTML='✨ AI gợi ý concept';}
@@ -1599,7 +1692,7 @@ async function paintWardrobe(){
 async function genOutfitIdeas(){
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
   const er=document.getElementById('wErr');er.style.display='none';const b=document.getElementById('ideasBtn');b.disabled=true;b.innerHTML='<span class="spinner"></span> ...';
-  try{let arr=parseJSON(await geminiText(outfitIdeasPrompt(10),true));if(!Array.isArray(arr)&&arr.outfits)arr=arr.outfits;__outfitIdeas=arr||[];paintIdeas();toast('Đã gợi ý outfit');}
+  try{let arr=parseJSON(await geminiText(outfitIdeasPrompt(10),true,1.15));if(!Array.isArray(arr)&&arr.outfits)arr=arr.outfits;__outfitIdeas=arr||[];paintIdeas();toast('Đã gợi ý outfit');}
   catch(e){er.style.display='block';er.textContent=e.message;}
   finally{b.disabled=false;b.innerHTML='💡 Gợi ý 10 outfit';}
 }
@@ -1619,7 +1712,7 @@ async function genCostumeSet(){
   const theme=val('theme').trim();if(!theme){toast("Nhập chủ đề trước");return;}
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
   const er=document.getElementById('wErr');er.style.display='none';const b=document.getElementById('setBtn');b.disabled=true;b.innerHTML='<span class="spinner"></span> ...';
-  try{const c=parseJSON(await geminiText(costumeSetPrompt(theme),true));
+  try{const c=parseJSON(await geminiText(costumeSetPrompt(theme),true,1.1));
     const img=await geminiImage(shotPrompt({angle:'full body, high-end fashion photography',outfit:c.visualPrompt||theme}),{});
     await addToGallery(img,"Costume: "+(c.name||theme)+" — "+(c.items||[]).join(', '),'costume');
     const wid=uid();await mediaPut("wb:"+wid,img);
@@ -3386,7 +3479,7 @@ ${H.life?H.life+'\n':''}⚡ MẠCH CUỘC SỐNG CÓ THẬT: Coi nhân vật nh�
   return `Bạn là ĐẠO DIỄN vlog đời thường CHÂN THẬT cho Google Flow (Omni). Dựa trên NHÂN VẬT, tự dựng ${nVideos>1?(nVideos+' vlog KHÁC NHAU — như một người có CUỘC SỐNG THẬT, mỗi vlog là 1 khoảnh khắc/câu chuyện đời thường khác nhau'+(clipsPerVideo>1?(', MỖI vlog gồm '+clipsPerVideo+' clip 10s NỐI LIỀN MẠCH (mở đầu → diễn biến → lắng đọng)'):', mỗi vlog 1 clip 10s')):('MỘT vlog LIỀN MẠCH gồm '+clipsPerVideo+' clip 10s nối nhau thành một mạch cảm xúc trọn vẹn (mở đầu → diễn biến → cao trào/lắng đọng)')}.
 NHÂN VẬT:
 ${ctx||'một cô gái trẻ sống tình cảm, đời thường'}
-${idea?('Định hướng thêm: '+idea+'\n'):''}${prodContextEN(vidProduct())?prodContextEN(vidProduct())+'\n':''}${histBlock}YÊU CẦU: CHÂN THẬT như đời sống (KHÔNG glam/sàn diễn), giàu CẢM XÚC, gần gũi, relatable, bám tính cách/POV/nghề/niche nhân vật. AI TỰ CHỌN mạch hợp nhất (một ngày của nhân vật / hành trình cảm xúc / khoảnh khắc lifestyle).
+${idea?('Định hướng thêm: '+idea+'\n'):''}${prodContextEN(vidProduct())?prodContextEN(vidProduct())+'\n':''}${histBlock}${lifeAxisBlock(nVideos)}YÊU CẦU: CHÂN THẬT như đời sống (KHÔNG glam/sàn diễn), giàu CẢM XÚC, gần gũi, relatable, bám tính cách/POV/nghề/niche nhân vật. AI TỰ CHỌN mạch hợp nhất (một ngày của nhân vật / hành trình cảm xúc / khoảnh khắc lifestyle).
 MỖI clip = 1 prompt TIẾNG ANH cho Omni, CÔNG THỨC AN TOÀN:
 - Chủ thể CHUNG CHUNG "a young woman" — KHÔNG tả mặt, KHÔNG "real/famous person", KHÔNG "reference image", KHÔNG tên riêng.
 - Phong cách VLOG: handheld iPhone POV/selfie, candid real-life moment, natural light, real cozy settings (nhà/bếp/quán cà phê/phố/nơi làm việc...), authentic UGC, emotional & relatable — real skin, NOT glam/runway/plastic/CGI.
@@ -3407,7 +3500,8 @@ async function runAIVideos(nVideos,clipsPerVideo,btnId,btnLabel,mode){
   const b=document.getElementById(btnId);if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> AI đang dựng...';}
   try{
     await ensureMuseLock();
-    let arr=parseJSON(await geminiText(promptText,true));
+    /* Đời sống nhân vật là chỗ dễ lặp nhất — cần nhiệt cao để không quẩn quanh vài kịch bản quen. */
+    let arr=parseJSON(await geminiText(promptText,true,1.15));
     if(!Array.isArray(arr))arr=arr.videos||[arr];
     __vidVideos=arr.slice(0,nVideos).map((v,vi)=>{
       let clips=(v.clips||[]).map((c,ci)=>({seq:ci+1,prompt:withLock(wrap(c.prompt_en||'')),audio:c.audio||(isVlog?'warm emotional lo-fi music':'trending background music'),talentLabel:(isVlog?(c.beat||'Vlog'):(c.talent||talentNames||'Sáng tạo')),overlayText:c.overlay||'',outfit:isVlog?{name:'',imgKey:null}:(outfits.length?outfits[(vi+ci)%outfits.length]:{name:'AI concept',imgKey:null})}));
