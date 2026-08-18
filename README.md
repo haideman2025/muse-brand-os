@@ -39,6 +39,7 @@ node test/omni-prompt.test.js   # prompt Omni: an toàn policy + luật nối cu
 node test/vision-plan.test.js   # prompt đọc ảnh thật: cấm bịa, đúng số look ↔ số ảnh
 node test/dupes.test.js         # KHÔNG có hai hàm trùng tên (bản sau đè bản trước, im lặng)
 node test/diversity.test.js     # chống trùng ý tưởng: avoidBlock + trục đa dạng
+node test/caption.test.js       # bộ caption đăng bài + prompt đạo diễn (ranh giới render được)
 
 # 3 test dưới cần Chrome; xem dòng RESULT trong output
 CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
@@ -82,6 +83,21 @@ prompt → cùng một phân phối kết quả → người dùng thấy trùng
    thứ mồi cho AI hội tụ về đúng mấy nhãn đó.
 3. Nhiệt độ: `geminiText(prompt, jsonMode, 1.1–1.15)` cho brainstorm, giữ `0.7` cho việc cần chuẩn,
    `geminiVision(prompt, img, jsonMode, 0.35)` cho việc đọc ảnh.
+
+### Caption gắn ở tầng thư viện
+11 chỗ trong app sinh ảnh, **tất cả đi qua `addToGallery()`**. Caption vì thế lưu thẳng vào mục thư
+viện (`gallery[i].cap = {title, post, hashtags, alt}`) — thêm tính năng sinh ảnh mới là có caption
+ngay, không phải sửa gì. `alt` là câu tả đúng thứ nhìn thấy, dành cho thuật toán nền tảng đọc hiểu
+và cho trình đọc màn hình.
+
+Caption dùng **thumb 384px** để đọc ảnh, không dùng ảnh gốc — thừa đủ để mô tả nội dung.
+
+### Ranh giới nội dung của prompt đạo diễn
+`directorIdeasPrompt()` cố tình đẩy về hướng táo bạo (ham muốn, quyền lực, phản bội, cám dỗ) nhưng
+ghi rõ ranh giới **kỹ thuật**: không khoả thân, không khiêu dâm, không cảnh tình dục, không bạo lực
+đẫm máu. Không phải vì đạo đức suông mà vì **Gemini và Google Flow từ chối render** — vượt là request
+trả lỗi safety và tính năng thành vô dụng. Sức nặng phải đến từ ẩn dụ, ánh sáng, ánh mắt, thứ không
+nói ra. `test/caption.test.js` khoá ranh giới này lại.
 
 ### Một file, một scope — coi chừng trùng tên hàm
 351+ hàm nằm chung một scope. Hai hàm cùng tên thì **bản sau đè bản trước, im lặng, không lỗi cú
