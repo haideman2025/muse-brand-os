@@ -1120,6 +1120,193 @@ function lifeAxisBlock(n,rnd){
 }
 /* == END CREATIVE DIVERSITY == */
 
+/* == CAPTION & DIRECTOR (test/caption.test.js trích đúng đoạn giữa 2 mốc này) == */
+function captionPrompt(ctx){
+  ctx=ctx||{};
+  const p=ctx.persona||{};
+  const lang=(ctx.lang==='en')?'English':'tiếng Việt';
+  const voice=[p.name&&('Tên: '+p.name),p.voiceTone&&('Chất giọng: '+p.voiceTone),p.pov&&('POV: '+p.pov),
+    p.niche&&('Niche: '+p.niche),p.signaturePhrases&&('Câu cửa miệng: '+p.signaturePhrases)].filter(Boolean).join('\n');
+  return `Bạn viết nội dung mạng xã hội cho CHÍNH nhân vật đang đăng — không phải người ngoài mô tả hộ.
+
+NHÂN VẬT:
+${voice||'một cô gái trẻ, giọng đời thường gần gũi'}
+
+TÀI NGUYÊN CẦN VIẾT CAPTION: ${ctx.what||'một tài nguyên hình ảnh'}
+
+Trả DUY NHẤT JSON: {"title":"","post":"","hashtags":"","alt":""}
+
+LUẬT:
+- "title": tối đa 12 từ, bắt mắt, cụ thể. Không sáo, không hô khẩu hiệu.
+- "post": 2-4 câu bằng ${lang}, đúng chất giọng nhân vật, có ít nhất một chi tiết CỤ THỂ hoặc một
+  câu chạm cảm xúc thật, kết bằng CTA nhẹ (một câu hỏi hoặc lời mời) — không kêu gọi lộ liễu.
+- "hashtags": 6-10 tag, trộn tag rộng và tag ngách của niche, cách nhau bằng dấu cách. Không nhồi,
+  không tag rác, không tag tiếng Việt có dấu.
+- "alt": MỘT câu tả đúng những thứ NHÌN THẤY trong khung hình (chủ thể, trang phục, bối cảnh, hành
+  động). Câu này để THUẬT TOÁN NỀN TẢNG đọc hiểu nội dung và cho trình đọc màn hình — tả sự thật,
+  không quảng cáo, không cảm thán.
+- Không claim y khoa, không nhắc tên thương hiệu thật.`;
+}
+function directorIdeasPrompt(ctx){
+  ctx=ctx||{};
+  const p=ctx.persona||{};
+  const n=Math.max(1,ctx.n||5);
+  const nPhotos=Math.max(0,ctx.hasPhotos||0);
+  const lang=(ctx.lang==='en')?'English':'tiếng Việt';
+  const who=[p.name&&('Tên: '+p.name),p.age&&('Tuổi: '+p.age),p.vibe&&('Thần thái: '+p.vibe),
+    p.personality&&('Tính cách: '+p.personality),p.occupation&&('Nghề: '+p.occupation),
+    p.niche&&('Niche: '+p.niche),p.pov&&('POV: '+p.pov),
+    p.backstory&&('Backstory: '+String(p.backstory).slice(0,250))].filter(Boolean).join('\n');
+  const pics=nPhotos?`\nTôi gửi kèm ${nPhotos} ảnh. NHÌN KỸ từng ảnh: bối cảnh, ánh sáng, trang phục, thần thái, thứ đang xảy ra.
+Ý tưởng phải MỌC RA từ những gì thấy trong ảnh — lấy ảnh làm khung hình mở đầu hoặc làm chất liệu thị giác, đừng bỏ qua ảnh rồi bịa chuyện khác.\n`:'';
+  return `Bạn là ĐẠO DIỄN phim ngắn hạng nhất — kiểu đạo diễn mà giới phê bình vừa nể vừa e dè. Bạn dựng
+hình ảnh ám ảnh, căng thẳng ngầm, gợi mà không phô. Bạn khinh những ý tưởng an toàn nhàm chán.
+
+NHÂN VẬT SẼ ĐÓNG CHÍNH:
+${who||'một cô gái trẻ'}
+${pics}
+Nghĩ ${n} ý tưởng phim ngắn 10 giây, mỗi ý tưởng một thể loại và một thế giới KHÁC HẲN nhau.
+
+Trả DUY NHẤT JSON mảng: [{"ten_phim":"tên phim ${lang}","logline":"1-2 câu ${lang} — chuyện gì xảy ra, ai muốn gì, cản trở là gì","twist":"cú bẻ khiến người xem phải xem lại lần hai","the_loai":"thể loại","vi_sao_cuon":"1 câu ${lang}"}]
+
+LUẬT:
+- TÁO BẠO. Dám chạm vào ham muốn, quyền lực, ghen tuông, nỗi sợ, sự phản bội, cám dỗ. Người lớn xem
+  phim người lớn. Cấm ý tưởng nhạt kiểu "cô gái đi dạo phố và mỉm cười".
+- Không lặp lại motif giữa các ý tưởng. Mỗi cái một tông màu cảm xúc riêng.
+- RANH GIỚI KỸ THUẬT — quan trọng, vượt là công cụ dựng video từ chối render, ý tưởng thành vô dụng:
+  KHÔNG khoả thân, KHÔNG khiêu dâm, KHÔNG cảnh tình dục, KHÔNG bạo lực đẫm máu.
+  Sức nặng đến từ ẨN DỤ, ÁNH SÁNG và bóng tối, ánh mắt, khoảng cách giữa hai người, thứ KHÔNG được
+  nói ra, thứ vừa rời khỏi khung hình. Gợi bằng cấu tứ chứ không bằng da thịt — đó mới là đẳng cấp.
+- Nhân vật là người trưởng thành. Không nội dung liên quan tới trẻ vị thành niên dưới bất kỳ hình thức nào.
+- Không nhắc tên thương hiệu thật, không claim y khoa.`;
+}
+/* == END CAPTION & DIRECTOR == */
+
+/* ---- Caption: gắn ở tầng THƯ VIỆN nên cả 11 chỗ sinh ảnh đều có ngay ---- */
+function capOf(gid){const g=(S.gallery||[]).find(x=>x.id===gid);return (g&&g.cap)||null;}
+function capText(c){
+  if(!c)return '';
+  return [c.title,'',c.post,'',c.hashtags,'',c.alt?('[Mô tả ảnh] '+c.alt):''].filter(x=>x!==undefined).join('\n').trim();
+}
+function capCopy(gid){
+  const c=capOf(gid);if(!c){toast('Chưa có caption');return;}
+  if(navigator.clipboard)navigator.clipboard.writeText(capText(c));
+  toast('Đã copy tiêu đề + bài đăng + hashtag');
+}
+function capBlockHTML(gid){
+  const c=capOf(gid);
+  if(!c)return `<button class="btn ghost sm" onclick="genCaption('${gid}',this)">✍️ Caption</button>`;
+  return `<div class="note" style="margin-top:8px;text-align:left">
+    <b>${esc(c.title||'')}</b><br><br>${esc(c.post||'').replace(/\n/g,'<br>')}<br><br>
+    <span style="color:var(--acc)">${esc(c.hashtags||'')}</span>
+    ${c.alt?`<br><br><span class="hint">Mô tả cho thuật toán: ${esc(c.alt)}</span>`:''}
+    <div class="bar" style="margin-top:8px">
+      <button class="btn gold sm" onclick="capCopy('${gid}')">📋 Copy cả bộ</button>
+      <button class="btn ghost sm" onclick="genCaption('${gid}',this)">🔄 Viết lại</button>
+    </div></div>`;
+}
+async function genCaption(gid,btn){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const g=(S.gallery||[]).find(x=>x.id===gid);if(!g)return;
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Đang viết...';}
+  try{
+    /* Dùng THUMB chứ không ảnh gốc: 384px thừa đủ để đọc nội dung, nhẹ và nhanh hơn nhiều. */
+    const img=await mediaThumb('g:'+gid);
+    const ctx={persona:S.persona,lang:(typeof CC!=='undefined'?CC.lang:'vi'),what:(g.prompt||'một tài nguyên hình ảnh')};
+    const raw=img?await geminiVision(captionPrompt(ctx),img,true,0.95)
+                 :await geminiText(captionPrompt(ctx),true,0.95);
+    const c=parseJSON(raw);
+    g.cap={title:c.title||'',post:c.post||'',hashtags:c.hashtags||'',alt:c.alt||''};
+    save();render();toast('✓ Đã viết caption');
+  }catch(e){toast('Lỗi AI: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='✍️ Caption';}}
+}
+/* Caption cho VIDEO: không có ảnh, viết từ ý tưởng + hook + chữ overlay của chính video đó. */
+async function genVideoCaption(setId,vi,btn){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const s=(S.styleSets||[]).find(x=>x.id===setId);if(!s)return;
+  const v=(s.videos||[])[vi];if(!v)return;
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Đang viết...';}
+  try{
+    const what='video 10s "'+(v.title||s.styleName||'')+'" — '+(v.hook||'')+' · các dòng chữ trên hình: '
+      +(v.clips||[]).map(c=>c&&c.overlay).filter(Boolean).join(' / ');
+    const c=parseJSON(await geminiText(captionPrompt({persona:S.persona,lang:(typeof CC!=='undefined'?CC.lang:'vi'),what:what}),true,0.95));
+    v.cap={title:c.title||'',post:c.post||'',hashtags:c.hashtags||'',alt:c.alt||''};
+    save();renderStyleBrain(document.getElementById('studioBody'));toast('✓ Đã viết caption video');
+  }catch(e){toast('Lỗi AI: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='✍️ Caption';}}
+}
+function capCopyVideo(setId,vi){
+  const s=(S.styleSets||[]).find(x=>x.id===setId);if(!s)return;
+  const v=(s.videos||[])[vi];if(!v||!v.cap){toast('Chưa có caption');return;}
+  if(navigator.clipboard)navigator.clipboard.writeText(capText(v.cap));
+  toast('Đã copy caption video');
+}
+/* ---- Đạo diễn AI: sinh ý tưởng phim làm đầu vào, đọc được cả ảnh tham chiếu ---- */
+const DIRECTOR={photos:[],ideas:[],busy:false};
+const DIRECTOR_MAX=5;
+function directorBoxHTML(){
+  const n=DIRECTOR.photos.length;
+  return `<div class="card" style="margin:8px 0;padding:12px;border-color:var(--gold)">
+    <div class="bar" style="flex-wrap:wrap;margin:0">
+      <button class="btn gold sm" id="dirBtn" onclick="genDirectorIdeas()">🎬 Đạo diễn gợi ý ý tưởng</button>
+      <input type="file" id="dirFile" accept="image/*" multiple style="display:none" onchange="directorUpload(event)">
+      <button class="btn ghost sm" onclick="document.getElementById('dirFile').click()" ${n>=DIRECTOR_MAX?'disabled':''}>🖼 Ảnh tham chiếu (${n}/${DIRECTOR_MAX})</button>
+      ${n?`<button class="btn ghost sm" onclick="directorClear()">Xoá ảnh</button>`:''}
+      <span class="hint" style="align-self:center">${n?'AI sẽ nhìn '+n+' ảnh rồi nghĩ ý tưởng từ đó':'Thả 1–5 ảnh để AI sáng tạo từ ảnh của mày'}</span>
+    </div>
+    ${n?`<div class="imgrid" style="grid-template-columns:repeat(auto-fill,minmax(70px,1fr));margin-top:8px">${DIRECTOR.photos.map((u,i)=>`<div class="imgcard"><img src="${u}" style="aspect-ratio:1;object-fit:cover" alt=""><button class="btn ghost sm" style="position:absolute;top:2px;right:2px;padding:1px 5px" onclick="directorDel(${i})">✕</button></div>`).join('')}</div>`:''}
+    <div id="dirOut">${directorIdeasHTML()}</div>
+  </div>`;
+}
+function directorIdeasHTML(){
+  if(!DIRECTOR.ideas.length)return '';
+  return '<div style="margin-top:10px">'+DIRECTOR.ideas.map((o,i)=>`<div class="note" style="margin-top:6px;text-align:left;cursor:pointer" onclick="directorPick(${i})">
+    <b>${esc(o.ten_phim||'Ý tưởng '+(i+1))}</b> <span class="hint">· ${esc(o.the_loai||'')}</span><br>
+    ${esc(o.logline||'')}<br><span style="color:var(--gold)">Twist: ${esc(o.twist||'')}</span>
+    ${o.vi_sao_cuon?`<br><span class="hint">${esc(o.vi_sao_cuon)}</span>`:''}
+    <div class="hint" style="margin-top:4px;color:var(--acc)">Bấm để dùng ý tưởng này →</div></div>`).join('')+'</div>';
+}
+async function directorUpload(ev){
+  const files=Array.prototype.slice.call(ev.target.files||[]);ev.target.value='';
+  const room=DIRECTOR_MAX-DIRECTOR.photos.length;
+  if(room<=0){toast('Tối đa '+DIRECTOR_MAX+' ảnh');return;}
+  for(const f of files.slice(0,room)){
+    try{DIRECTOR.photos.push(await scaleDataUrl(await fileToDataUrl(f),1024));}catch(e){toast('Lỗi đọc ảnh');}
+  }
+  renderStudio(document.getElementById('main'));
+}
+function directorDel(i){DIRECTOR.photos.splice(i,1);renderStudio(document.getElementById('main'));}
+function directorClear(){DIRECTOR.photos=[];renderStudio(document.getElementById('main'));}
+function directorPick(i){
+  const o=DIRECTOR.ideas[i];if(!o)return;
+  const t=[o.logline,o.twist&&('Twist: '+o.twist)].filter(Boolean).join(' ');
+  VID.idea=t;const el=document.getElementById('vid_idea');if(el)el.value=t;
+  toast('Đã dùng ý tưởng: '+(o.ten_phim||''));
+}
+async function genDirectorIdeas(){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  const b=document.getElementById('dirBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> Đạo diễn đang nghĩ...';}
+  try{
+    const ctx={persona:S.persona,n:5,hasPhotos:DIRECTOR.photos.length,lang:(typeof CC!=='undefined'?CC.lang:'vi')};
+    /* Nhiệt cao: đây là chỗ CẦN điên, không cần chuẩn. */
+    const raw=DIRECTOR.photos.length
+      ? await geminiVisionMulti(directorIdeasPrompt(ctx),DIRECTOR.photos,true)
+      : await geminiText(directorIdeasPrompt(ctx),true,1.3);
+    let arr=parseJSON(raw);if(!Array.isArray(arr))arr=arr.ideas||arr.y_tuong||[arr];
+    DIRECTOR.ideas=arr.filter(Boolean).slice(0,5);
+    const out=document.getElementById('dirOut');if(out)out.innerHTML=directorIdeasHTML();
+    toast('✓ '+DIRECTOR.ideas.length+' ý tưởng — bấm vào cái ưng để dùng');
+  }catch(e){toast('Lỗi AI: '+(e.message||e));}
+  finally{const bb=document.getElementById('dirBtn');if(bb){bb.disabled=false;bb.innerHTML='🎬 Đạo diễn gợi ý ý tưởng';}}
+}
+function capVideoBlockHTML(setId,vi,v){
+  const c=v&&v.cap;
+  if(!c)return `<button class="btn ghost sm" onclick="genVideoCaption('${setId}',${vi},this)">✍️ Caption</button>`;
+  return `<div class="note" style="margin-top:8px;text-align:left"><b>${esc(c.title||'')}</b><br><br>${esc(c.post||'')}<br><br>
+    <span style="color:var(--acc)">${esc(c.hashtags||'')}</span>
+    <div class="bar" style="margin-top:8px"><button class="btn gold sm" onclick="capCopyVideo('${setId}',${vi})">📋 Copy cả bộ</button>
+    <button class="btn ghost sm" onclick="genVideoCaption('${setId}',${vi},this)">🔄 Viết lại</button></div></div>`;
+}
+
 const DESIGNER_ROLE=`Bạn là NHÀ THIẾT KẾ THỜI TRANG BẬC THẦY (haute couture + stylist editorial đẳng cấp). Thiết kế trang phục ĂN KHỚP với TÍNH CÁCH và NGOẠI HÌNH của nhân vật: tôn dáng đúng body type, hợp tông da & màu tóc, đúng vibe/niche/độ tuổi. Sáng tạo & có gu nghệ thuật, GỢI CẢM TINH TẾ TRONG GIỚI HẠN AN TOÀN (tôn đường nét, chất liệu & phom đẹp — KHÔNG hở phản cảm, KHÔNG khiêu dâm, KHÔNG nudity), THỰC TẾ mặc được, an toàn nền tảng & vượt kiểm duyệt ảnh AI.`;
 function wardrobeNames(){return (S.wardrobe||[]).map(w=>String(w.name||'').trim()+(w.masterPrompt?(' — '+String(w.masterPrompt).slice(0,70)):''));}
 function outfitIdeasPrompt(n){return `${DESIGNER_ROLE}
@@ -1756,6 +1943,10 @@ async function renderGallery(b){
     bs[0].onclick=async()=>{const full=await mediaGet(key);if(full)dlDataUrl("muse-"+g.id+".png",full);};
     bs[1].onclick=async()=>{const full=await mediaGet(key);if(!full)return;await setRef(full);S.persona.hasPortrait=true;save();toast("Đã đặt làm khuôn mặt neo");};
     bs[2].onclick=()=>delGallery(g.id);
+    /* Caption gắn ở tầng thư viện → mọi ảnh của mọi tính năng đều có, không phải sửa 11 chỗ sinh ảnh. */
+    const capWrap=document.createElement('div');capWrap.style.cssText='padding:6px';
+    capWrap.innerHTML=capBlockHTML(g.id);
+    c.appendChild(capWrap);
     grid.appendChild(c);
     lazyThumb(im,key);
   }
@@ -2894,7 +3085,8 @@ function styleSetCardHTML(s){
         <div class="bar" style="margin-top:8px">
           <button class="btn gold sm" onclick="styleCopyOmni('${s.id}',${vi})">📋 Copy prompt Omni (cả video)</button>
           <button class="btn ghost sm" onclick="styleCopyVideo('${s.id}',${vi})">Copy từng clip</button>
-        </div></div>`).join('')}
+        </div>
+        ${capVideoBlockHTML(s.id,vi,v)}</div>`).join('')}
     </details>
     <details style="margin-top:8px"><summary class="hint">📝 Bài đăng 3 tầng giá trị</summary>
       <div class="note" style="margin-top:8px">
@@ -3293,6 +3485,7 @@ function renderVideo(b){
     <label>💡 Ý tưởng phim — nhân vật diễn bất kỳ câu chuyện nào (AI sáng tạo)</label>
     <textarea id="vid_idea" rows="2" placeholder="VD: cô nàng cướp biển đối đầu kẻ thù trên boong tàu lúc bình minh · nữ điệp viên phá kho báu trong bảo tàng · cô gái lạc vào thế giới thần tiên...">${esc(VID.idea||'')}</textarea>
     <div class="hint" style="margin:4px 0">Nhập ý tưởng phim bất kỳ (mọi thể loại) → AI dựng thành thước phim cuốn cho nhân vật của bạn. Để trống thì AI tự sáng tạo concept.</div>
+    ${directorBoxHTML()}
     <label style="margin-top:10px">Tài năng / diễn xuất đặc biệt <span style="color:var(--mut2);font-weight:400">(tuỳ chọn — để trống thì AI tự sáng tạo hợp ý tưởng)</span></label>
     <div id="vidTalents">${vidTalentChipsHTML()}</div>
     <input id="vid_custom" value="${esc(VID.custom)}" placeholder="Tài năng / hành động khác (tự nhập, cách nhau dấu phẩy): kiếm đạo, bắn cung, lái mô tô, ma thuật..." style="margin-top:8px">
