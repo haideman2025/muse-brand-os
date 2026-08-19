@@ -10,7 +10,7 @@ Web app 1 file đưa bạn đi một luồng liền mạch: **Tạo nhân vật 
 3. **② Tạo cuộc sống mới** — gõ 1 ý tưởng thô → AI dựng nháp **Persona + Intake** cùng lúc.
 4. **③ Hồ sơ nhân vật** — chỉnh tay hoặc *AI hoàn thiện persona*.
 5. **④ Chân dung & Digital Twin** — *Upload selfie → AI clone* thành nhân vật (giữ khuôn mặt nhất quán) hoặc *Sinh từ mô tả*.
-6. **⑤ Studio ảnh** — **Photoshoot** (makeup/outfit/pose/bối cảnh/góc máy + *AI gợi ý concept*, chụp 1 hoặc 4 góc) · **Tủ đồ** (gợi ý 10 outfit, costume-set theo chủ đề, trích outfit từ ảnh) · **Thư viện** (mọi ảnh lưu IndexedDB, tải/xoá, đặt làm khuôn mặt neo) · **👠 Phối đồ** (1 món đồ / mô tả / dịp mặc → 5 ảnh (1 mặc đơn giản + 4 phối) + 3 prompt video 10s có text overlay 6–8 quick-cut + bài đăng 3 tầng giá trị; tối đa 5 bộ/lần; xuất flow-pack cho Google Flow kèm ảnh tham chiếu). Hai chế độ: **AI sinh ảnh** hoặc **📤 Ảnh thật của tôi** — tự tải 2–6 ảnh chụp thật, AI nhìn ảnh viết kế hoạch, không tốn tiền sinh ảnh.
+6. **⑤ Studio ảnh** — **Photoshoot** (2 chế độ: 📖 **Look book** — tick trang phục từ Tủ đồ/Thư viện → AI đạo diễn dựng 4–12 khung mỗi khung một cỡ cảnh/pose/ánh sáng riêng → tick ảnh, viết caption, lên lịch đăng Facebook qua Zernio · 🎯 **Chụp thủ công**) (makeup/outfit/pose/bối cảnh/góc máy + *AI gợi ý concept*, chụp 1 hoặc 4 góc) · **Tủ đồ** (gợi ý 10 outfit, costume-set theo chủ đề, trích outfit từ ảnh) · **Thư viện** (mọi ảnh lưu IndexedDB, tải/xoá, đặt làm khuôn mặt neo) · **👠 Phối đồ** (1 món đồ / mô tả / dịp mặc → 5 ảnh (1 mặc đơn giản + 4 phối) + 3 prompt video 10s có text overlay 6–8 quick-cut + bài đăng 3 tầng giá trị; tối đa 5 bộ/lần; xuất flow-pack cho Google Flow kèm ảnh tham chiếu). Hai chế độ: **AI sinh ảnh** hoặc **📤 Ảnh thật của tôi** — tự tải 2–6 ảnh chụp thật, AI nhìn ảnh viết kế hoạch, không tốn tiền sinh ảnh.
 7. **⑥ Mục tiêu KD & chiến lược** — điền intake (mục \* bắt buộc) hoặc *AI gợi ý từ persona*.
 8. **Pipeline 5 giai đoạn** — *Chạy pipeline tự động* (generate + tự chấm điểm rubric 100đ/gate) hoặc làm tay.
 9. **Xuất file** — `05-brand-kit.json` (import "Hồ sơ Sản phẩm chuẩn"); `01–04 .md`, `00-intake.json`, `persona.json`, `06-scorecard.json`, `index.html` Command Center, ảnh Studio → thả vào **Brand Vault**.
@@ -40,6 +40,7 @@ node test/vision-plan.test.js   # prompt đọc ảnh thật: cấm bịa, đún
 node test/dupes.test.js         # KHÔNG có hai hàm trùng tên (bản sau đè bản trước, im lặng)
 node test/diversity.test.js     # chống trùng ý tưởng: avoidBlock + trục đa dạng
 node test/caption.test.js       # bộ caption đăng bài + prompt đạo diễn (ranh giới render được)
+node test/lookbook.test.js      # shot list look book: mỗi khung một cỡ cảnh/pose/ánh sáng khác nhau
 
 # 3 test dưới cần Chrome; xem dòng RESULT trong output
 CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
