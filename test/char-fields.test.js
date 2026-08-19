@@ -45,7 +45,7 @@ function test(name, fn) {
 console.log('\nCHAR_FIELDS ↔ blankChar/activeChar phải nhất quán về kiểu dữ liệu\n');
 
 // Các field bắt buộc là MẢNG. Thêm field mảng mới thì thêm vào đây.
-const ARRAY_FIELDS = ['gallery', 'wardrobe', 'vlogLog', 'content', 'vidHistory', 'products', 'styleSets'];
+const ARRAY_FIELDS = ['gallery', 'wardrobe', 'vlogLog', 'content', 'vidHistory', 'products', 'styleSets', 'lookbooks'];
 
 test('blankChar() khởi tạo mọi field mảng thành []', () => {
   const c = app.blankChar('X');

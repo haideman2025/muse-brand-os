@@ -31,7 +31,7 @@ async function main(){
 
   // Các hàm của bản vá OOM
   for(const fn of ['mediaThumb','vidTalentChipsHTML','paintVidPicked','paintVidOutfitSel','vidOutfit','vidTalent','renderVideo','scaleDataUrl','renderStyleBrain','styleGenPlan','styleRenderSet','styleFlowPack','styleValidatePlan','styleBuildPack','genFashionDna','omniMasterPrompt','styleCopyOmni','copyVidOmni','styleOmniOpts','geminiVisionMulti','styleVisionPrompt','stylePhotoUpload','styleGenPhotoPlan','styleMode',
-      'captionPrompt','capGenerate','capCopy','capBtnHTML','openCapModal','closeCapModal','capTarget','capLang','capSetLang','directorIdeasPrompt','genDirectorIdeas','directorUpload','directorPick','avoidBlock','divAxisBlock','lifeAxisBlock','twinAnalyzePrompt']){
+      'captionPrompt','capGenerate','capCopy','capBtnHTML','openCapModal','closeCapModal','capTarget','capLang','capSetLang','lookShotListPrompt','shotAxisBlock','lookShoot','lookMode','lookToggleOutfit','lookToggleSel','zernioLookbook','renderLookList','directorIdeasPrompt','genDirectorIdeas','directorUpload','directorPick','avoidBlock','divAxisBlock','lifeAxisBlock','twinAnalyzePrompt']){
     ok(typeof w[fn]==='function','có hàm '+fn+'()');
   }
 
@@ -41,6 +41,14 @@ async function main(){
   try{ w.stylePhotoDel(0); w.stylePhotoClear(); ok(true,'thao tác ảnh khi khay rỗng không ném lỗi'); }
   catch(e){ ok(false,'thao tác ảnh ném lỗi: '+e.message); }
   w.styleMode('ai');
+
+  // Look book: thao tác khi chưa có bộ nào phải im lặng
+  try{ w.lookMode('lookbook'); w.lookToggleOutfit('khong-co'); w.lookToggleSel('x','y'); w.lookSelAll('x'); w.renderLookList(); ok(true,'thao tác look book khi rỗng không ném lỗi'); }
+  catch(e){ ok(false,'look book ném lỗi: '+e.message); }
+  ok(w.eval('LOOK.mode')==='lookbook','chế độ look book bật được');
+  ok(w.capTarget('lookbook','khong-co')===null,'caption cho look book không tồn tại trả null');
+  ok(w.lookShotListPrompt(6,['Đầm đen']).indexOf('6 khung')>=0,'shot list nêu đúng số khung');
+  w.lookMode('manual'); ok(w.eval('LOOK.mode')==='manual','chuyển về chụp thủ công được'); w.lookMode('lookbook');
 
   // Đạo diễn: thao tác khi chưa có ảnh/ý tưởng nào phải im lặng
   try{ w.directorDel(0); w.directorClear(); w.directorPick(99); ok(true,'thao tác đạo diễn khi rỗng không ném lỗi'); }

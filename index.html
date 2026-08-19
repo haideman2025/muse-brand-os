@@ -371,11 +371,11 @@ aside{display:flex;flex-direction:column;gap:13px}
    Persona/Digital-Twin → Photo Studio → Brand strategy → export
    ========================================================= */
 const LS="muse_state_v1";
-const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory','calendar','products','fashionDna','styleSets'];
+const CHAR_FIELDS=['idea','persona','intake','outputs','scores','gallery','wardrobe','vlogLog','content','vidHistory','calendar','products','fashionDna','styleSets','lookbooks'];
 /* Field nào là MẢNG — nguồn sự thật duy nhất. Thêm field mảng mới vào CHAR_FIELDS thì PHẢI thêm vào đây,
    nếu không activeChar() sẽ khởi tạo nó thành {} và mọi .push/.unshift/.filter sẽ nổ. */
-const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content','vidHistory','products','styleSets'];
-function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[],content:[],vidHistory:[],products:[],styleSets:[]};}
+const CHAR_ARRAY_FIELDS=['gallery','wardrobe','vlogLog','content','vidHistory','products','styleSets','lookbooks'];
+function blankChar(name){return {name:name||"Nhân vật 1",createdAt:_today10(),updatedAt:_today10(),idea:"",persona:{},intake:{},outputs:{},scores:{},gallery:[],wardrobe:[],vlogLog:[],content:[],vidHistory:[],products:[],styleSets:[],lookbooks:[]};}
 let __migratedLegacy=false;
 /* Migration → workspace đa nhân vật (v2). Giữ settings toàn cục ở gốc; mỗi nhân vật 1 gói dna riêng. */
 function migrateWS(r){
@@ -1113,12 +1113,62 @@ function divAxisBlock(n,rnd){
   if(!lines.length)return '';
   return '\nTRỤC BẮT BUỘC — mỗi bộ phải bám ĐÚNG tổ hợp trục của nó, không được đổi sang bộ khác.\nGhi lại trục đã dùng vào field "truc":\n'+lines.join('\n')+'\n';
 }
+/* Trục khung hình cho buổi chụp look book — chống bệnh "N tấm một pose, chỉ khác góc máy". */
+const SHOT_AXES={
+  'cỡ cảnh':['toàn thân trọn dáng','trung cảnh ngang hông','cận mặt và vai','đặc tả chi tiết trang phục','viễn cảnh lấy cả không gian','bán thân ba phần tư','cận bàn tay và phụ kiện','toàn thân từ xa qua tiền cảnh'],
+  'pose':['đứng thẳng nhìn ống kính','bước đi giữa nhịp','ngồi bệt thả lỏng','tựa vào tường nghiêng người','xoay lưng ngoái đầu lại','tay vuốt tóc mắt nhìn xuống','cúi nhặt một thứ gì đó','khoanh tay dứt khoát','vươn người theo ánh sáng','ngồi ghế bắt chéo chân'],
+  'ánh sáng':['nắng xiên qua cửa sổ','ngược sáng viền tóc','trời râm dịu đều','nắng gắt đổ bóng gắt','giờ vàng ấm','đèn neon đêm','một đèn studio duy nhất','ánh sáng lọt qua rèm thưa'],
+  'bối cảnh':['phòng trống tường trơn','hành lang dài','quán cà phê cửa kính','phố cổ buổi sớm','cầu thang bê tông','vườn cây rậm','bờ tường gạch cũ','sảnh kính hiện đại','phòng ngủ ánh sáng tự nhiên'],
+  'tâm trạng':['tự tin lạnh','dịu dàng mơ màng','tinh nghịch','trầm tư','quyền lực','thư thái','tò mò','xa cách bí ẩn'],
+  'tiền cảnh':['không có gì che','qua tán lá','qua khung cửa','qua tấm kính có phản chiếu','qua vai người khác mờ','qua rèm bay']
+};
+function shotAxisBlock(n,rnd){
+  const lines=__axisLines(SHOT_AXES,n,rnd,'Khung');
+  if(!lines.length)return '';
+  return '\nTRỤC BẮT BUỘC — mỗi khung bám ĐÚNG tổ hợp của nó, KHÔNG được lặp khung nào:\n'+lines.join('\n')+'\n';
+}
 function lifeAxisBlock(n,rnd){
   const lines=__axisLines(LIFE_AXES,n,rnd,'Vlog');
   if(!lines.length)return '';
   return '\nTRỤC ĐỜI SỐNG BẮT BUỘC — mỗi vlog bám ĐÚNG tổ hợp của nó, không được trôi sang tổ hợp khác.\nĐây là cách ép mỗi vlog chạm một góc đời sống khác, thay vì lặp lại "một ngày của tôi":\n'+lines.join('\n')+'\n';
 }
 /* == END CREATIVE DIVERSITY == */
+
+/* == LOOKBOOK DIRECTOR (test/lookbook.test.js trích đúng đoạn giữa 2 mốc này) ==
+   Photoshoot cũ: người dùng điền MỘT pose, MỘT bối cảnh rồi chụp N tấm → N tấm na ná, chỉ khác
+   góc máy. Look book phải là bộ ảnh của một nhiếp ảnh gia thật: mỗi khung một cỡ cảnh, một pose,
+   một hướng sáng, một tâm trạng riêng. Ép bằng shotAxisBlock. */
+function lookShotListPrompt(n,outfits){
+  n=Math.max(1,n||6);
+  const list=(outfits||[]).map(function(x){return String(x||'').trim();}).filter(Boolean);
+  const p=(typeof S!=='undefined'&&S.persona)||{};
+  const d=(typeof S!=='undefined'&&S.fashionDna)||{};
+  return 'Bạn là NHIẾP ẢNH GIA THỜI TRANG kiêm đạo diễn hình ảnh của một tạp chí lớn. Bạn dựng bộ ảnh\n'
++'look book — mỗi khung một ý đồ riêng, ghép lại thành một câu chuyện thị giác liền mạch.\n\n'
++'NGƯỜI MẪU: '+(p.name||'')+' · '+(p.gender||'')+' '+(p.age||'')+' · thần thái: '+(p.vibe||'')+'\n'
++'DNA THỜI TRANG (bám sát): archetype '+(d.archetype||'(tự suy)')+' · bảng màu '+(d.palette||'')
++' · chất liệu '+(d.fabrics||'')+' · phụ kiện '+(d.accessories||'')+'\n'
++'TUYỆT ĐỐI KHÔNG mặc: '+(d.avoid||'(không có)')+'\n\n'
++(list.length?('TRANG PHỤC THAM CHIẾU (ảnh thật đính kèm khi chụp — tả đúng những món này, không đổi sang đồ khác):\n'
+   +list.map(function(x,i){return (i+1)+'. '+x;}).join('\n')+'\n\n')
+  :'Chưa chọn trang phục cụ thể — tự chọn trang phục hợp DNA thời trang của nhân vật.\n\n')
++'Dựng '+n+' khung hình cho bộ look book này.\n'
++shotAxisBlock(n)
++'\nDANH SÁCH GÓC MÁY (field "goc_may" phải copy nguyên văn một giá trị trong đây):\n'
++ANGLES.map(function(a){return '- '+a;}).join('\n')+'\n\n'
++'Trả DUY NHẤT JSON mảng '+n+' phần tử:\n'
++'[{"ten":"tên khung ngắn tiếng Việt","goc_may":"copy nguyên văn từ danh sách trên","co_canh":"cỡ cảnh",'
++'"pose":"tư thế cụ thể","anh_sang":"hướng và chất sáng","boi_canh":"bối cảnh","tam_trang":"tâm trạng",'
++'"prompt_en":"mô tả cảnh bằng tiếng Anh — bối cảnh, ánh sáng, tư thế, cỡ cảnh và trang phục; KHÔNG tả khuôn mặt"}]\n\n'
++'LUẬT BẮT BUỘC:\n'
++'- Mỗi khung KHÔNG được lặp lại khung nào khác: khác cỡ cảnh, khác pose, khác hướng sáng, khác tâm trạng.\n'
++'  Đây là điểm sống còn — bộ ảnh mà N tấm giống nhau thì vứt.\n'
++'- Các khung ghép lại phải ra một mạch thị giác: cùng bảng màu, cùng thế giới, có mở có đóng.\n'
++'- "prompt_en" KHÔNG tả khuôn mặt (ảnh tham chiếu lo phần nhận dạng), KHÔNG nhắc người nổi tiếng.\n'
++'- An toàn nền tảng: không khoả thân, không nội dung nhạy cảm; gợi cảm tinh tế kiểu editorial thì được.\n'
++'- Không nhắc tên thương hiệu thật.';
+}
+/* == END LOOKBOOK DIRECTOR == */
 
 /* == CAPTION & DIRECTOR (test/caption.test.js trích đúng đoạn giữa 2 mốc này) == */
 function captionPrompt(ctx){
@@ -1197,6 +1247,14 @@ function capTarget(kind,id,vi){
     return {get:function(){return g.cap;},set:function(c){g.cap=c;},imgKey:'g:'+id,
       what:function(){return 'ảnh: '+(g.prompt||'ảnh nhân vật');},
       title:function(){return 'Ảnh — '+String(g.prompt||'').slice(0,40);}};
+  }
+  if(kind==='lookbook'){
+    const lb=(S.lookbooks||[]).find(x=>x.id===id);if(!lb)return null;
+    const sel=(LOOK.selIds&&LOOK.selIds[id])||[];
+    const first=sel[0]||((lb.shots||[]).find(x=>x.gid)||{}).gid||'';
+    return {get:function(){return lb.cap;},set:function(c){lb.cap=c;},imgKey:first?('g:'+first):'',
+      what:function(){return 'bộ ảnh look book '+(lb.count||0)+' khung — trang phục: '+((lb.outfits||[]).join(', ')||'tự chọn')+' · các khung: '+(lb.shots||[]).map(function(x){return x.ten;}).filter(Boolean).slice(0,6).join(', ');},
+      title:function(){return 'Look book — '+(lb.createdAt||'');}};
   }
   if(kind==='styleVideo'){
     const st=(S.styleSets||[]).find(x=>x.id===id);const v=st&&(st.videos||[])[vi];if(!v)return null;
@@ -1733,8 +1791,215 @@ function renderStudio(m){
 /* --- Photoshoot --- */
 const PS={makeup:"",outfit:"",background:"",pose:"",angle:"full body shot, eye-level",shots:1,useRef:true};
 const ANGLES=["full body shot, eye-level","medium shot","close up portrait","low angle","high angle","over-the-shoulder"];
+
+/* ================= LOOK BOOK — bộ ảnh nhiều khung từ trang phục có sẵn ================= */
+const LOOK={mode:'lookbook',outfitKeys:[],count:8,busy:false,selIds:{}};
+function lookMode(m){LOOK.mode=m;renderStudio(document.getElementById('main'));}
+function lookSrcItems(){
+  const out=[];
+  (S.wardrobe||[]).forEach(function(w){out.push({key:'wb:'+w.id,name:w.name||'Outfit',desc:w.masterPrompt||w.name||'',img:w.img?('wb:'+w.id):''});});
+  (S.gallery||[]).filter(function(g){return g.kind==='outfit'||g.kind==='costume'||g.kind==='style';})
+    .slice(0,60).forEach(function(g){out.push({key:'g:'+g.id,name:String(g.prompt||'Ảnh').slice(0,28),desc:g.prompt||'',img:'g:'+g.id});});
+  return out;
+}
+function lookToggleOutfit(k){
+  const i=LOOK.outfitKeys.indexOf(k);
+  if(i<0)LOOK.outfitKeys.push(k);else LOOK.outfitKeys.splice(i,1);
+  paintLookPick();
+}
+function paintLookPick(){
+  document.querySelectorAll('#lookPick [data-ok]').forEach(function(el){
+    const ord=LOOK.outfitKeys.indexOf(el.getAttribute('data-ok'));
+    el.style.outline=ord>=0?'3px solid var(--gold)':'';
+    const o=el.querySelector('[data-ord]');if(o)o.textContent=ord>=0?('#'+(ord+1)+' '):'';
+  });
+  const c=document.getElementById('lookPicked');
+  if(c)c.textContent=LOOK.outfitKeys.length+' trang phục · '+LOOK.count+' khung';
+}
+function lookSetCount(n){LOOK.count=parseInt(n,10)||8;paintLookPick();}
+function lookModeBarHTML(){
+  return '<div class="bar" style="margin-bottom:10px">'
+    +[['lookbook','📖 Look book'],['manual','🎯 Chụp thủ công']].map(function(x){
+      return '<span class="chip" style="cursor:pointer;'+(LOOK.mode===x[0]?'border-color:var(--gold);color:var(--gold)':'')+'" onclick="lookMode(\''+x[0]+'\')">'+x[1]+'</span>';
+    }).join('')+'</div>';
+}
+function lookPickerHTML(){
+  const items=lookSrcItems();
+  return '<div class="card">'
+   +'<h2>📖 Bộ ảnh look book</h2>'
+   +'<p class="hint" style="margin-top:2px">Tick trang phục làm tham chiếu → AI đạo diễn dựng mỗi khung một cỡ cảnh, một pose, một hướng sáng khác nhau.</p>'
+   +(items.length?('<label style="margin-top:10px">👗 Trang phục tham chiếu (tick nhiều được, theo thứ tự)</label>'
+     +'<div class="imgrid" id="lookPick">'+items.map(function(it){
+        const ord=LOOK.outfitKeys.indexOf(it.key);
+        return '<div class="imgcard" data-ok="'+it.key+'" style="cursor:pointer;'+(ord>=0?'outline:3px solid var(--gold)':'')+'" onclick="lookToggleOutfit(\''+it.key+'\')">'
+          +(it.img?'<img data-ik="'+it.img+'" loading="lazy" style="aspect-ratio:3/4;object-fit:cover" alt="">':'<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:24px">👗</div>')
+          +'<div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.65))"><span style="font-size:10px;padding:3px 5px"><b data-ord>'+(ord>=0?('#'+(ord+1)+' '):'')+'</b>'+esc(it.name)+'</span></div></div>';
+      }).join('')+'</div>')
+    :'<div class="note" style="border-color:var(--gold);color:var(--gold)">Chưa có trang phục nào — tạo ở tab 👗 Tủ đồ trước, hoặc chụp thủ công rồi lưu vào tủ.</div>')
+   +'<div class="row" style="margin-top:12px">'
+   +'<div><label>Số khung trong bộ</label><select id="lookCount" onchange="lookSetCount(this.value)">'
+     +[4,6,8,12].map(function(n){return '<option value="'+n+'" '+(LOOK.count===n?'selected':'')+'>'+n+' khung</option>';}).join('')
+   +'</select></div>'
+   +'<div><label>Đã chọn</label><input id="lookPicked" value="'+LOOK.outfitKeys.length+' trang phục · '+LOOK.count+' khung" readonly></div></div>'
+   +'<div class="bar" style="margin-top:10px;flex-wrap:wrap">'
+   +'<button class="btn gold" id="lookBtn" onclick="lookShoot()" '+(personaOK()?'':'disabled')+'>📖 Chụp bộ look book</button>'
+   +'<span class="hint" style="align-self:center">1 lượt dựng shot list + '+LOOK.count+' lượt sinh ảnh</span></div>'
+   +'<div id="lookErr" class="note" style="display:none;border-color:var(--coral);color:#ffb3b3"></div>'
+   +'</div><div id="lookList"></div>';
+}
+async function lookRefs(){
+  const refs=[];
+  const face=await getRef();if(face)refs.push(face);
+  /* Ảnh trang phục đặt CUỐI: geminiImageMulti bỏ dần ref từ đầu khi bị chặn, giữ ref cuối lâu nhất. */
+  for(const k of LOOK.outfitKeys.slice(0,3)){const u=await mediaGet(k);if(u)refs.push(u);}
+  return refs;
+}
+async function lookShoot(){
+  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
+  if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
+  const err=document.getElementById('lookErr');if(err)err.style.display='none';
+  const b=document.getElementById('lookBtn');
+  const items=lookSrcItems();
+  const names=LOOK.outfitKeys.map(function(k){const x=items.find(function(y){return y.key===k;});return x?(x.name+(x.desc?(' — '+String(x.desc).slice(0,60)):'')):'';}).filter(Boolean);
+  const n=LOOK.count;
+  try{
+    if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> Đạo diễn đang dựng shot list...';}
+    let shots=parseJSON(await geminiText(lookShotListPrompt(n,names),true,1.1));
+    if(!Array.isArray(shots))shots=shots.shots||shots.khung||[];
+    shots=shots.filter(Boolean).slice(0,n);
+    if(!shots.length)throw new Error('AI không trả về khung nào');
+    const lb={id:uid(),createdAt:_today10(),outfits:names,count:shots.length,
+      shots:shots.map(function(x){return {ten:x.ten||'',goc_may:x.goc_may||'',co_canh:x.co_canh||'',pose:x.pose||'',anh_sang:x.anh_sang||'',boi_canh:x.boi_canh||'',tam_trang:x.tam_trang||'',prompt_en:x.prompt_en||'',gid:''};})};
+    S.lookbooks.unshift(lb);
+    while(S.lookbooks.length>15){const old=S.lookbooks.pop();await lookDropImages(old);}
+    save();renderStudio(document.getElementById('main'));
+    const refs=await lookRefs();
+    const errs=[];
+    /* Tuần tự: mỗi ảnh 1-7MB base64, song song là dội RAM. */
+    for(let i=0;i<lb.shots.length;i++){
+      const sh=lb.shots[i];
+      const bb=document.getElementById('lookBtn');
+      if(bb){bb.disabled=true;bb.innerHTML='<span class="spinner"></span> Đang chụp '+(i+1)+'/'+lb.shots.length;}
+      try{
+        const u=await geminiImageMulti(shotPrompt({angle:sh.goc_may,pose:sh.pose,background:sh.boi_canh,outfit:sh.prompt_en}),refs);
+        sh.gid=await addToGallery(u,'lookbook: '+(sh.ten||sh.co_canh||''),'lookbook');
+        save();renderStudio(document.getElementById('main'));
+      }catch(e){errs.push((sh.ten||('khung '+(i+1)))+': '+(e.message||e));}
+    }
+    const eb=document.getElementById('lookErr');
+    if(eb&&errs.length){eb.style.display='block';eb.innerHTML='Lỗi: '+errs.map(esc).join(' · ');}
+    toast(errs.length?('Xong, '+errs.length+' khung lỗi'):('✓ Xong bộ '+lb.shots.length+' khung'));
+  }catch(e){
+    const e2=document.getElementById('lookErr');
+    if(e2){e2.style.display='block';e2.textContent='Lỗi AI: '+(e.message||e);}
+    toast('Lỗi AI: '+(e.message||e));
+  }finally{const bb=document.getElementById('lookBtn');if(bb){bb.disabled=false;bb.innerHTML='📖 Chụp bộ look book';}}
+}
+async function lookDropImages(lb){
+  if(!lb)return;
+  const gids=(lb.shots||[]).map(function(x){return x.gid;}).filter(Boolean);
+  for(const g of gids){try{await mediaDel('g:'+g);}catch(e){}}
+  S.gallery=(S.gallery||[]).filter(function(x){return gids.indexOf(x.id)<0;});
+}
+async function lookDel(id){
+  const lb=(S.lookbooks||[]).find(function(x){return x.id===id;});if(!lb)return;
+  await lookDropImages(lb);
+  S.lookbooks=(S.lookbooks||[]).filter(function(x){return x.id!==id;});
+  delete LOOK.selIds[id];save();renderStudio(document.getElementById('main'));toast('Đã xoá bộ');
+}
+function lookSel(id){LOOK.selIds[id]=LOOK.selIds[id]||[];return LOOK.selIds[id];}
+function lookToggleSel(id,gid){
+  const a=lookSel(id),i=a.indexOf(gid);
+  if(i<0)a.push(gid);else a.splice(i,1);
+  const c=document.getElementById('looksel_'+id);if(c)c.textContent=a.length+' ảnh đã chọn';
+  const card=document.querySelector('[data-lbimg="'+id+'|'+gid+'"]');
+  if(card)card.style.outline=(i<0)?'3px solid var(--gold)':'';
+}
+function lookSelAll(id){
+  const lb=(S.lookbooks||[]).find(function(x){return x.id===id;});if(!lb)return;
+  const all=(lb.shots||[]).map(function(x){return x.gid;}).filter(Boolean);
+  LOOK.selIds[id]=(lookSel(id).length===all.length)?[]:all;
+  renderStudio(document.getElementById('main'));
+}
+function lookCardHTML(lb){
+  const done=(lb.shots||[]).filter(function(x){return x.gid;}).length;
+  const sel=lookSel(lb.id);
+  return '<div class="card" style="margin-top:14px">'
+   +'<div class="bar" style="justify-content:space-between;flex-wrap:wrap">'
+   +'<div><b>Look book '+esc(lb.createdAt)+'</b> <span class="hint">· '+done+'/'+(lb.shots||[]).length+' khung'
+     +(lb.outfits&&lb.outfits.length?(' · '+esc(lb.outfits.map(function(x){return String(x).split(' — ')[0];}).join(', ')).slice(0,60)):'')+'</span></div>'
+   +'<div class="bar" style="margin:0"><span class="hint" id="looksel_'+lb.id+'" style="align-self:center">'+sel.length+' ảnh đã chọn</span>'
+   +'<button class="btn ghost sm" onclick="lookSelAll(\''+lb.id+'\')">Chọn hết / bỏ</button>'
+   +capBtnHTML('lookbook',lb.id,null)
+   +'<button class="btn ghost sm" onclick="lookDel(\''+lb.id+'\')">✕</button></div></div>'
+   +'<div class="imgrid">'+(lb.shots||[]).map(function(sh,i){
+      const on=sh.gid&&sel.indexOf(sh.gid)>=0;
+      return '<div class="imgcard" '+(sh.gid?('data-lbimg="'+lb.id+'|'+sh.gid+'" style="cursor:pointer;'+(on?'outline:3px solid var(--gold)':'')+'" onclick="lookToggleSel(\''+lb.id+'\',\''+sh.gid+'\')"'):'')+'>'
+        +(sh.gid?('<img data-ik="g:'+sh.gid+'" loading="lazy" style="aspect-ratio:3/4;object-fit:cover" alt="">')
+                :'<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;color:#5b7187"><span class="spinner"></span></div>')
+        +'<div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.65))"><span style="font-size:10px;padding:3px 5px">'
+        +(on?'✓ ':'')+esc(sh.ten||('Khung '+(i+1)))+'</span></div></div>';
+    }).join('')+'</div>'
+   +'<details style="margin-top:8px"><summary class="hint">🎬 Shot list — bấm xem ý đồ từng khung</summary>'
+   +(lb.shots||[]).map(function(sh,i){return '<div class="hint" style="margin-top:6px;padding-left:8px;border-left:2px solid var(--line)"><b>'+esc(sh.ten||('Khung '+(i+1)))+'</b> · '+esc(sh.co_canh||'')+' · '+esc(sh.goc_may||'')+'<br>'+esc(sh.pose||'')+' · '+esc(sh.anh_sang||'')+' · '+esc(sh.boi_canh||'')+' · '+esc(sh.tam_trang||'')+'</div>';}).join('')
+   +'</details>'
+   +zLookbookBarHTML(lb.id)
+   +'</div>';
+}
+function renderLookList(){
+  const el=document.getElementById('lookList');if(!el)return;
+  const list=S.lookbooks||[];
+  if(!list.length){el.innerHTML='<div class="hint" style="text-align:center;margin-top:14px">Chưa có bộ nào — tick trang phục rồi bấm Chụp.</div>';return;}
+  el.innerHTML='<div class="hint" style="margin-top:16px">'+list.length+' bộ đã lưu (giữ tối đa 15)</div>'+list.map(lookCardHTML).join('');
+  el.querySelectorAll('img[data-ik]').forEach(function(im){lazyThumb(im,im.getAttribute('data-ik'));});
+}
+/* ---- Đăng / lên lịch look book qua Zernio: 1 bài kèm nhiều ảnh đã tick ---- */
+function zLookbookBarHTML(id){
+  if(!zConnected())return '<div class="hint" style="margin-top:8px">Nối Zernio ở tab ⑦ Nội dung để đăng thẳng từ đây.</div>';
+  return '<div class="bar" style="margin-top:10px;flex-wrap:wrap">'
+    +'<input type="datetime-local" id="lbsch_'+id+'" style="max-width:210px">'
+    +'<button class="btn sm" id="lbzsch_'+id+'" onclick="zernioLookbook(\''+id+'\',\'schedule\')">🗓 Lên lịch</button>'
+    +'<button class="btn ghost sm" id="lbzpub_'+id+'" onclick="zernioLookbook(\''+id+'\',\'now\')">🚀 Đăng ngay</button>'
+    +'<span class="hint" style="align-self:center">đăng 1 bài kèm các ảnh đã tick</span></div>';
+}
+async function zernioLookbook(id,mode){
+  const lb=(S.lookbooks||[]).find(function(x){return x.id===id;});if(!lb)return;
+  if(!zConnected()){toast('Nhập Zernio API key + Account ID ở tab Nội dung');return;}
+  const c=lb.cap;
+  if(!c||!c.post){toast('Viết caption cho bộ này trước đã (nút ✍️)');return;}
+  const sel=lookSel(id).filter(Boolean);
+  if(!sel.length){toast('Tick ít nhất 1 ảnh để đăng');return;}
+  let scheduledFor='';
+  if(mode==='schedule'){
+    const v=val('lbsch_'+id);
+    if(!v){toast('Chọn thời gian lên lịch đã');return;}
+    const dt=new Date(v);if(isNaN(dt.getTime())){toast('Thời gian không hợp lệ');return;}
+    scheduledFor=zLocalIso(v);
+  }
+  const btn=document.getElementById((mode==='schedule'?'lbzsch_':'lbzpub_')+id);
+  const old=btn?btn.innerHTML:'';if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Đang gửi...';}
+  try{
+    const content=capText(c);
+    const imagesBase64=[];
+    /* Tuần tự + thu nhỏ 1024px: đăng 12 ảnh gốc là vài chục MB, vừa nghẽn vừa dội RAM. */
+    for(const gid of sel.slice(0,10)){
+      const u=await mediaGet('g:'+gid);if(!u)continue;
+      imagesBase64.push(await scaleDataUrl(u,1024));
+    }
+    const body={zernioKey:zGet('key'),accountId:zGet('account'),content:content,imagesBase64:imagesBase64};
+    if(scheduledFor){body.scheduledFor=scheduledFor;body.timezone=zTz();}else body.publishNow=true;
+    const r=await fetch(SYNC_URL+'/zernio/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json().catch(function(){return {};});
+    if(d.ok)toast(scheduledFor?('✓ Đã lên lịch '+scheduledFor.replace('T',' ')):'✓ Đã đăng lên Facebook');
+    else if(zIsDup(d))toast('⚠ Nội dung này đã đăng/lên lịch trong 24h qua — Zernio chặn trùng.');
+    else toast('Zernio: '+zErrMsg(d).slice(0,160));
+  }catch(e){toast('Lỗi mạng: '+(e.message||e));}
+  finally{if(btn){btn.disabled=false;btn.innerHTML=old;}}
+}
+
 function renderPhotoshoot(b){
-  b.innerHTML=`<div class="card">
+  if(LOOK.mode==='lookbook'){b.innerHTML=lookModeBarHTML()+lookPickerHTML();renderLookList();const pk=document.getElementById('lookPick');if(pk)pk.querySelectorAll('img[data-ik]').forEach(function(im){lazyThumb(im,im.getAttribute('data-ik'));});return;}
+  b.innerHTML=lookModeBarHTML()+`<div class="card">
     <div class="bar" style="margin-top:0"><button class="btn gold sm" id="conceptBtn" onclick="aiConcept()">✨ AI gợi ý concept</button>
       <span class="hint">Tự điền makeup/outfit/background một concept đẹp.</span></div>
     <div class="err" id="psErr"></div>
@@ -1963,7 +2228,7 @@ async function onOutfitFile(ev){
 
 /* --- Gallery --- */
 let __galShow=30,__galKind='all';
-const GAL_KINDS=[['all','Tất cả'],['shot','Photoshoot'],['product','Bộ ảnh SP'],['content','Ảnh bài'],['wardrobe','Outfit'],['style','Phối đồ']];
+const GAL_KINDS=[['all','Tất cả'],['shot','Photoshoot'],['product','Bộ ảnh SP'],['content','Ảnh bài'],['wardrobe','Outfit'],['style','Phối đồ'],['lookbook','Look book']];
 function galFilter(k){__galKind=k;__galShow=30;renderStudio(document.getElementById('main'));}
 function galMore(){__galShow+=30;renderStudio(document.getElementById('main'));}
 async function renderGallery(b){
