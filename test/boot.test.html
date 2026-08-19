@@ -31,7 +31,7 @@ async function main(){
 
   // Các hàm của bản vá OOM
   for(const fn of ['mediaThumb','vidTalentChipsHTML','paintVidPicked','paintVidOutfitSel','vidOutfit','vidTalent','renderVideo','scaleDataUrl','renderStyleBrain','styleGenPlan','styleRenderSet','styleFlowPack','styleValidatePlan','styleBuildPack','genFashionDna','omniMasterPrompt','styleCopyOmni','copyVidOmni','styleOmniOpts','geminiVisionMulti','styleVisionPrompt','stylePhotoUpload','styleGenPhotoPlan','styleMode',
-      'captionPrompt','genCaption','capCopy','capBlockHTML','directorIdeasPrompt','genDirectorIdeas','directorUpload','directorPick','avoidBlock','divAxisBlock','lifeAxisBlock','twinAnalyzePrompt']){
+      'captionPrompt','capGenerate','capCopy','capBtnHTML','openCapModal','closeCapModal','capTarget','capLang','capSetLang','directorIdeasPrompt','genDirectorIdeas','directorUpload','directorPick','avoidBlock','divAxisBlock','lifeAxisBlock','twinAnalyzePrompt']){
     ok(typeof w[fn]==='function','có hàm '+fn+'()');
   }
 
@@ -45,7 +45,10 @@ async function main(){
   // Đạo diễn: thao tác khi chưa có ảnh/ý tưởng nào phải im lặng
   try{ w.directorDel(0); w.directorClear(); w.directorPick(99); ok(true,'thao tác đạo diễn khi rỗng không ném lỗi'); }
   catch(e){ ok(false,'đạo diễn ném lỗi: '+e.message); }
-  ok(w.capBlockHTML('khong-ton-tai').indexOf('Caption')>=0,'ảnh chưa có caption thì hiện nút viết');
+  ok(w.capBtnHTML('gallery','khong-ton-tai',null).indexOf('Caption')>=0,'ảnh chưa có caption thì nút hiện chữ Caption');
+  ok(w.capTarget('gallery','khong-ton-tai')===null,'tài nguyên không tồn tại trả null, không nổ');
+  w.openCapModal('gallery','khong-ton-tai',null); w.closeCapModal(); ok(true,'mở/đóng hộp thoại caption cho id lạ không ném lỗi');
+  w.capSetLang('en'); ok(w.capLang()==='en','đổi ngôn ngữ caption sang English'); w.capSetLang('vi'); ok(w.capLang()==='vi','đổi lại tiếng Việt');
   ok(w.capText(null)==='','capText rỗng an toàn');
 
   // Tick outfit khi lưới chưa dựng: phải im lặng, không được ném lỗi

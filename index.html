@@ -1182,64 +1182,116 @@ LUẬT:
 }
 /* == END CAPTION & DIRECTOR == */
 
-/* ---- Caption: gắn ở tầng THƯ VIỆN nên cả 11 chỗ sinh ảnh đều có ngay ---- */
-function capOf(gid){const g=(S.gallery||[]).find(x=>x.id===gid);return (g&&g.cap)||null;}
+/* ---- Caption: MỘT hộp thoại dùng chung cho mọi loại tài nguyên ----
+   Trước đây nhét khối caption thẳng vào .imgcard — thẻ đó có overflow:hidden và lớp .ov phủ tuyệt
+   đối ở đáy, nên caption đè lên nút Tải/Neo/Xoá. Giờ chỉ thêm 1 nút vào hàng .ov, nội dung mở ra
+   trong hộp thoại riêng: không đụng layout cũ, lại có chỗ đặt nút chọn ngôn ngữ. */
+function capLang(){return S.capLang||((typeof CC!=='undefined'&&CC.lang==='en')?'en':'vi');}
+function capSetLang(l){S.capLang=l;save();if(__capOpen)capPaint();}
+let __capOpen=null;   /* {kind,id,vi} đang mở */
+
+/* Một accessor duy nhất cho cả 4 loại tài nguyên — thêm loại mới chỉ cần thêm một nhánh. */
+function capTarget(kind,id,vi){
+  if(kind==='gallery'){
+    const g=(S.gallery||[]).find(x=>x.id===id);if(!g)return null;
+    return {get:function(){return g.cap;},set:function(c){g.cap=c;},imgKey:'g:'+id,
+      what:function(){return 'ảnh: '+(g.prompt||'ảnh nhân vật');},
+      title:function(){return 'Ảnh — '+String(g.prompt||'').slice(0,40);}};
+  }
+  if(kind==='styleVideo'){
+    const st=(S.styleSets||[]).find(x=>x.id===id);const v=st&&(st.videos||[])[vi];if(!v)return null;
+    return {get:function(){return v.cap;},set:function(c){v.cap=c;},
+      imgKey:(st.base&&st.base.gid)?('g:'+st.base.gid):'',
+      what:function(){return 'video 10s "'+(v.title||st.styleName||'')+'" — '+(v.hook||'')+' · chữ trên hình: '+(v.clips||[]).map(function(c){return c&&c.overlay;}).filter(Boolean).join(' / ');},
+      title:function(){return 'Video — '+(v.title||st.styleName||'');}};
+  }
+  if(kind==='vidPack'){
+    const v=(typeof __vidVideos!=='undefined')?__vidVideos[vi]:null;if(!v)return null;
+    return {get:function(){return v.cap;},set:function(c){v.cap=c;},imgKey:'',
+      what:function(){return 'video 10s "'+(v.series||'')+'" — '+(v.clips||[]).map(function(c){return c&&c.overlayText;}).filter(Boolean).join(' / ');},
+      title:function(){return 'Video — '+(v.series||'');}};
+  }
+  if(kind==='vidHist'){
+    const e=(S.vidHistory||[]).find(x=>x.id===id);if(!e)return null;
+    return {get:function(){return e.cap;},set:function(c){e.cap=c;},imgKey:'',
+      what:function(){return 'bộ '+(e.nvid||1)+' video ngắn "'+(e.label||'')+'" — ý tưởng: '+(e.idea||'');},
+      title:function(){return 'Pack — '+(e.label||'');}};
+  }
+  return null;
+}
 function capText(c){
   if(!c)return '';
-  return [c.title,'',c.post,'',c.hashtags,'',c.alt?('[Mô tả ảnh] '+c.alt):''].filter(x=>x!==undefined).join('\n').trim();
+  return [c.title,'',c.post,'',c.hashtags,c.alt?('\n[Mô tả ảnh] '+c.alt):''].filter(function(x){return x!==undefined&&x!==null;}).join('\n').trim();
 }
-function capCopy(gid){
-  const c=capOf(gid);if(!c){toast('Chưa có caption');return;}
+function capCopy(kind,id,vi){
+  const t=capTarget(kind,id,vi),c=t&&t.get();
+  if(!c){toast('Chưa có caption');return;}
   if(navigator.clipboard)navigator.clipboard.writeText(capText(c));
   toast('Đã copy tiêu đề + bài đăng + hashtag');
 }
-function capBlockHTML(gid){
-  const c=capOf(gid);
-  if(!c)return `<button class="btn ghost sm" onclick="genCaption('${gid}',this)">✍️ Caption</button>`;
-  return `<div class="note" style="margin-top:8px;text-align:left">
-    <b>${esc(c.title||'')}</b><br><br>${esc(c.post||'').replace(/\n/g,'<br>')}<br><br>
-    <span style="color:var(--acc)">${esc(c.hashtags||'')}</span>
-    ${c.alt?`<br><br><span class="hint">Mô tả cho thuật toán: ${esc(c.alt)}</span>`:''}
-    <div class="bar" style="margin-top:8px">
-      <button class="btn gold sm" onclick="capCopy('${gid}')">📋 Copy cả bộ</button>
-      <button class="btn ghost sm" onclick="genCaption('${gid}',this)">🔄 Viết lại</button>
-    </div></div>`;
+function capHasFor(kind,id,vi){const t=capTarget(kind,id,vi);return !!(t&&t.get());}
+function capBtnHTML(kind,id,vi,label){
+  const has=capHasFor(kind,id,vi);
+  const args="'"+kind+"','"+id+"',"+(vi==null?'null':vi);
+  return '<button class="btn '+(has?'gold':'ghost')+' sm" onclick="openCapModal('+args+')">'+(label||(has?'✍️ Caption ✓':'✍️ Caption'))+'</button>';
 }
-async function genCaption(gid,btn){
+function capLangBarHTML(){
+  const l=capLang();
+  return '<div class="bar" style="margin:0"><span class="hint" style="align-self:center;margin:0">Ngôn ngữ:</span>'
+    +[['vi','🇻🇳 Tiếng Việt'],['en','🇬🇧 English']].map(function(x){
+      return '<span class="chip" style="cursor:pointer;'+(l===x[0]?'border-color:var(--gold);color:var(--gold)':'')+'" onclick="capSetLang(\''+x[0]+'\')">'+x[1]+'</span>';
+    }).join('')+'</div>';
+}
+function capPaint(){
+  const box=document.getElementById('capBody');if(!box||!__capOpen)return;
+  const kind=__capOpen.kind,id=__capOpen.id,vi=__capOpen.vi;
+  const t=capTarget(kind,id,vi);
+  if(!t){box.innerHTML='<div class="hint">Không tìm thấy tài nguyên.</div>';return;}
+  const c=t.get();
+  const args="'"+kind+"','"+id+"',"+(vi==null?'null':vi);
+  box.innerHTML=capLangBarHTML()
+    +'<div class="hint" style="margin:8px 0">'+esc(t.what()).slice(0,180)+'</div>'
+    +(c?('<div class="note" style="text-align:left"><b>'+esc(c.title||'')+'</b><br><br>'+esc(c.post||'').replace(/\n/g,'<br>')
+        +'<br><br><span style="color:var(--acc)">'+esc(c.hashtags||'')+'</span>'
+        +(c.alt?('<br><br><span class="hint">Mô tả cho thuật toán nền tảng: '+esc(c.alt)+'</span>'):'')+'</div>')
+      :'<div class="hint">Chưa có caption — bấm nút bên dưới để AI viết.</div>')
+    +'<div class="bar" style="margin-top:12px;flex-wrap:wrap">'
+    +'<button class="btn gold" id="capGenBtn" onclick="capGenerate()">'+(c?'🔄 Viết lại':'✍️ Viết caption')+'</button>'
+    +(c?('<button class="btn" onclick="capCopy('+args+')">📋 Copy cả bộ</button>'):'')
+    +'<button class="btn ghost" onclick="closeCapModal()">Đóng</button></div>';
+}
+function openCapModal(kind,id,vi){
+  closeCapModal();
+  __capOpen={kind:kind,id:id,vi:(vi==null?null:vi)};
+  const t=capTarget(kind,id,vi);
+  const d=document.createElement('div');d.className='overlay';d.id='capModal';d.style.zIndex='700';
+  d.onclick=function(e){if(e.target.id==='capModal')closeCapModal();};
+  d.innerHTML='<div class="ovbox" style="max-width:560px"><h2>✍️ Caption đăng bài</h2>'
+    +'<p class="lead" style="margin-top:2px">'+esc((t&&t.title())||'')+'</p><div id="capBody"></div></div>';
+  document.body.appendChild(d);capPaint();
+}
+function closeCapModal(){const d=document.getElementById('capModal');if(d)d.remove();__capOpen=null;}
+async function capGenerate(){
+  if(!__capOpen)return;
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
-  const g=(S.gallery||[]).find(x=>x.id===gid);if(!g)return;
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Đang viết...';}
+  const kind=__capOpen.kind,id=__capOpen.id,vi=__capOpen.vi;
+  const t=capTarget(kind,id,vi);if(!t)return;
+  const b=document.getElementById('capGenBtn');if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> Đang viết...';}
   try{
-    /* Dùng THUMB chứ không ảnh gốc: 384px thừa đủ để đọc nội dung, nhẹ và nhanh hơn nhiều. */
-    const img=await mediaThumb('g:'+gid);
-    const ctx={persona:S.persona,lang:(typeof CC!=='undefined'?CC.lang:'vi'),what:(g.prompt||'một tài nguyên hình ảnh')};
+    const ctx={persona:S.persona,lang:capLang(),what:t.what()};
+    /* Có ảnh thì cho AI nhìn THUMB — 384px đủ để mô tả nội dung, nhẹ hơn ảnh gốc nhiều. */
+    const img=t.imgKey?await mediaThumb(t.imgKey):null;
     const raw=img?await geminiVision(captionPrompt(ctx),img,true,0.95)
                  :await geminiText(captionPrompt(ctx),true,0.95);
     const c=parseJSON(raw);
-    g.cap={title:c.title||'',post:c.post||'',hashtags:c.hashtags||'',alt:c.alt||''};
-    save();render();toast('✓ Đã viết caption');
-  }catch(e){toast('Lỗi AI: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='✍️ Caption';}}
+    t.set({title:c.title||'',post:c.post||'',hashtags:c.hashtags||'',alt:c.alt||''});
+    save();capPaint();toast('✓ Đã viết caption');
+  }catch(e){
+    toast('Lỗi AI: '+(e.message||e));
+    const bb=document.getElementById('capGenBtn');if(bb){bb.disabled=false;bb.innerHTML='✍️ Viết caption';}
+  }
 }
-/* Caption cho VIDEO: không có ảnh, viết từ ý tưởng + hook + chữ overlay của chính video đó. */
-async function genVideoCaption(setId,vi,btn){
-  if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
-  const s=(S.styleSets||[]).find(x=>x.id===setId);if(!s)return;
-  const v=(s.videos||[])[vi];if(!v)return;
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Đang viết...';}
-  try{
-    const what='video 10s "'+(v.title||s.styleName||'')+'" — '+(v.hook||'')+' · các dòng chữ trên hình: '
-      +(v.clips||[]).map(c=>c&&c.overlay).filter(Boolean).join(' / ');
-    const c=parseJSON(await geminiText(captionPrompt({persona:S.persona,lang:(typeof CC!=='undefined'?CC.lang:'vi'),what:what}),true,0.95));
-    v.cap={title:c.title||'',post:c.post||'',hashtags:c.hashtags||'',alt:c.alt||''};
-    save();renderStyleBrain(document.getElementById('studioBody'));toast('✓ Đã viết caption video');
-  }catch(e){toast('Lỗi AI: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='✍️ Caption';}}
-}
-function capCopyVideo(setId,vi){
-  const s=(S.styleSets||[]).find(x=>x.id===setId);if(!s)return;
-  const v=(s.videos||[])[vi];if(!v||!v.cap){toast('Chưa có caption');return;}
-  if(navigator.clipboard)navigator.clipboard.writeText(capText(v.cap));
-  toast('Đã copy caption video');
-}
+
 /* ---- Đạo diễn AI: sinh ý tưởng phim làm đầu vào, đọc được cả ảnh tham chiếu ---- */
 const DIRECTOR={photos:[],ideas:[],busy:false};
 const DIRECTOR_MAX=5;
@@ -1936,17 +1988,16 @@ async function renderGallery(b){
   for(let i=0;i<show;i++){const g=list[i];const key="g:"+g.id;
     const c=document.createElement('div');c.className='imgcard';
     c.innerHTML=`<img loading="lazy" alt=""><div class="ov">
-      <button title="Tải">⬇</button><button title="Đặt làm khuôn mặt neo">📌</button><button title="Xoá">✕</button></div>`;
+      <button title="Tải">⬇</button><button title="Đặt làm khuôn mặt neo">📌</button><button title="Viết caption đăng bài">✍️</button><button title="Xoá">✕</button></div>`;
     const im=c.querySelector('img');im.title=g.prompt||'';
     const bs=c.querySelectorAll('button');
     /* Ảnh gốc chỉ nạp đúng lúc bấm nút — lưới chỉ giữ thumb. */
     bs[0].onclick=async()=>{const full=await mediaGet(key);if(full)dlDataUrl("muse-"+g.id+".png",full);};
     bs[1].onclick=async()=>{const full=await mediaGet(key);if(!full)return;await setRef(full);S.persona.hasPortrait=true;save();toast("Đã đặt làm khuôn mặt neo");};
-    bs[2].onclick=()=>delGallery(g.id);
-    /* Caption gắn ở tầng thư viện → mọi ảnh của mọi tính năng đều có, không phải sửa 11 chỗ sinh ảnh. */
-    const capWrap=document.createElement('div');capWrap.style.cssText='padding:6px';
-    capWrap.innerHTML=capBlockHTML(g.id);
-    c.appendChild(capWrap);
+    /* Caption mở trong hộp thoại riêng — nhét vào thẻ ảnh là đè lên chính hàng nút này. */
+    bs[2].onclick=()=>openCapModal('gallery',g.id,null);
+    if(g.cap){bs[2].style.background='var(--gold)';bs[2].style.color='#241a06';}
+    bs[3].onclick=()=>delGallery(g.id);
     grid.appendChild(c);
     lazyThumb(im,key);
   }
@@ -3086,7 +3137,7 @@ function styleSetCardHTML(s){
           <button class="btn gold sm" onclick="styleCopyOmni('${s.id}',${vi})">📋 Copy prompt Omni (cả video)</button>
           <button class="btn ghost sm" onclick="styleCopyVideo('${s.id}',${vi})">Copy từng clip</button>
         </div>
-        ${capVideoBlockHTML(s.id,vi,v)}</div>`).join('')}
+        ${capBtnHTML('styleVideo',s.id,vi)}</div>`).join('')}
     </details>
     <details style="margin-top:8px"><summary class="hint">📝 Bài đăng 3 tầng giá trị</summary>
       <div class="note" style="margin-top:8px">
@@ -3767,6 +3818,7 @@ function vidHistoryPanelHTML(){
         <div style="font-size:12.5px"><b>${esc(e.label||'Video')}</b> <span class="hint">· ${esc(e.date||'')} · ${e.nvid} video · ${e.nclip} clip${e.dur?(' · '+e.dur+'s'):''}</span></div>
         ${e.idea?`<div class="hint" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">💡 ${esc(e.idea)}</div>`:''}
       </div>
+      ${capBtnHTML('vidHist',e.id,null)}
       <button class="btn ghost sm" onclick="vidReplay('${e.id}')">Xem lại</button>
       <button class="btn ghost sm" onclick="vidHistDel('${e.id}')">🗑</button>
     </div>`).join('')}
@@ -3780,7 +3832,8 @@ function renderVideoOut(){
     ${drawTextToggleHTML()}
     <span class="hint">${__vidVideos.length} video · ${totalClips} clip · dán prompt vào Flow + chọn ảnh tham chiếu</span></div>`
     +__vidVideos.map((v,vi)=>`<div style="margin-top:16px"><h3 style="margin:0 0 6px;font-size:16px">🎬 Video ${vi+1}: ${esc(v.series)}</h3>
-      <button class="btn gold sm" onclick="copyVidOmni(${vi})">📋 Copy prompt Omni (cả video ${v.clips.length} cut)</button>`
+      <button class="btn gold sm" onclick="copyVidOmni(${vi})">📋 Copy prompt Omni (cả video ${v.clips.length} cut)</button>
+      ${capBtnHTML('vidPack','',vi)}`
       +v.clips.map((c,ci)=>`<div class="card" style="margin-top:8px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <b>Clip ${c.seq}/${v.clips.length} · 10s · ${esc(c.talentLabel)}</b>
