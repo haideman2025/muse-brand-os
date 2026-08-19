@@ -411,8 +411,38 @@ async function syncApi(path,opts){opts=opts||{};const headers=Object.assign({'x-
 function adoptServerBlob(blob,version){if(blob&&typeof blob==='object'&&Object.keys(blob).length){S.characters=blob;if(!S.characters[S.activeId])S.activeId=Object.keys(S.characters)[0];}setSyncVer(version);saveLocalOnly();}
 async function syncPull(){if(!syncCode())return;try{const {status,d}=await syncApi('/pull');if(status!==200)return;if(d.blob){adoptServerBlob(d.blob,d.version);if(typeof render==='function')render();toast('☁️ Đã đồng bộ từ cloud');}else{await syncPushNow(d.version);}updateSyncBtn();}catch(e){}}
 let __pushTimer=null;
-function schedulePush(){if(!syncCode())return;clearTimeout(__pushTimer);__pushTimer=setTimeout(()=>{syncPushNow();},2000);}
-async function syncPushNow(baseOverride){if(!syncCode())return;const base=(baseOverride!=null)?baseOverride:syncVer();try{const {status,d}=await syncApi('/push',{method:'POST',body:{blob:S.characters,baseVersion:(base<0?0:base)}});if(status===200&&d.ok){setSyncVer(d.version);}else if(status===409&&d.conflict){adoptServerBlob(d.serverBlob,d.version);if(typeof render==='function')render();toast('☁️ Đã tải bản mới nhất từ thiết bị khác');}updateSyncBtn();}catch(e){}}
+/* == SYNC PUSH GUARD (test/sync-guard.test.js trích đoạn giữa 2 mốc này) ==
+   Bệnh cũ: mỗi save() hẹn một lượt đẩy sau 2s, KHÔNG có khoá. Blob S.characters của người dùng
+   nhiều nhân vật nặng vài MB nên một lượt đẩy lâu hơn 2s → lượt sau khởi động khi lượt trước còn
+   bay, mang theo baseVersion đã cũ → máy chủ trả 409 → app tưởng "thiết bị khác vừa sửa", nuốt
+   blob máy chủ và hiện toast đồng bộ. Lặp liên tục trong lúc đang sinh ảnh, và tệ hơn: nuốt blob
+   máy chủ giữa chừng có thể XOÁ MẤT mấy tấm ảnh vừa tạo.
+
+   Chữa: một khoá đang-bay + cờ còn-nợ. Đang đẩy thì không đẩy chồng, chỉ ghi nợ; đẩy xong mà còn
+   nợ thì đẩy tiếp đúng MỘT lượt với version mới nhất. */
+let __pushBusy=false,__pushDirty=false,__lastSyncToast=0;
+function schedulePush(){
+  if(!syncCode())return;
+  clearTimeout(__pushTimer);
+  __pushTimer=setTimeout(function(){runPush();},2000);
+}
+async function runPush(){
+  if(!syncCode())return;
+  if(__pushBusy){__pushDirty=true;return;}   /* đang bay → ghi nợ, không đẩy chồng */
+  __pushBusy=true;
+  try{ await syncPushNow(); }
+  finally{
+    __pushBusy=false;
+    if(__pushDirty){__pushDirty=false;setTimeout(function(){runPush();},300);}
+  }
+}
+function syncToastOnce(msg){
+  const t=Date.now();
+  if(t-__lastSyncToast<60000)return;   /* tối đa 1 lần/phút, khỏi spam giữa lúc làm việc */
+  __lastSyncToast=t;toast(msg);
+}
+/* == END SYNC PUSH GUARD == */
+async function syncPushNow(baseOverride){if(!syncCode())return;const base=(baseOverride!=null)?baseOverride:syncVer();try{const {status,d}=await syncApi('/push',{method:'POST',body:{blob:S.characters,baseVersion:(base<0?0:base)}});if(status===200&&d.ok){setSyncVer(d.version);}else if(status===409&&d.conflict){adoptServerBlob(d.serverBlob,d.version);if(typeof render==='function')render();syncToastOnce('☁️ Đã tải bản mới nhất từ thiết bị khác');}updateSyncBtn();}catch(e){}}
 async function syncLogin(code){code=(code||'').trim().toUpperCase();if(!code)return;try{const r=await fetch(SYNC_URL+'/auth',{method:'POST',headers:{'x-muse-code':code}});const d=await r.json().catch(()=>({}));if(r.status!==200||!d.ok){toast('Mã không hợp lệ');return;}setSyncCode(code,d.name);setSyncVer(-1);await syncPull();toast('☁️ Đã bật đồng bộ: '+(d.name||code));updateSyncBtn();}catch(e){toast('Không kết nối được máy chủ sync');}}
 function syncLogout(){setSyncCode('');updateSyncBtn();toast('Đã tắt đồng bộ (dữ liệu vẫn ở máy này)');}
 function openSyncModal(){const on=!!syncCode();const name=localStorage.getItem('muse_sync_name')||'';
@@ -1793,13 +1823,15 @@ const PS={makeup:"",outfit:"",background:"",pose:"",angle:"full body shot, eye-l
 const ANGLES=["full body shot, eye-level","medium shot","close up portrait","low angle","high angle","over-the-shoulder"];
 
 /* ================= LOOK BOOK — bộ ảnh nhiều khung từ trang phục có sẵn ================= */
-const LOOK={mode:'lookbook',outfitKeys:[],count:8,busy:false,selIds:{}};
+const LOOK={mode:'lookbook',outfitKeys:[],count:8,busy:false,selIds:{},show:12};
+const LOOK_PAGE=12;
 function lookMode(m){LOOK.mode=m;renderStudio(document.getElementById('main'));}
+function lookMore(){LOOK.show+=LOOK_PAGE;renderStudio(document.getElementById('main'));}
 function lookSrcItems(){
   const out=[];
   (S.wardrobe||[]).forEach(function(w){out.push({key:'wb:'+w.id,name:w.name||'Outfit',desc:w.masterPrompt||w.name||'',img:w.img?('wb:'+w.id):''});});
-  (S.gallery||[]).filter(function(g){return g.kind==='outfit'||g.kind==='costume'||g.kind==='style';})
-    .slice(0,60).forEach(function(g){out.push({key:'g:'+g.id,name:String(g.prompt||'Ảnh').slice(0,28),desc:g.prompt||'',img:'g:'+g.id});});
+  (S.gallery||[]).filter(function(g){return g.kind==='outfit'||g.kind==='costume'||g.kind==='style'||g.kind==='lookbook';})
+    .forEach(function(g){out.push({key:'g:'+g.id,name:String(g.prompt||'Ảnh').slice(0,28),desc:g.prompt||'',img:'g:'+g.id});});
   return out;
 }
 function lookToggleOutfit(k){
@@ -1828,13 +1860,15 @@ function lookPickerHTML(){
   return '<div class="card">'
    +'<h2>📖 Bộ ảnh look book</h2>'
    +'<p class="hint" style="margin-top:2px">Tick trang phục làm tham chiếu → AI đạo diễn dựng mỗi khung một cỡ cảnh, một pose, một hướng sáng khác nhau.</p>'
-   +(items.length?('<label style="margin-top:10px">👗 Trang phục tham chiếu (tick nhiều được, theo thứ tự)</label>'
-     +'<div class="imgrid" id="lookPick">'+items.map(function(it){
+   +(items.length?('<label style="margin-top:10px">👗 Trang phục tham chiếu (tick nhiều được, theo thứ tự) '
+     +'<span class="hint">· hiện '+Math.min(LOOK.show,items.length)+'/'+items.length+'</span></label>'
+     +'<div class="imgrid" id="lookPick">'+items.slice(0,LOOK.show).map(function(it){
         const ord=LOOK.outfitKeys.indexOf(it.key);
         return '<div class="imgcard" data-ok="'+it.key+'" style="cursor:pointer;'+(ord>=0?'outline:3px solid var(--gold)':'')+'" onclick="lookToggleOutfit(\''+it.key+'\')">'
           +(it.img?'<img data-ik="'+it.img+'" loading="lazy" style="aspect-ratio:3/4;object-fit:cover" alt="">':'<div style="aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:24px">👗</div>')
           +'<div class="ov" style="opacity:1;background:linear-gradient(transparent,rgba(0,0,0,.65))"><span style="font-size:10px;padding:3px 5px"><b data-ord>'+(ord>=0?('#'+(ord+1)+' '):'')+'</b>'+esc(it.name)+'</span></div></div>';
-      }).join('')+'</div>')
+      }).join('')+'</div>'
+     +(items.length>LOOK.show?('<div class="bar" style="justify-content:center;margin-top:10px"><button class="btn ghost sm" onclick="lookMore()">Xem thêm '+Math.min(LOOK_PAGE,items.length-LOOK.show)+' trang phục (còn '+(items.length-LOOK.show)+')</button></div>'):''))
     :'<div class="note" style="border-color:var(--gold);color:var(--gold)">Chưa có trang phục nào — tạo ở tab 👗 Tủ đồ trước, hoặc chụp thủ công rồi lưu vào tủ.</div>')
    +'<div class="row" style="margin-top:12px">'
    +'<div><label>Số khung trong bộ</label><select id="lookCount" onchange="lookSetCount(this.value)">'
@@ -1883,9 +1917,12 @@ async function lookShoot(){
       try{
         const u=await geminiImageMulti(shotPrompt({angle:sh.goc_may,pose:sh.pose,background:sh.boi_canh,outfit:sh.prompt_en}),refs);
         sh.gid=await addToGallery(u,'lookbook: '+(sh.ten||sh.co_canh||''),'lookbook');
-        save();renderStudio(document.getElementById('main'));
+        /* Trong loạt: chỉ ghi máy + vẽ lại ĐÚNG danh sách bộ ảnh. Dựng lại cả tab sẽ dựng lại luôn
+           lưới chọn trang phục vài chục ảnh mỗi vòng, và đẩy cloud mỗi tấm sẽ gây xung đột 409. */
+        saveLocalOnly();renderLookList();
       }catch(e){errs.push((sh.ten||('khung '+(i+1)))+': '+(e.message||e));}
     }
+    save();   /* đẩy cloud MỘT lần sau khi xong cả loạt */
     const eb=document.getElementById('lookErr');
     if(eb&&errs.length){eb.style.display='block';eb.innerHTML='Lỗi: '+errs.map(esc).join(' · ');}
     toast(errs.length?('Xong, '+errs.length+' khung lỗi'):('✓ Xong bộ '+lb.shots.length+' khung'));
@@ -3498,9 +3535,10 @@ async function styleRenderSet(id){
     try{
       const u=await geminiImageMulti(styleImgPrompt(j.scene,s.ratio),refs);
       const gid=await addToGallery(u,s.styleName+' — '+j.label,'style');
-      j.get().gid=gid;save();
+      j.get().gid=gid;saveLocalOnly();
     }catch(e){errs.push(j.label+': '+(e.message||e));}
   }
+  save();   /* đẩy cloud MỘT lần sau khi xong cả loạt */
   if(btn){btn.disabled=false;btn.innerHTML='🖼 Render 5 ảnh';}
   renderStyleBrain(document.getElementById('studioBody'));
   const box=document.getElementById('styleerr_'+id);

@@ -41,6 +41,7 @@ node test/dupes.test.js         # KHÔNG có hai hàm trùng tên (bản sau đ�
 node test/diversity.test.js     # chống trùng ý tưởng: avoidBlock + trục đa dạng
 node test/caption.test.js       # bộ caption đăng bài + prompt đạo diễn (ranh giới render được)
 node test/lookbook.test.js      # shot list look book: mỗi khung một cỡ cảnh/pose/ánh sáng khác nhau
+node test/sync-guard.test.js    # khoá chống đẩy đồng bộ chồng nhau (nguồn của lỗi 409 lặp)
 
 # 3 test dưới cần Chrome; xem dòng RESULT trong output
 CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
@@ -84,6 +85,16 @@ prompt → cùng một phân phối kết quả → người dùng thấy trùng
    thứ mồi cho AI hội tụ về đúng mấy nhãn đó.
 3. Nhiệt độ: `geminiText(prompt, jsonMode, 1.1–1.15)` cho brainstorm, giữ `0.7` cho việc cần chuẩn,
    `geminiVision(prompt, img, jsonMode, 0.35)` cho việc đọc ảnh.
+
+### Loạt sinh ảnh: ghi máy trong loạt, đẩy cloud MỘT lần khi xong
+save() = ghi localStorage + hẹn đẩy cloud. Gọi save() sau MỖI tấm ảnh trong một loạt dài sẽ đẩy
+blob vài MB liên tục; lượt đẩy lâu hơn 2s là lượt sau mang baseVersion cũ → máy chủ 409 → app nuốt
+blob máy chủ, hiện toast đồng bộ và có thể xoá mất ảnh vừa tạo.
+
+- Trong vòng lặp sinh ảnh: dùng saveLocalOnly() và vẽ lại ĐÚNG phần đã đổi (renderLookList), không
+  renderStudio() cả tab — dựng lại tab là dựng lại luôn lưới chọn trang phục vài chục ảnh mỗi vòng.
+- Xong cả loạt mới gọi save() một lần.
+- runPush() có khoá đang-bay + cờ còn-nợ nên hai lượt đẩy không bao giờ chạy chồng.
 
 ### Caption gắn ở tầng thư viện
 11 chỗ trong app sinh ảnh, **tất cả đi qua `addToGallery()`**. Caption vì thế lưu thẳng vào mục thư
