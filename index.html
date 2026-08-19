@@ -1350,14 +1350,6 @@ async function genDirectorIdeas(){
   }catch(e){toast('Lỗi AI: '+(e.message||e));}
   finally{const bb=document.getElementById('dirBtn');if(bb){bb.disabled=false;bb.innerHTML='🎬 Đạo diễn gợi ý ý tưởng';}}
 }
-function capVideoBlockHTML(setId,vi,v){
-  const c=v&&v.cap;
-  if(!c)return `<button class="btn ghost sm" onclick="genVideoCaption('${setId}',${vi},this)">✍️ Caption</button>`;
-  return `<div class="note" style="margin-top:8px;text-align:left"><b>${esc(c.title||'')}</b><br><br>${esc(c.post||'')}<br><br>
-    <span style="color:var(--acc)">${esc(c.hashtags||'')}</span>
-    <div class="bar" style="margin-top:8px"><button class="btn gold sm" onclick="capCopyVideo('${setId}',${vi})">📋 Copy cả bộ</button>
-    <button class="btn ghost sm" onclick="genVideoCaption('${setId}',${vi},this)">🔄 Viết lại</button></div></div>`;
-}
 
 const DESIGNER_ROLE=`Bạn là NHÀ THIẾT KẾ THỜI TRANG BẬC THẦY (haute couture + stylist editorial đẳng cấp). Thiết kế trang phục ĂN KHỚP với TÍNH CÁCH và NGOẠI HÌNH của nhân vật: tôn dáng đúng body type, hợp tông da & màu tóc, đúng vibe/niche/độ tuổi. Sáng tạo & có gu nghệ thuật, GỢI CẢM TINH TẾ TRONG GIỚI HẠN AN TOÀN (tôn đường nét, chất liệu & phom đẹp — KHÔNG hở phản cảm, KHÔNG khiêu dâm, KHÔNG nudity), THỰC TẾ mặc được, an toàn nền tảng & vượt kiểm duyệt ảnh AI.`;
 function wardrobeNames(){return (S.wardrobe||[]).map(w=>String(w.name||'').trim()+(w.masterPrompt?(' — '+String(w.masterPrompt).slice(0,70)):''));}
