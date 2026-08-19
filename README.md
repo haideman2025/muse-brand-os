@@ -92,6 +92,15 @@ và cho trình đọc màn hình.
 
 Caption dùng **thumb 384px** để đọc ảnh, không dùng ảnh gốc — thừa đủ để mô tả nội dung.
 
+**Giao diện: luôn mở trong hộp thoại riêng (`openCapModal`), KHÔNG nhét vào thẻ ảnh.** `.imgcard` có
+`overflow:hidden` và lớp `.ov` phủ tuyệt đối ở đáy — nhét nội dung vào trong thẻ là đè lên chính hàng
+nút Tải/Neo/Xoá. Thẻ ảnh chỉ nhận thêm MỘT nút ✍️ vào hàng `.ov` sẵn có.
+
+Một accessor `capTarget(kind,id,vi)` phục vụ cả 4 loại tài nguyên: `gallery` · `styleVideo` ·
+`vidPack` · `vidHist`. Thêm loại mới chỉ cần thêm một nhánh, UI không phải sửa.
+
+Ngôn ngữ caption chọn ngay trong hộp thoại (`S.capLang`, mặc định theo `CC.lang`).
+
 ### Ranh giới nội dung của prompt đạo diễn
 `directorIdeasPrompt()` cố tình đẩy về hướng táo bạo (ham muốn, quyền lực, phản bội, cám dỗ) nhưng
 ghi rõ ranh giới **kỹ thuật**: không khoả thân, không khiêu dâm, không cảnh tình dục, không bạo lực
