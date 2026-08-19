@@ -1845,8 +1845,12 @@ function paintLookPick(){
     el.style.outline=ord>=0?'3px solid var(--gold)':'';
     const o=el.querySelector('[data-ord]');if(o)o.textContent=ord>=0?('#'+(ord+1)+' '):'';
   });
+  /* #lookPicked là <input> — phải ghi .value, .textContent không hiện gì cả. */
   const c=document.getElementById('lookPicked');
-  if(c)c.textContent=LOOK.outfitKeys.length+' trang phục · '+LOOK.count+' khung';
+  if(c)c.value=LOOK.outfitKeys.length+' trang phục · '+LOOK.count+' khung';
+  const h=document.getElementById('lookHint');
+  if(h)h.textContent='1 lượt dựng shot list + '+LOOK.count+' lượt sinh ảnh'
+    +(LOOK.outfitKeys.length?'':' · chưa tick trang phục nào, AI sẽ tự chọn theo DNA thời trang');
 }
 function lookSetCount(n){LOOK.count=parseInt(n,10)||8;paintLookPick();}
 function lookModeBarHTML(){
@@ -1877,7 +1881,8 @@ function lookPickerHTML(){
    +'<div><label>Đã chọn</label><input id="lookPicked" value="'+LOOK.outfitKeys.length+' trang phục · '+LOOK.count+' khung" readonly></div></div>'
    +'<div class="bar" style="margin-top:10px;flex-wrap:wrap">'
    +'<button class="btn gold" id="lookBtn" onclick="lookShoot()" '+(personaOK()?'':'disabled')+'>📖 Chụp bộ look book</button>'
-   +'<span class="hint" style="align-self:center">1 lượt dựng shot list + '+LOOK.count+' lượt sinh ảnh</span></div>'
+   +'<span class="hint" id="lookHint" style="align-self:center">1 lượt dựng shot list + '+LOOK.count+' lượt sinh ảnh'
+     +(LOOK.outfitKeys.length?'':' · chưa tick trang phục nào, AI sẽ tự chọn theo DNA thời trang')+'</span></div>'
    +'<div id="lookErr" class="note" style="display:none;border-color:var(--coral);color:#ffb3b3"></div>'
    +'</div><div id="lookList"></div>';
 }
@@ -1899,9 +1904,13 @@ async function lookShoot(){
   try{
     if(b){b.disabled=true;b.innerHTML='<span class="spinner"></span> Đạo diễn đang dựng shot list...';}
     let shots=parseJSON(await geminiText(lookShotListPrompt(n,names),true,1.1));
-    if(!Array.isArray(shots))shots=shots.shots||shots.khung||[];
+    /* Nhiệt 1.1 nên model hay gói mảng vào một key lạ — bới lấy mảng đầu tiên thay vì chịu thua. */
+    if(!Array.isArray(shots)){
+      const cand=(shots&&typeof shots==='object')?Object.keys(shots).map(function(k){return shots[k];}).find(Array.isArray):null;
+      shots=cand||[];
+    }
     shots=shots.filter(Boolean).slice(0,n);
-    if(!shots.length)throw new Error('AI không trả về khung nào');
+    if(!shots.length)throw new Error('AI không trả về khung nào — bấm Chụp lại. Nếu lặp lại, thử giảm số khung xuống 4.');
     const lb={id:uid(),createdAt:_today10(),outfits:names,count:shots.length,
       shots:shots.map(function(x){return {ten:x.ten||'',goc_may:x.goc_may||'',co_canh:x.co_canh||'',pose:x.pose||'',anh_sang:x.anh_sang||'',boi_canh:x.boi_canh||'',tam_trang:x.tam_trang||'',prompt_en:x.prompt_en||'',gid:''};})};
     S.lookbooks.unshift(lb);

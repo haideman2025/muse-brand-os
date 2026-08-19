@@ -1,0 +1,101 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>lookbook e2e</title>
+<body><pre id="out">running...</pre>
+<script>
+/* Chạy THẬT luồng tạo look book trong app, chỉ thay 2 lời gọi AI bằng bản giả.
+   Mục đích: bắt lỗi runtime mà đọc code không thấy.
+   Chạy: chrome --headless --dump-dom test/lookbook-e2e.test.html */
+const lines=[];let failed=0;
+function ok(c,m){lines.push((c?'  PASS ':'  FAIL ')+m);if(!c)failed++;}
+
+async function main(){
+  let html=await (await fetch('../index.html')).text();
+  html=html.replace(/<head>/i,'<head><script>window.__errs=[];window.addEventListener("error",function(e){window.__errs.push(e.message)});window.addEventListener("unhandledrejection",function(e){window.__errs.push("promise: "+(e.reason&&e.reason.message||e.reason))});<\/script>');
+  const f=document.createElement('iframe');f.style.cssText='width:1280px;height:900px;border:0';
+  document.body.appendChild(f);
+  await new Promise(res=>{f.onload=res;f.srcdoc=html;});
+  const w=f.contentWindow;
+  await new Promise(r=>setTimeout(r,1500));
+  ok((w.__errs||[]).length===0,'app boot sạch'+((w.__errs||[]).length?': '+w.__errs.join(' | '):''));
+
+  // Ảnh 1x1 giả để không tốn thời gian
+  const px='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+  // Dựng nhân vật + tủ đồ tối thiểu, và chặn mọi lời gọi mạng
+  w.eval(`
+    S.apiKey='TEST';
+    S.persona={name:'An Hạ',gender:'Nữ',age:26,vibe:'thanh lịch',niche:'thời trang',publicDescription:'a young woman'};
+    S.wardrobe=[{id:'w1',name:'Đầm đen ren',masterPrompt:'black lace gown',img:true},
+                {id:'w2',name:'Blazer kem',masterPrompt:'cream blazer',img:true}];
+    S.lookbooks=[];
+    window.__genCalls=0; window.__shotPromptSeen='';
+    geminiText=async function(p){
+      window.__shotPromptSeen=p;
+      const n=(p.match(/Dựng (\\d+) khung/)||[])[1]||6;
+      const arr=[];
+      for(let i=0;i<n;i++)arr.push({ten:'Khung '+(i+1),goc_may:ANGLES[i%ANGLES.length],co_canh:'toàn thân',
+        pose:'đứng',anh_sang:'nắng xiên',boi_canh:'phòng trống',tam_trang:'tự tin',prompt_en:'a shot '+i});
+      return JSON.stringify(arr);
+    };
+    geminiImageMulti=async function(){window.__genCalls++;return '${px}';};
+    mediaGet=async function(){return '${px}';};
+    getRef=async function(){return '${px}';};
+    save=function(){saveLocalOnly();};   /* chặn đẩy cloud trong test */
+    go('studio'); studioTab('photoshoot');
+  `);
+  await new Promise(r=>setTimeout(r,400));
+
+  ok(w.eval("LOOK.mode")==='lookbook','tab mở ở chế độ look book');
+  ok(!!w.document.getElementById('lookPick'),'lưới chọn trang phục có dựng ra');
+
+  /* --- Bộ đếm "Đã chọn" --- */
+  w.lookToggleOutfit('wb:w1');
+  const picked=w.document.getElementById('lookPicked');
+  ok(w.eval("LOOK.outfitKeys.length")===1,'tick 1 trang phục thì mảng ghi nhận');
+  ok(!!picked,'có ô "Đã chọn"');
+  ok(picked && /1 trang phục/.test(picked.value||''),'ô "Đã chọn" hiện ĐÚNG số trang phục (được: "'+((picked&&picked.value)||'')+'")');
+
+  w.lookSetCount(4);
+  const picked2=w.document.getElementById('lookPicked');
+  ok(w.eval("LOOK.count")===4,'đổi số khung thì state ghi nhận');
+  ok(picked2 && /4 khung/.test(picked2.value||''),'ô "Đã chọn" hiện ĐÚNG số khung (được: "'+((picked2&&picked2.value)||'')+'")');
+
+  /* --- Chạy thật lookShoot --- */
+  w.__errs.length=0;
+  w.lookToggleOutfit('wb:w2');
+  await w.lookShoot();
+  await new Promise(r=>setTimeout(r,300));
+
+  ok((w.__errs||[]).length===0,'chụp look book không ném lỗi'+((w.__errs||[]).length?': '+w.__errs.join(' | '):''));
+  const n=w.eval("S.lookbooks.length");
+  ok(n===1,'tạo được đúng 1 bộ (được '+n+')');
+  if(n){
+    const shots=w.eval("S.lookbooks[0].shots.length");
+    ok(shots===4,'bộ có đúng 4 khung theo lựa chọn (được '+shots+')');
+    const withImg=w.eval("S.lookbooks[0].shots.filter(function(x){return x.gid;}).length");
+    ok(withImg===4,'cả 4 khung đều có ảnh (được '+withImg+')');
+    ok(w.eval("__genCalls")===4,'gọi sinh ảnh đúng 4 lần (được '+w.eval("__genCalls")+')');
+    ok(w.eval("S.lookbooks[0].outfits.length")===2,'ghi lại 2 trang phục tham chiếu');
+    const gal=w.eval("S.gallery.filter(function(g){return g.kind==='lookbook';}).length");
+    ok(gal===4,'4 ảnh vào Thư viện với đúng loại lookbook (được '+gal+')');
+  }
+  ok(/Dựng 4 khung/.test(w.__shotPromptSeen||''),'prompt gửi đi nêu đúng 4 khung');
+  ok((w.__shotPromptSeen||'').indexOf('Đầm đen ren')>=0,'prompt có tên trang phục đã tick');
+
+  /* --- Tick ảnh trong bộ + caption --- */
+  if(n){
+    const id=w.eval("S.lookbooks[0].id"), gid=w.eval("S.lookbooks[0].shots[0].gid");
+    w.lookToggleSel(id,gid);
+    ok(w.eval("(LOOK.selIds['"+id+"']||[]).length")===1,'tick được ảnh trong bộ');
+    ok(w.capTarget('lookbook',id)!==null,'caption trỏ đúng vào bộ look book');
+    w.lookSelAll(id);
+    ok(w.eval("(LOOK.selIds['"+id+"']||[]).length")===4,'chọn hết chọn được cả 4 ảnh');
+  }
+  ok((w.__errs||[]).length===0,'không phát sinh lỗi trong lúc test'+((w.__errs||[]).length?': '+w.__errs.join(' | '):''));
+
+  f.remove();
+}
+main().then(()=>{document.getElementById('out').textContent='RESULT '+(failed?'FAIL':'PASS')+'\n'+lines.join('\n');})
+      .catch(e=>{document.getElementById('out').textContent='RESULT FAIL (harness)\n  '+e.message;});
+</script>
