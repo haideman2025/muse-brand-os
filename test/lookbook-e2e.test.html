@@ -35,10 +35,11 @@ async function main(){
       const n=(p.match(/Dựng (\\d+) khung/)||[])[1]||6;
       const arr=[];
       for(let i=0;i<n;i++)arr.push({ten:'Khung '+(i+1),goc_may:ANGLES[i%ANGLES.length],co_canh:'toàn thân',
-        pose:'đứng',anh_sang:'nắng xiên',boi_canh:'phòng trống',tam_trang:'tự tin',prompt_en:'a shot '+i});
+        pose:'đứng',anh_sang:'nắng xiên',boi_canh:'phòng trống',tam_trang:'tự tin',prompt_en:'a shot '+i+' wearing a completely different outfit number '+i});
       return JSON.stringify(arr);
     };
-    geminiImageMulti=async function(){window.__genCalls++;return '${px}';};
+    window.__imgPrompts=[];
+    geminiImageMulti=async function(p){window.__genCalls++;window.__imgPrompts.push(p);return '${px}';};
     mediaGet=async function(){return '${px}';};
     getRef=async function(){return '${px}';};
     save=function(){saveLocalOnly();};   /* chặn đẩy cloud trong test */
@@ -80,6 +81,15 @@ async function main(){
     const gal=w.eval("S.gallery.filter(function(g){return g.kind==='lookbook';}).length");
     ok(gal===4,'4 ảnh vào Thư viện với đúng loại lookbook (được '+gal+')');
   }
+  /* --- KHOÁ TRANG PHỤC: tick 2 bộ thì mọi khung chỉ được dùng đúng 2 bộ đó --- */
+  const ps=w.__imgPrompts||[];
+  ok(ps.length===4,'ghi lại được 4 prompt sinh ảnh (được '+ps.length+')');
+  const hitW1=ps.filter(function(p){return p.indexOf('black lace gown')>=0;}).length;
+  const hitW2=ps.filter(function(p){return p.indexOf('cream blazer')>=0;}).length;
+  ok(hitW1+hitW2===4,'MỌI khung đều khoá vào trang phục đã tick (được '+(hitW1+hitW2)+'/4)');
+  ok(hitW1===2&&hitW2===2,'2 trang phục chia đều 4 khung (được '+hitW1+' và '+hitW2+')');
+  const leaked=ps.filter(function(p){return /completely different outfit/.test(p);}).length;
+  ok(leaked===0,'KHÔNG để trang phục AI tự bịa lọt vào prompt (lọt '+leaked+' khung)');
   ok(/Dựng 4 khung/.test(w.__shotPromptSeen||''),'prompt gửi đi nêu đúng 4 khung');
   ok((w.__shotPromptSeen||'').indexOf('Đầm đen ren')>=0,'prompt có tên trang phục đã tick');
 

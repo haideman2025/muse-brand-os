@@ -1168,6 +1168,20 @@ function lifeAxisBlock(n,rnd){
    Photoshoot cũ: người dùng điền MỘT pose, MỘT bối cảnh rồi chụp N tấm → N tấm na ná, chỉ khác
    góc máy. Look book phải là bộ ảnh của một nhiếp ảnh gia thật: mỗi khung một cỡ cảnh, một pose,
    một hướng sáng, một tâm trạng riêng. Ép bằng shotAxisBlock. */
+/* Dặn model đừng tả trang phục là một chuyện, nó có nghe hay không là chuyện khác.
+   Cắt bỏ mọi mệnh đề nhắc tới quần áo trong mô tả cảnh trước khi ghép prompt — trang phục
+   chỉ được đến từ món đồ người dùng đã tick. */
+const OUTFIT_WORDS=/\b(wearing|dressed in|outfit|dress|gown|skirt|blazer|jacket|coat|shirt|blouse|trousers|pants|jeans|suit|lingerie|bikini|swimsuit|heels|boots|shoes|garment|attire|clothing|costume|robe|cloak|top|sleeves)\b/i;
+function scrubOutfitWords(t){
+  if(!t)return '';
+  const parts=String(t).split(/([.;]|,)/);
+  const keep=[];
+  for(let i=0;i<parts.length;i+=2){
+    const seg=parts[i],sep=parts[i+1]||'';
+    if(seg&&!OUTFIT_WORDS.test(seg))keep.push(seg.trim()+(sep===','?',':'.'));
+  }
+  return keep.join(' ').replace(/\s+/g,' ').replace(/\s+([.,])/g,'$1').replace(/[,.\s]+$/,'').trim();
+}
 function lookShotListPrompt(n,outfits){
   n=Math.max(1,n||6);
   const list=(outfits||[]).map(function(x){return String(x||'').trim();}).filter(Boolean);
@@ -1189,12 +1203,14 @@ function lookShotListPrompt(n,outfits){
 +'Trả DUY NHẤT JSON mảng '+n+' phần tử:\n'
 +'[{"ten":"tên khung ngắn tiếng Việt","goc_may":"copy nguyên văn từ danh sách trên","co_canh":"cỡ cảnh",'
 +'"pose":"tư thế cụ thể","anh_sang":"hướng và chất sáng","boi_canh":"bối cảnh","tam_trang":"tâm trạng",'
-+'"prompt_en":"mô tả cảnh bằng tiếng Anh — bối cảnh, ánh sáng, tư thế, cỡ cảnh và trang phục; KHÔNG tả khuôn mặt"}]\n\n'
++'"prompt_en":"mô tả cảnh bằng tiếng Anh — CHỈ bối cảnh, ánh sáng, tư thế và cỡ cảnh; TUYỆT ĐỐI không tả trang phục và không tả khuôn mặt"}]\n\n'
 +'LUẬT BẮT BUỘC:\n'
 +'- Mỗi khung KHÔNG được lặp lại khung nào khác: khác cỡ cảnh, khác pose, khác hướng sáng, khác tâm trạng.\n'
 +'  Đây là điểm sống còn — bộ ảnh mà N tấm giống nhau thì vứt.\n'
 +'- Các khung ghép lại phải ra một mạch thị giác: cùng bảng màu, cùng thế giới, có mở có đóng.\n'
-+'- "prompt_en" KHÔNG tả khuôn mặt (ảnh tham chiếu lo phần nhận dạng), KHÔNG nhắc người nổi tiếng.\n'
++'- "prompt_en" KHÔNG tả khuôn mặt (ảnh tham chiếu lo nhận dạng) và KHÔNG tả trang phục.\n'
++'  TRANG PHỤC ĐÃ ĐƯỢC KHOÁ SẴN, hệ thống tự ghép vào sau. Nếu bạn tả thêm quần áo thì mỗi khung sẽ ra\n'
++'  một bộ đồ khác nhau và bộ ảnh hỏng. Chỉ lo bối cảnh, ánh sáng, tư thế, cỡ cảnh.\n'
 +'- An toàn nền tảng: không khoả thân, không nội dung nhạy cảm; gợi cảm tinh tế kiểu editorial thì được.\n'
 +'- Không nhắc tên thương hiệu thật.';
 }
@@ -1214,7 +1230,7 @@ ${voice||'một cô gái trẻ, giọng đời thường gần gũi'}
 
 TÀI NGUYÊN CẦN VIẾT CAPTION: ${ctx.what||'một tài nguyên hình ảnh'}
 
-Trả DUY NHẤT JSON: {"title":"","post":"","hashtags":"","alt":""}
+Trả DUY NHẤT JSON: {"title":"","post":"","hashtags":""}
 
 LUẬT:
 - "title": tối đa 12 từ, bắt mắt, cụ thể. Không sáo, không hô khẩu hiệu.
@@ -1222,9 +1238,6 @@ LUẬT:
   câu chạm cảm xúc thật, kết bằng CTA nhẹ (một câu hỏi hoặc lời mời) — không kêu gọi lộ liễu.
 - "hashtags": 6-10 tag, trộn tag rộng và tag ngách của niche, cách nhau bằng dấu cách. Không nhồi,
   không tag rác, không tag tiếng Việt có dấu.
-- "alt": MỘT câu tả đúng những thứ NHÌN THẤY trong khung hình (chủ thể, trang phục, bối cảnh, hành
-  động). Câu này để THUẬT TOÁN NỀN TẢNG đọc hiểu nội dung và cho trình đọc màn hình — tả sự thật,
-  không quảng cáo, không cảm thán.
 - Không claim y khoa, không nhắc tên thương hiệu thật.`;
 }
 function directorIdeasPrompt(ctx){
@@ -1309,7 +1322,7 @@ function capTarget(kind,id,vi){
 }
 function capText(c){
   if(!c)return '';
-  return [c.title,'',c.post,'',c.hashtags,c.alt?('\n[Mô tả ảnh] '+c.alt):''].filter(function(x){return x!==undefined&&x!==null;}).join('\n').trim();
+  return [c.title,'',c.post,'',c.hashtags].filter(function(x){return x!==undefined&&x!==null;}).join('\n').trim();
 }
 function capCopy(kind,id,vi){
   const t=capTarget(kind,id,vi),c=t&&t.get();
@@ -1340,8 +1353,7 @@ function capPaint(){
   box.innerHTML=capLangBarHTML()
     +'<div class="hint" style="margin:8px 0">'+esc(t.what()).slice(0,180)+'</div>'
     +(c?('<div class="note" style="text-align:left"><b>'+esc(c.title||'')+'</b><br><br>'+esc(c.post||'').replace(/\n/g,'<br>')
-        +'<br><br><span style="color:var(--acc)">'+esc(c.hashtags||'')+'</span>'
-        +(c.alt?('<br><br><span class="hint">Mô tả cho thuật toán nền tảng: '+esc(c.alt)+'</span>'):'')+'</div>')
+        +'<br><br><span style="color:var(--acc)">'+esc(c.hashtags||'')+'</span>'+'</div>')
       :'<div class="hint">Chưa có caption — bấm nút bên dưới để AI viết.</div>')
     +'<div class="bar" style="margin-top:12px;flex-wrap:wrap">'
     +'<button class="btn gold" id="capGenBtn" onclick="capGenerate()">'+(c?'🔄 Viết lại':'✍️ Viết caption')+'</button>'
@@ -1372,7 +1384,7 @@ async function capGenerate(){
     const raw=img?await geminiVision(captionPrompt(ctx),img,true,0.95)
                  :await geminiText(captionPrompt(ctx),true,0.95);
     const c=parseJSON(raw);
-    t.set({title:c.title||'',post:c.post||'',hashtags:c.hashtags||'',alt:c.alt||''});
+    t.set({title:c.title||'',post:c.post||'',hashtags:c.hashtags||''});
     save();capPaint();toast('✓ Đã viết caption');
   }catch(e){
     toast('Lỗi AI: '+(e.message||e));
@@ -1886,13 +1898,6 @@ function lookPickerHTML(){
    +'<div id="lookErr" class="note" style="display:none;border-color:var(--coral);color:#ffb3b3"></div>'
    +'</div><div id="lookList"></div>';
 }
-async function lookRefs(){
-  const refs=[];
-  const face=await getRef();if(face)refs.push(face);
-  /* Ảnh trang phục đặt CUỐI: geminiImageMulti bỏ dần ref từ đầu khi bị chặn, giữ ref cuối lâu nhất. */
-  for(const k of LOOK.outfitKeys.slice(0,3)){const u=await mediaGet(k);if(u)refs.push(u);}
-  return refs;
-}
 async function lookShoot(){
   if(!S.apiKey){toast('Chưa có API key');go('setup');return;}
   if(!personaOK()){toast('Cần nhân vật (bước ③)');return;}
@@ -1912,11 +1917,16 @@ async function lookShoot(){
     shots=shots.filter(Boolean).slice(0,n);
     if(!shots.length)throw new Error('AI không trả về khung nào — bấm Chụp lại. Nếu lặp lại, thử giảm số khung xuống 4.');
     const lb={id:uid(),createdAt:_today10(),outfits:names,count:shots.length,
-      shots:shots.map(function(x){return {ten:x.ten||'',goc_may:x.goc_may||'',co_canh:x.co_canh||'',pose:x.pose||'',anh_sang:x.anh_sang||'',boi_canh:x.boi_canh||'',tam_trang:x.tam_trang||'',prompt_en:x.prompt_en||'',gid:''};})};
+      shots:shots.map(function(x){return {ten:x.ten||'',goc_may:x.goc_may||'',co_canh:x.co_canh||'',pose:x.pose||'',anh_sang:x.anh_sang||'',boi_canh:x.boi_canh||'',tam_trang:x.tam_trang||'',prompt_en:x.prompt_en||'',outfit:'',gid:''};})};
     S.lookbooks.unshift(lb);
     while(S.lookbooks.length>15){const old=S.lookbooks.pop();await lookDropImages(old);}
     save();renderStudio(document.getElementById('main'));
-    const refs=await lookRefs();
+    /* Mỗi khung khoá vào ĐÚNG một trang phục đã tick, chia vòng tròn, kèm ĐÚNG ảnh của nó.
+       Bản cũ nhét cả câu mô tả cảnh do AI bịa vào ô trang phục nên mỗi khung ra một bộ đồ khác. */
+    const picked=LOOK.outfitKeys.map(function(k){return items.find(function(y){return y.key===k;});}).filter(Boolean);
+    const face=await getRef();
+    const outfitImg={};
+    for(const it of picked){ if(it.img){ try{ outfitImg[it.key]=await mediaGet(it.img); }catch(e){} } }
     const errs=[];
     /* Tuần tự: mỗi ảnh 1-7MB base64, song song là dội RAM. */
     for(let i=0;i<lb.shots.length;i++){
@@ -1924,7 +1934,15 @@ async function lookShoot(){
       const bb=document.getElementById('lookBtn');
       if(bb){bb.disabled=true;bb.innerHTML='<span class="spinner"></span> Đang chụp '+(i+1)+'/'+lb.shots.length;}
       try{
-        const u=await geminiImageMulti(shotPrompt({angle:sh.goc_may,pose:sh.pose,background:sh.boi_canh,outfit:sh.prompt_en}),refs);
+        const own=picked.length?picked[i%picked.length]:null;
+        const refs=[];if(face)refs.push(face);
+        /* Ảnh trang phục đặt CUỐI: geminiImageMulti bỏ dần ref từ đầu khi bị chặn, giữ ref cuối lâu nhất. */
+        if(own&&outfitImg[own.key])refs.push(outfitImg[own.key]);
+        const outfitText=own?(own.desc||own.name):'';
+        sh.outfit=own?own.name:'';
+        const scene=[scrubOutfitWords(sh.prompt_en),sh.anh_sang?('lighting: '+sh.anh_sang):'',sh.co_canh?('framing: '+sh.co_canh):'']
+          .filter(Boolean).join('. ');
+        const u=await geminiImageMulti(shotPrompt({angle:sh.goc_may,pose:sh.pose,background:scene,outfit:outfitText}),refs);
         sh.gid=await addToGallery(u,'lookbook: '+(sh.ten||sh.co_canh||''),'lookbook');
         /* Trong loạt: chỉ ghi máy + vẽ lại ĐÚNG danh sách bộ ảnh. Dựng lại cả tab sẽ dựng lại luôn
            lưới chọn trang phục vài chục ảnh mỗi vòng, và đẩy cloud mỗi tấm sẽ gây xung đột 409. */
@@ -1987,7 +2005,7 @@ function lookCardHTML(lb){
         +(on?'✓ ':'')+esc(sh.ten||('Khung '+(i+1)))+'</span></div></div>';
     }).join('')+'</div>'
    +'<details style="margin-top:8px"><summary class="hint">🎬 Shot list — bấm xem ý đồ từng khung</summary>'
-   +(lb.shots||[]).map(function(sh,i){return '<div class="hint" style="margin-top:6px;padding-left:8px;border-left:2px solid var(--line)"><b>'+esc(sh.ten||('Khung '+(i+1)))+'</b> · '+esc(sh.co_canh||'')+' · '+esc(sh.goc_may||'')+'<br>'+esc(sh.pose||'')+' · '+esc(sh.anh_sang||'')+' · '+esc(sh.boi_canh||'')+' · '+esc(sh.tam_trang||'')+'</div>';}).join('')
+   +(lb.shots||[]).map(function(sh,i){return '<div class="hint" style="margin-top:6px;padding-left:8px;border-left:2px solid var(--line)"><b>'+esc(sh.ten||('Khung '+(i+1)))+'</b> · '+esc(sh.co_canh||'')+' · '+esc(sh.goc_may||'')+'<br>'+esc(sh.pose||'')+' · '+esc(sh.anh_sang||'')+' · '+esc(sh.boi_canh||'')+' · '+esc(sh.tam_trang||'')+(sh.outfit?('<br>👗 '+esc(sh.outfit)):'')+'</div>';}).join('')
    +'</details>'
    +zLookbookBarHTML(lb.id)
    +'</div>';

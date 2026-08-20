@@ -33,7 +33,7 @@ console.log('\ncaptionPrompt — bộ caption đăng mạng xã hội\n');
 const cap = app.captionPrompt({ persona: persona, what: 'ảnh look gothic tối giản', lang: 'vi' });
 
 test('yêu cầu đủ 4 phần trong schema JSON', () => {
-  ['title', 'post', 'hashtags', 'alt'].forEach(k => assert.ok(cap.indexOf('"' + k + '"') >= 0, 'thiếu field ' + k));
+  ['title', 'post', 'hashtags'].forEach(k => assert.ok(cap.indexOf('"' + k + '"') >= 0, 'thiếu field ' + k));
 });
 
 test('viết bằng giọng chính nhân vật, không phải người ngoài tả', () => {
@@ -46,9 +46,9 @@ test('nêu rõ tài nguyên đang viết caption cho cái gì', () => {
   assert.ok(cap.indexOf('ảnh look gothic tối giản') >= 0, 'thiếu bối cảnh tài nguyên');
 });
 
-test('"alt" phải phục vụ thuật toán nền tảng, tả đúng thứ nhìn thấy', () => {
-  assert.ok(/thuật toán|nền tảng đọc hiểu/i.test(cap), 'không nêu mục đích cho thuật toán');
-  assert.ok(/nhìn thấy|có trong khung hình/i.test(cap), 'không ép tả đúng thứ thấy được');
+test('KHÔNG còn phần mô tả cho thuật toán (người dùng đã bỏ)', () => {
+  assert.ok(cap.indexOf('"alt"') < 0, 'schema vẫn còn field alt');
+  assert.ok(!/thuật toán nền tảng/i.test(cap), 'prompt vẫn nhắc mô tả cho thuật toán');
 });
 
 test('ràng buộc độ dài tiêu đề và số hashtag', () => {
