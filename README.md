@@ -51,8 +51,8 @@ CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
   --dump-dom "file://$PWD/test/thumb.test.html"  # thumbnail thật sự nhỏ và có cache
 "$CHROME" --headless=new --disable-gpu --allow-file-access-from-files --virtual-time-budget=90000 \
   --dump-dom "file://$PWD/test/style-pack.test.html"  # flow-pack đúng schema, ảnh nhúng đã thu nhỏ
-"$CHROME" --headless=new --disable-gpu --allow-file-access-from-files --virtual-time-budget=90000 \
-  --dump-dom "file://$PWD/test/lookbook-e2e.test.html"  # chạy THẬT luồng tạo look book (AI giả lập)
+"$CHROME" --headless=new --disable-gpu --allow-file-access-from-files --virtual-time-budget=120000 \
+  --dump-dom "file://$PWD/test/lookbook-e2e.test.html"  # chạy THẬT luồng tạo look book (AI giả lập) — cần budget 120s vì test chạy cả luồng
 ```
 
 ### Luật prompt video (đọc trước khi sửa `omniMasterPrompt()`)
