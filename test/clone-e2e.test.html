@@ -1,0 +1,88 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>clone e2e</title>
+<body><pre id="out">running...</pre>
+<script>
+/* Chạy THẬT luồng "Clone từ ảnh", chỉ thay lời gọi sinh ảnh bằng bản giả để soi prompt và
+   THỨ TỰ ảnh tham chiếu.
+   Lỗi đã gặp: clonePrompt() quyết định câu chữ theo Ô TÍCH "Giữ mặt Digital Twin", còn runClone
+   dựng mảng ảnh theo ảnh neo CÓ THẬT hay không. Tích ô mà chưa có ảnh neo → mảng chỉ còn ảnh mẫu,
+   nhưng prompt vẫn nói "ảnh số 1 là khuôn mặt nhân vật" → model bê nguyên mặt người mẫu.
+   Chạy: chrome --headless --dump-dom test/clone-e2e.test.html */
+const lines=[];let failed=0;
+function ok(c,m){lines.push((c?'  PASS ':'  FAIL ')+m);if(!c)failed++;}
+
+async function main(){
+  let html=await (await fetch('../index.html')).text();
+  html=html.replace(/<head>/i,'<head><script>window.__errs=[];window.addEventListener("error",function(e){window.__errs.push(e.message)});<\/script>');
+  const f=document.createElement('iframe');f.style.cssText='width:1280px;height:900px;border:0';
+  document.body.appendChild(f);
+  await new Promise(res=>{f.onload=res;f.srcdoc=html;});
+  const w=f.contentWindow;
+  await new Promise(r=>setTimeout(r,1500));
+  ok((w.__errs||[]).length===0,'app boot sạch'+((w.__errs||[]).length?': '+w.__errs.join(' | '):''));
+
+  const FACE='data:image/png;base64,FACE';
+  const STYLE='data:image/png;base64,STYLE';
+
+  w.eval(`
+    S.apiKey='TEST';
+    S.persona={name:'Vesper',gender:'Nữ',age:26,vibe:'thanh lịch',niche:'thời trang',publicDescription:'a young woman with oval face'};
+    window.__calls=[];
+    geminiImageMulti=async function(p,refs){window.__calls.push({prompt:p,refs:(refs||[]).slice()});return 'data:image/png;base64,OUT';};
+    addToGallery=async function(){return 'gid1';};
+    save=function(){saveLocalOnly();};
+    CLONE.ref='${STYLE}'; CLONE.shots=1; CLONE.useRef=true;
+    go('studio'); studioTab('clone');
+  `);
+  await new Promise(r=>setTimeout(r,300));
+
+  /* ---------- Ca 1: CÓ ảnh neo — đường chuẩn ---------- */
+  w.eval(`getRef=async function(){return '${FACE}';};`);
+  w.__calls.length=0;
+  await w.runClone();
+  await new Promise(r=>setTimeout(r,200));
+  ok(w.__calls.length===1,'ca có ảnh neo: gọi sinh ảnh 1 lần (được '+w.__calls.length+')');
+  if(w.__calls.length){
+    const c=w.__calls[0];
+    ok(c.refs.length===2,'gửi đúng 2 ảnh tham chiếu (được '+c.refs.length+')');
+    ok(c.refs[0]===FACE,'ảnh SỐ 1 phải là ảnh neo khuôn mặt nhân vật');
+    ok(c.refs[1]===STYLE,'ảnh SỐ 2 phải là ảnh mẫu upload');
+    ok(/reference image 1/i.test(c.prompt),'prompt có nhắc ảnh số 1 làm nhận dạng');
+    ok(/Do NOT copy the face from this style-source/i.test(c.prompt),'prompt cấm lấy mặt từ ảnh mẫu');
+  }
+
+  /* ---------- Ca 2: KHÔNG có ảnh neo nhưng vẫn tích ô — đây là lỗi user gặp ---------- */
+  w.eval(`getRef=async function(){return null;};`);
+  w.__calls.length=0;
+  await w.runClone();
+  await new Promise(r=>setTimeout(r,200));
+  ok(w.__calls.length===1,'ca không ảnh neo: vẫn chạy (được '+w.__calls.length+' lượt)');
+  if(w.__calls.length){
+    const c=w.__calls[0];
+    ok(c.refs.length===1&&c.refs[0]===STYLE,'chỉ gửi 1 ảnh và đó là ảnh mẫu');
+    ok(!/CHARACTER IDENTITY \(reference image 1\)/i.test(c.prompt),
+       'KHÔNG được nói "ảnh số 1 là khuôn mặt nhân vật" khi ảnh số 1 chính là ảnh mẫu — đây là lỗi bê nhầm mặt');
+    ok(!/Do NOT copy the face from this style-source/i.test(c.prompt)||/reference image 2/i.test(c.prompt)===false,
+       'không tham chiếu tới ảnh số 2 không tồn tại');
+    ok(/publicDescription|oval face|a young woman/i.test(c.prompt),
+       'phải mô tả nhân vật bằng chữ để bù cho việc không có ảnh neo');
+  }
+
+  /* ---------- Ca 3: bỏ tích ô Giữ mặt ---------- */
+  w.eval(`getRef=async function(){return '${FACE}';};CLONE.useRef=false;`);
+  w.__calls.length=0;
+  await w.runClone();
+  await new Promise(r=>setTimeout(r,200));
+  if(w.__calls.length){
+    const c=w.__calls[0];
+    ok(c.refs.length===1&&c.refs[0]===STYLE,'bỏ tích thì không gửi ảnh neo (được '+c.refs.length+' ảnh)');
+    ok(!/CHARACTER IDENTITY \(reference image 1\)/i.test(c.prompt),'bỏ tích thì prompt không nhắc ảnh nhận dạng');
+  }
+
+  ok((w.__errs||[]).length===0,'không phát sinh lỗi trong lúc test'+((w.__errs||[]).length?': '+w.__errs.join(' | '):''));
+  f.remove();
+}
+main().then(()=>{document.getElementById('out').textContent='RESULT '+(failed?'FAIL':'PASS')+'\n'+lines.join('\n');})
+      .catch(e=>{document.getElementById('out').textContent='RESULT FAIL (harness)\n  '+e.message;});
+</script>

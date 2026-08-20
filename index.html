@@ -2136,18 +2136,21 @@ function cloneSyncBg(){const e=document.getElementById('clone_bg');if(e)CLONE.bg
 async function onCloneFile(ev){const f=ev.target.files[0];if(!f)return;try{CLONE.ref=await fileToDataUrl(f);renderStudio(document.getElementById('main'));}catch(e){toast('Lỗi đọc ảnh');}}
 function cloneTgl(k){cloneSyncBg();CLONE[k]=!CLONE[k];if(!CLONE.doOutfit&&!CLONE.doPose&&!CLONE.doStyle)CLONE[k]=true;renderStudio(document.getElementById('main'));}
 function cloneBg(m){cloneSyncBg();CLONE.bgMode=m;renderStudio(document.getElementById('main'));}
-function clonePrompt(){
+/* hasFace = ĐÃ CÓ ảnh neo thật trong mảng tham chiếu, KHÔNG phải ô tích CLONE.useRef.
+   Tích ô mà nhân vật chưa có ảnh neo thì ảnh số 1 chính là ảnh mẫu — nói nhầm là model
+   bê nguyên khuôn mặt người mẫu vào, đúng lỗi đã gặp. */
+function clonePrompt(hasFace){
   const parts=[];
   if(CLONE.doOutfit)parts.push('the EXACT same outfit and clothing — same garments, colors, fabric, patterns and accessories');
   if(CLONE.doPose)parts.push('the same body pose, gesture and camera framing/angle');
   if(CLONE.doStyle)parts.push('the overall visual style, color grade, lighting mood and aesthetic');
   const cloneList=parts.length?parts.join('; '):'the outfit';
-  const face=CLONE.useRef;
+  const face=(hasFace===undefined)?CLONE.useRef:!!hasFace;
   let bg;
   if(CLONE.bgMode==='new'&&CLONE.bgText.trim())bg='BACKGROUND: place the character in this NEW setting: '+CLONE.bgText.trim()+'.';
   else bg='BACKGROUND: keep a setting consistent with the style-reference image.';
   return `A photorealistic, scroll-stopping photo of ${visualBase()}.
-${face?'CHARACTER IDENTITY (reference image 1): preserve the EXACT facial identity of the person in the first reference image — same face shape, eyes, nose, lips and proportions; unmistakably the same person; do NOT beautify or alter the face.':''}
+${face?'CHARACTER IDENTITY (reference image 1): preserve the EXACT facial identity of the person in the first reference image — same face shape, eyes, nose, lips and proportions; unmistakably the same person; do NOT beautify or alter the face.':'CHARACTER IDENTITY: the person above is the subject. Render HER OWN face exactly as described above. The provided reference image is a STYLE SOURCE ONLY — its model is a different person, so do NOT copy her face, head shape or hair.'}
 STYLE SOURCE (${face?'reference image 2':'the reference image'}): faithfully REPLICATE ${cloneList} from this reference image onto the character.${face?' Do NOT copy the face from this style-source image — only replicate the requested elements.':''}
 ${bg}
 ${PHOTO_TOKENS} Tasteful and platform-safe: no nudity, no sexual content. No text overlay, no watermark.`;
@@ -2160,7 +2163,8 @@ async function runClone(){
   const er=document.getElementById('cloneErr');if(er)er.style.display='none';
   const face=CLONE.useRef?await getRef():null;
   const refs=[face,CLONE.ref].filter(Boolean);
-  const prompt=clonePrompt();
+  const prompt=clonePrompt(!!face);
+  if(CLONE.useRef&&!face)toast('Nhân vật chưa có ảnh neo — khoá mặt bằng mô tả. Tạo Digital Twin ở bước ④ để giống hơn.');
   const n=Math.max(1,Math.min(4,CLONE.shots||1));
   const btn=document.getElementById('cloneBtn');const out=document.getElementById('cloneOut');
   if(btn)btn.disabled=true;
